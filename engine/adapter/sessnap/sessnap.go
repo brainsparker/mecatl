@@ -65,6 +65,12 @@ type Snapshot struct {
 	Profile                   string `json:"profile,omitempty"`
 	ExecutionTemplateID       string `json:"execution_template_id,omitempty"`
 	ExecutionTemplateRevision string `json:"execution_template_revision,omitempty"`
+	// AgentDefinitionName is the session's opaque write-once agent-definition
+	// binding label (ADR 0353). omitempty keeps a pre-0353 snapshot with no
+	// "agent_definition_name" key decoding to "" (an ordinary session) —
+	// additive, no format-tag bump, same round-trip discipline as
+	// Profile/ProviderID/ModelID.
+	AgentDefinitionName string `json:"agent_definition_name,omitempty"`
 	// ProviderID and ModelID are the session's opaque neutral provider+model
 	// selector pair. omitempty keeps a v1 snapshot with no key decoding to the empty
 	// pair ("server default") — additive, no version bump. Persisting them lets a
@@ -297,6 +303,7 @@ func Of(s *session.Session) (Snapshot, error) {
 		EnvironmentRef:            s.EnvironmentRef,
 		Placement:                 s.Placement,
 		Profile:                   s.Profile,
+		AgentDefinitionName:       s.AgentDefinitionName,
 		ExecutionTemplateID:       s.ExecutionTemplateID,
 		ExecutionTemplateRevision: s.ExecutionTemplateRevision,
 		ProviderID:                s.ProviderID,
@@ -386,6 +393,7 @@ func (s Snapshot) Restore() (*session.Session, error) {
 	restored.Profile = s.Profile
 	restored.ExecutionTemplateID = s.ExecutionTemplateID
 	restored.ExecutionTemplateRevision = s.ExecutionTemplateRevision
+	restored.AgentDefinitionName = s.AgentDefinitionName
 	restored.ProviderID = s.ProviderID
 	restored.ModelID = s.ModelID
 	restored.ReasoningEffort = s.ReasoningEffort
