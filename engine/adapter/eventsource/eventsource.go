@@ -96,6 +96,10 @@ type SessionMeta struct {
 	// value can be reconstructed from events or inferred from EnvironmentRef.
 	ExecutionTemplateID       string
 	ExecutionTemplateRevision string
+	// AgentDefinitionName optionally binds the session's root to a named
+	// AgentDef (ADR 0353); "" is an ordinary, non-agent-bound session. Write-once
+	// creation label, opaque to the fold — mirrors Profile's discipline exactly.
+	AgentDefinitionName string
 	// ProviderID and ModelID are the opaque neutral provider+model selector pair
 	// ("" / "" = server default).
 	ProviderID string
@@ -216,6 +220,7 @@ func Fold(meta SessionMeta, events iter.Seq2[session.Event, error]) (*session.Se
 	s.Profile = meta.Profile
 	s.ExecutionTemplateID = meta.ExecutionTemplateID
 	s.ExecutionTemplateRevision = meta.ExecutionTemplateRevision
+	s.AgentDefinitionName = meta.AgentDefinitionName
 	s.ProviderID = meta.ProviderID
 	s.ModelID = meta.ModelID
 	s.ReasoningEffort = meta.ReasoningEffort
