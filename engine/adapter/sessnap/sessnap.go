@@ -380,6 +380,13 @@ func (s Snapshot) Restore() (*session.Session, error) {
 		return nil, fmt.Errorf("sessnap: restore session metadata: %w", err)
 	}
 
+	// AgentDefinitionName restores BEFORE authority: BindAuthority (reached via
+	// restoreAuthority below) rejects a bind that claims this label without a
+	// Ceiling (ADR 0353) — it can only see the label if it is set first, exactly
+	// as the real create path already sequences it (newCreatedSession stamps the
+	// label before setSessionLabels/RestoreLabels ever binds authority).
+	restored.AgentDefinitionName = s.AgentDefinitionName
+
 	if err := restoreAuthority(restored, s.Authority); err != nil {
 		return nil, err
 	}
@@ -393,7 +400,6 @@ func (s Snapshot) Restore() (*session.Session, error) {
 	restored.Profile = s.Profile
 	restored.ExecutionTemplateID = s.ExecutionTemplateID
 	restored.ExecutionTemplateRevision = s.ExecutionTemplateRevision
-	restored.AgentDefinitionName = s.AgentDefinitionName
 	restored.ProviderID = s.ProviderID
 	restored.ModelID = s.ModelID
 	restored.ReasoningEffort = s.ReasoningEffort
