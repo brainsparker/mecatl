@@ -151,6 +151,21 @@ absolute, headless calls deny, and allow-always executes only the current call:
 it is not learned and the next call asks again. The target is never entered,
 leased, or mutated by evidence reads.
 
+### Agent-bound sessions
+
+Set `CreateSessionRequest.agent_definition_name` to bind the session's root to a
+named agent definition. The server resolves the name from its configured agent
+sources, mints the session's authority from that definition's tools with a
+write-once ceiling, and echoes the name in
+`CreateSessionResponse.resolved_agent_definition_name`. Unknown names, and
+combinations with `debug_target_session_id`, `debug_mcp_servers`, or
+`mcp_servers`, return `InvalidArgument`. `model_id` may be set without
+`provider_id` here, because the provider comes from the definition. Fork and
+clear successors keep the binding. `SetMode` and `LoadSessionWithMCP` are
+rejected for a bound session. See
+[Define named agents](/features/agent-behavior/named-agents.md#run-a-session-as-a-named-agent)
+for the behavior.
+
 ### Client-provided MCP servers
 
 `CreateSessionRequest.mcp_servers` mounts streaming-HTTP MCP servers for the

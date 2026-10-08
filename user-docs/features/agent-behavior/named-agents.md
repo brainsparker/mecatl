@@ -18,8 +18,9 @@ Named agent definitions are available to:
 
 - `mecated` and `mecak8s` deployments;
 - `mecatui`'s embedded server;
-- the `Subagent` tool; and
-- agent-team member roles.
+- the `Subagent` tool;
+- agent-team member roles; and
+- API clients, which can bind a whole session to a named agent when creating it.
 
 `mecatequi` does not expose an agent-source configuration path, so its shipped
 one-shot command cannot select a named agent definition.
@@ -165,6 +166,35 @@ A named definition does not make a child automatically writable. Mutability is
 selected by the delegation call and supported deployment path, and remains
 subject to the server's permission and trust policy.
 
+## Run a session as a named agent
+
+Set `agent_definition_name` on `CreateSessionRequest` to start a session whose
+root is the named agent instead of the default explorer. The session uses the
+definition's tools, instructions, hooks, and memory, and otherwise behaves like
+an ordinary session: the same permission asks, guardrails, persistence, and
+fork and clear. The response echoes the bound name in
+`resolved_agent_definition_name`. An unknown name is `InvalidArgument`.
+
+The binding is a ceiling, not a default:
+
+- The session can never gain a tool the definition doesn't list, including
+  through a later grant or workspace enrollment.
+- The definition's provider and model apply. A request's `provider_id` and
+  `model_id` can override them, and `model_id` alone overrides only the
+  definition's model. A definition that pins no model uses the deployment
+  default, not the subagent model.
+- A request's limits and permission mode can only narrow the definition's own.
+- A definition that pins a provider the server doesn't have fails session
+  creation instead of falling back to another provider.
+- The permission mode is fixed at creation, and a restart restores the bound
+  session or fails closed; it never falls back to the default catalog.
+
+An agent-bound session can't be combined with a debug target, debug MCP
+servers, or client-provided MCP servers: the definition's own `mcpServers` are
+its only MCP scope. See the
+[gRPC API reference](/reference/grpc-api.md#agent-bound-sessions) for the
+request contract.
+
 ## Limitations
 
 - Definitions are discovered as a startup snapshot. Changes require rebuilding
@@ -177,6 +207,8 @@ subject to the server's permission and trust policy.
   sources you trust.
 - A named specialist's model/provider selection does not change the parent
   session's provider or model.
+- A server that predates agent-bound sessions ignores `agent_definition_name`
+  without an error, and has no capability flag to check first.
 - `memory: user` and `memory: project` are read-only; named agents do not get a
   general memory-write path from this feature.
 
