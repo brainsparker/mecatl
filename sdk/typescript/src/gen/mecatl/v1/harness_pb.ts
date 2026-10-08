@@ -113,7 +113,9 @@ export type CreateSessionRequest = Message<"mecatl.v1.CreateSessionRequest"> & {
    * through to the provider VERBATIM (a power-user escape hatch for a model the
    * embedded catalog doesn't yet know). NOT slash-joined with provider_id —
    * two distinct fields by design. Setting model_id WITHOUT provider_id is a loud
-   * InvalidArgument (a bare model on an env-derived default provider is ambiguous).
+   * InvalidArgument (a bare model on an env-derived default provider is ambiguous),
+   * except with agent_definition_name set: the provider then comes from the agent
+   * definition, so model_id alone overrides only the definition's model.
    *
    * @generated from field: string model_id = 5;
    */

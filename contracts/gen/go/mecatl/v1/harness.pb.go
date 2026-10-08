@@ -1016,7 +1016,9 @@ type CreateSessionRequest struct {
 	// through to the provider VERBATIM (a power-user escape hatch for a model the
 	// embedded catalog doesn't yet know). NOT slash-joined with provider_id —
 	// two distinct fields by design. Setting model_id WITHOUT provider_id is a loud
-	// InvalidArgument (a bare model on an env-derived default provider is ambiguous).
+	// InvalidArgument (a bare model on an env-derived default provider is ambiguous),
+	// except with agent_definition_name set: the provider then comes from the agent
+	// definition, so model_id alone overrides only the definition's model.
 	ModelId string `protobuf:"bytes,5,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	// profile selects the session's TOOL-SURFACE profile. Empty binds the
 	// deployment default; "no-fs" explicitly attenuates filesystem access.

@@ -92,7 +92,8 @@ func (h *HarnessServer) CreateSession(ctx context.Context, req *mecatlv1.CreateS
 	// Per-session provider/model selector (multi-provider Phase 0, S3): the two
 	// fields map to the neutral ProviderSelector; the zero selector keeps the
 	// shared-engine fast path. An unknown/unavailable provider, or model_id without
-	// provider_id, surfaces as InvalidArgument via toStatus.
+	// provider_id (unless agent_definition_name is set), surfaces as InvalidArgument
+	// via toStatus.
 	sel := ProviderSelector{ProviderID: req.GetProviderId(), ModelID: req.GetModelId(), ReasoningEffort: req.GetReasoningEffort()}
 	var opts []CreateSessionOption
 	if target := req.GetDebugTargetSessionId(); target != "" {
