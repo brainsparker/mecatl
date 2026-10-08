@@ -204,6 +204,29 @@ func childWindowFor(cfg Config, provReg *providerRegistry, providerID, model str
 // A request-supplied provider_id that is itself unknown (cases 3/4) is also a
 // loud server.ErrInvalidArgument, mirroring how an unknown provider_id is
 // handled everywhere else in session creation.
+//
+// An agent definition used as a session root is not a generic subagent. The
+// delegate resolvers (resolveChildProvider/resolveProviderModel) soft-fall back
+// to the parent with a warning and apply cfg.SubagentModel; this resolver does
+// neither. An explicit definition's identity is the point of binding to it, so a
+// pin it cannot honor fails creation instead of running on a model its author
+// never chose.
+//
+// NOTE(#2019, provider-aware model aliases and delegation selectors): not yet
+// merged when this was written. If it has merged, revisit these points here:
+//   - resolveProviderModel then resolves def.Model through resolveModelTarget
+//     (operator aliases/bindings that can carry a provider) and soft-falls back
+//     to the parent target, with a warning, when that target is unavailable.
+//     For a session root that must instead fail with server.ErrInvalidArgument,
+//     like case 5 does for def.Provider (call resolveModelTarget here for
+//     def.Model and return its error).
+//   - its default path reads cfg.SubagentModel and cfg.modelBindingProvider.
+//     rootCfg above clears SubagentModel; make sure no path still applies the
+//     binding provider to a root whose def pins no model.
+//   - cases 2/4 take sel.ModelID verbatim. Decide whether that stays (an
+//     explicit request pair wins) or is resolved as an alias.
+//   - check whether a def's `provider:` may name a router (`model-router`) and
+//     what a root should do then.
 func resolveAgentDefRootProviderModel(cfg Config, provReg *providerRegistry, def agents.AgentDef, parentProvider port.LLMProvider, parentProviderID string, sel server.ProviderSelector) (childProvider port.LLMProvider, providerID, model string, windowFn func() int, err error) {
 	reqProviderID := strings.TrimSpace(sel.ProviderID)
 	reqModelID := strings.TrimSpace(sel.ModelID)
@@ -219,7 +242,15 @@ func resolveAgentDefRootProviderModel(cfg Config, provReg *providerRegistry, def
 				return nil, "", "", nil, fmt.Errorf("%w: agent definition %q pins unavailable provider %q", server.ErrInvalidArgument, def.Name, pinned)
 			}
 		}
-		basePID, baseModel := resolveProviderModel(cfg, provReg, def, parentProviderID, cfg.Model)
+		//
+		// cfg.SubagentModel is the default for generic delegated subagents, not for
+		// an explicit agent definition running as a session root, so it is cleared
+		// for this call only: a def that pins no model (or `inherit`) falls to the
+		// deployment default, like any other main session. Delegate paths call
+		// resolveProviderModel with the real cfg and keep SubagentModel.
+		rootCfg := cfg
+		rootCfg.SubagentModel = ""
+		basePID, baseModel := resolveProviderModel(rootCfg, provReg, def, parentProviderID, cfg.Model)
 		providerID = basePID
 		model = baseModel
 		if reqModelID != "" {

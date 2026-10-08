@@ -608,3 +608,43 @@ func TestSessionScopedAgentIdentity_Scenario1_ProviderModelPairResolution(t *tes
 		}
 	})
 }
+
+// TestSessionScopedAgentIdentity_Scenario1_RootIgnoresSubagentModel pins that
+// an agent-bound SESSION ROOT is not a generic Subagent: cfg.SubagentModel is
+// the default model for delegated subagents and must not become the model of a
+// root whose definition pins none (it falls to the deployment default, like any
+// other main session). Subagent delegates keep that default, unchanged.
+func TestSessionScopedAgentIdentity_Scenario1_RootIgnoresSubagentModel(t *testing.T) {
+	oa := mockllm.New(mockllm.TextTurn("x"))
+	or := mockllm.New(mockllm.TextTurn("x"))
+	reg := twoProviderReg(oa, providerOpenAI, "parent-model", or, providerOpenRouter)
+	cfg := Config{Model: "parent-model", SubagentModel: "subagent-default-model"}
+
+	roots := []struct {
+		name string
+		def  agents.AgentDef
+		want string
+	}{
+		{"no model pinned", agents.AgentDef{Name: "a"}, "parent-model"},
+		{"model: inherit", agents.AgentDef{Name: "b", Model: "inherit"}, "parent-model"},
+		{"own model pinned wins", agents.AgentDef{Name: "c", Model: "own-model"}, "own-model"},
+	}
+	for _, tc := range roots {
+		t.Run("root: "+tc.name, func(t *testing.T) {
+			_, _, mdl, _, err := resolveAgentDefRootProviderModel(cfg, reg, tc.def, oa, providerOpenAI, server.ProviderSelector{})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if mdl != tc.want {
+				t.Fatalf("root model = %q, want %q (SubagentModel is a delegate default, never a session root's)", mdl, tc.want)
+			}
+		})
+	}
+
+	t.Run("subagent delegate keeps SubagentModel (unchanged)", func(t *testing.T) {
+		_, _, mdl, _ := resolveChildProvider(cfg, reg, agents.AgentDef{Name: "d"}, oa, providerOpenAI, "parent-model")
+		if mdl != "subagent-default-model" {
+			t.Fatalf("delegate model = %q, want subagent-default-model", mdl)
+		}
+	})
+}
