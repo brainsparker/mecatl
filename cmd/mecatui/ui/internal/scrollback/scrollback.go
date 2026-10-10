@@ -74,17 +74,19 @@ type card struct {
 // cards, tool-call index, and changed-files appendix; use its component facades
 // to append or transition cards, and snapshots to observe them.
 type Conversation struct {
-	cards         []card
-	nextID        BlockID
-	calls         map[string]int
-	appendix      *AppendixSnapshot
-	seen          map[string]struct{}
-	nextHookID    HookID
-	hooks         map[HookID]HookSnapshot
-	hookEvents    map[hookEventKey]hookEvent
-	hookConflicts map[hookEventKey][]hookEvent
-	hookReviews   map[string]HookID
-	hookBindings  map[HookID]BlockID
+	cards            []card
+	nextID           BlockID
+	calls            map[string]int
+	appendix         *AppendixSnapshot
+	seen             map[string]struct{}
+	nextHookID       uint64
+	originSessionID  string
+	hooks            map[HookID]HookSnapshot
+	newHookConflicts map[string][]hookEvent
+	hookEvents       map[hookEventKey]hookEvent
+	hookConflicts    map[hookEventKey][]hookEvent
+	hookReviews      map[string]HookID
+	hookBindings     map[HookID]BlockID
 }
 
 // ToolCallMetadata is the compact tool-card projection used by inventories. It

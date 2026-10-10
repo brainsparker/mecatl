@@ -50,7 +50,7 @@ type guardrailDetailState struct {
 	requestID uint64
 }
 
-func (d *guardrailDetailState) applyDetail(msg client.GuardrailReviewDetailMsg, sessionID, reviewID string) (scrollback.HookLiveDetail, bool) {
+func (d *guardrailDetailState) applyDetail(msg client.GuardrailReviewDetailMsg, sessionID, reviewID, origin, call string) (scrollback.HookLiveDetail, bool) {
 	if msg.SessionID != sessionID || msg.ReviewID != reviewID || d.requestID == 0 || d.requestID != msg.RequestID {
 		return scrollback.HookLiveDetail{}, false
 	}
@@ -58,7 +58,7 @@ func (d *guardrailDetailState) applyDetail(msg client.GuardrailReviewDetailMsg, 
 	if msg.Err != nil {
 		return scrollback.HookLiveDetail{State: scrollback.HookDetailUnavailable}, true
 	}
-	if msg.Detail.ReviewID != msg.ReviewID {
+	if msg.Detail.ReviewID != msg.ReviewID || (origin != "" && (msg.Detail.OriginSessionID != origin || msg.Detail.ToolCallID != call)) {
 		return scrollback.HookLiveDetail{State: scrollback.HookDetailMismatched}, true
 	}
 	return scrollback.HookLiveDetail{Concern: terminaltext.Sanitize(msg.Detail.Concern), SourceDisplay: terminaltext.Sanitize(msg.Detail.SourceDisplay)}, true
@@ -91,16 +91,54 @@ func (c *conversation) guardrailReview(id string) *guardrailPresentation {
 	return c.guardrailReviews[id]
 }
 
-func (c *conversation) guardrailReviewForAsk(id, askID, parentID string) *guardrailPresentation {
-	if !isChildAsk(askID, parentID) || id == "" {
+func (c *conversation) guardrailReviewForAsk(id, parentID, origin, call string) *guardrailPresentation {
+	if id != "" {
+		if existing, ok := c.scrollback.Hook(scrollback.HookID(id)); ok && existing.SourceID == id && (origin != existing.OriginSessionID || call != existing.CallID) {
+			return &guardrailPresentation{needsFinalDetail: true}
+		}
+	}
+	if rootAsk(origin, parentID) && id != "" {
+		if prior := c.guardrailReviews[id]; prior != nil {
+			hook := prior.snapshot()
+			if hook.SourceID == "" && hook.CallID == call {
+				return prior
+			}
+		}
+	}
+	if origin != "" && call != "" && id != "" {
+		return c.identifiedReviewForAsk(id, parentID, origin, call)
+	}
+	if rootAsk(origin, parentID) || id == "" {
 		return c.guardrailReview(id)
 	}
-	key := guardrailReviewSessionID(askID, parentID) + "\x00" + id
+	if origin == "" {
+		hookID := c.scrollback.RecordHook(scrollback.HookSnapshot{Review: &scrollback.HookReview{ReviewID: id}})
+		return &guardrailPresentation{hookID: hookID, readHook: c.scrollback.Hook, needsFinalDetail: true}
+	}
+	key := origin + "\x00" + id
 	if c.guardrailReviews == nil {
 		c.guardrailReviews = make(map[string]*guardrailPresentation)
 	}
 	if c.guardrailReviews[key] == nil {
 		hookID := c.scrollback.RecordHook(scrollback.HookSnapshot{Review: &scrollback.HookReview{ReviewID: id}})
+		c.guardrailReviews[key] = &guardrailPresentation{hookID: hookID, readHook: c.scrollback.Hook, needsFinalDetail: true}
+	}
+	return c.guardrailReviews[key]
+}
+
+func (c *conversation) identifiedReviewForAsk(id, parentID, origin, call string) *guardrailPresentation {
+	if c.guardrailReviews == nil {
+		c.guardrailReviews = make(map[string]*guardrailPresentation)
+	}
+	hookID, ok := c.scrollback.EnsureHookRecord(id, origin, call)
+	if !ok {
+		return &guardrailPresentation{needsFinalDetail: true}
+	}
+	key := id
+	if origin != parentID {
+		key = origin + "\x00" + id
+	}
+	if current := c.guardrailReviews[key]; current == nil || current.hookID != hookID {
 		c.guardrailReviews[key] = &guardrailPresentation{hookID: hookID, readHook: c.scrollback.Hook, needsFinalDetail: true}
 	}
 	return c.guardrailReviews[key]
@@ -155,29 +193,53 @@ func (r *guardrailPresentation) beginDetailRequest(c *conversation, requestID ui
 	})
 }
 
+func (c *conversation) addHistoricalApproval(msg client.ApprovalMsg) {
+	text := approvalNotice(msg)
+	if msg.OriginSessionID != "" && msg.CallID != "" && msg.ReviewID != "" {
+		if hook, ok := c.scrollback.Hook(scrollback.HookID(msg.ReviewID)); !ok {
+			if c.pendingReceipts == nil {
+				c.pendingReceipts = make(map[string][]client.ApprovalMsg)
+			}
+			c.pendingReceipts[msg.ReviewID] = append(c.pendingReceipts[msg.ReviewID], msg)
+		} else {
+			c.attachHistoricalReceipt(hook, msg)
+		}
+	}
+	c.addNotice(text)
+}
+
+func (c *conversation) attachHistoricalReceipt(hook scrollback.HookSnapshot, msg client.ApprovalMsg) {
+	if hook.SourceID != msg.ReviewID || hook.OriginSessionID != msg.OriginSessionID || hook.CallID != msg.CallID || hook.Review == nil || hook.Review.ReviewID != msg.ReviewID {
+		return
+	}
+	hook.Detail.Receipt = terminaltext.Sanitize(approvalNotice(msg))
+	if hook.Detail.State == "" {
+		hook.Detail.State = scrollback.HookDetailReceipt
+	}
+	c.scrollback.ReviseHook(hook.ID, hook)
+}
+
 // Live and replay share the visibility policy. A live approval takes ownership
 // of its review's explanation when the permission request arrives.
 func (c *conversation) addGuardrailHook(msg client.HookMsg, debug bool) (*guardrailPresentation, scrollback.HookRecordOutcome) {
 	hook := hookSnapshot(msg)
 	outcome := c.scrollback.Tools().RecordHookEvent(hook)
 	if outcome.Attachment == scrollback.HookPending {
-		if c.pendingHooks == nil {
-			c.pendingHooks = make(map[scrollback.HookID]string)
-		}
-		if _, exists := c.pendingHooks[outcome.ID]; !exists {
+		if !slices.Contains(c.pendingHookOrder, outcome.ID) {
 			c.pendingHookOrder = append(c.pendingHookOrder, outcome.ID)
 		}
-		c.pendingHooks[outcome.ID] = hook.CallID
 	} else {
-		delete(c.pendingHooks, outcome.ID)
 		c.pendingHookOrder = slices.DeleteFunc(c.pendingHookOrder, func(id scrollback.HookID) bool { return id == outcome.ID })
 	}
-	if outcome.Status == scrollback.HookDuplicate {
-		return nil, outcome
+	if hook.SourceID != "" && outcome.Status != scrollback.HookConflict && hook.Review != nil && hook.Review.ReviewID == hook.SourceID {
+		for _, receipt := range c.pendingReceipts[hook.SourceID] {
+			if recorded, ok := c.scrollback.Hook(outcome.ID); ok {
+				c.attachHistoricalReceipt(recorded, receipt)
+			}
+		}
+		delete(c.pendingReceipts, hook.SourceID)
 	}
-	if msg.Guardrail == nil {
-		recorded, _ := c.scrollback.Hook(outcome.ID)
-		c.addHook(recorded.Text, recorded.Phase, recorded.Tool, recorded.Decision)
+	if outcome.Status == scrollback.HookDuplicate {
 		return nil, outcome
 	}
 	if outcome.Status == scrollback.HookConflict {
@@ -189,10 +251,12 @@ func (c *conversation) addGuardrailHook(msg client.HookMsg, debug bool) (*guardr
 		c.scrollback.Notices().AddGuardrailNotice(text, false)
 		return nil, outcome
 	}
-	r := c.guardrailReview(msg.Guardrail.ReviewID)
-	if r.hookID == 0 {
-		r.hookID, r.readHook = outcome.ID, c.scrollback.Hook
+	if msg.Guardrail == nil {
+		recorded, _ := c.scrollback.Hook(outcome.ID)
+		c.addHook(recorded.Text, recorded.Phase, recorded.Tool, recorded.Decision)
+		return nil, outcome
 	}
+	r := c.presentationForHook(msg, outcome.ID)
 	// A replayed pending-action hook must not undo an answer, and a routine final
 	// outcome must not replace or hide the visible approval receipt.
 	if r.approvalResolved && (msg.Guardrail.Disposition == "ask_action" || routineGuardrail(msg.Guardrail)) {
@@ -202,8 +266,31 @@ func (c *conversation) addGuardrailHook(msg client.HookMsg, debug bool) (*guardr
 	return r, outcome
 }
 
+func (c *conversation) presentationForHook(msg client.HookMsg, id scrollback.HookID) *guardrailPresentation {
+	if msg.HookID == "" {
+		r := c.guardrailReview(msg.Guardrail.ReviewID)
+		if r.hookID == "" {
+			r.hookID, r.readHook = id, c.scrollback.Hook
+		}
+		return r
+	}
+	if c.guardrailReviews == nil {
+		c.guardrailReviews = make(map[string]*guardrailPresentation)
+	}
+	key := msg.HookID
+	if msg.OriginSessionID != "" && msg.OriginSessionID != c.scrollback.OriginSession() {
+		key = msg.OriginSessionID + "\x00" + msg.HookID
+	}
+	if r := c.guardrailReviews[key]; r != nil && r.hookID == id {
+		return r
+	}
+	r := &guardrailPresentation{hookID: id, readHook: c.scrollback.Hook, needsFinalDetail: true}
+	c.guardrailReviews[key] = r
+	return r
+}
+
 func hookSnapshot(msg client.HookMsg) scrollback.HookSnapshot {
-	hook := scrollback.HookSnapshot{CallID: msg.CallID, RunID: msg.RunID, Seq: msg.Seq, Phase: terminaltext.Sanitize(msg.Phase), Tool: terminaltext.Sanitize(msg.Tool), Decision: string(msg.Decision), Text: terminaltext.Sanitize(msg.Text)}
+	hook := scrollback.HookSnapshot{SourceID: msg.HookID, Revision: msg.Revision, OriginSessionID: msg.OriginSessionID, CallID: msg.CallID, RunID: msg.RunID, Seq: msg.Seq, Phase: terminaltext.Sanitize(msg.Phase), Tool: terminaltext.Sanitize(msg.Tool), Decision: string(msg.Decision), Text: terminaltext.Sanitize(msg.Text)}
 	if v := msg.Guardrail; v != nil {
 		hook.Review = &scrollback.HookReview{
 			ReviewID: v.ReviewID, Job: v.Job, Assessment: v.Assessment, Inspection: v.Inspection, Disposition: v.Disposition, ReasonCode: v.ReasonCode,
@@ -298,7 +385,7 @@ func (m *Model) applyGuardrailDetail(msg client.GuardrailReviewDetailMsg) {
 		return
 	}
 	state := guardrailDetailState{requestID: r.requestID}
-	detail, ok := state.applyDetail(msg, m.sessionID, msg.ReviewID)
+	detail, ok := state.applyDetail(msg, m.sessionID, msg.ReviewID, r.snapshot().OriginSessionID, r.snapshot().CallID)
 	if !ok {
 		return
 	}

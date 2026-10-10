@@ -14,7 +14,7 @@ func TestHookRecordAttachmentAndDetachment(t *testing.T) {
 		Detail: HookLiveDetail{State: HookDetailReceipt, Concern: "sanitized concern", SourceDisplay: "source", Receipt: "approved"},
 	}
 	id := c.RecordHook(input)
-	if id == 0 || !c.AttachHook("call", id) || !c.AttachHook("call", id) {
+	if id == "" || !c.AttachHook("call", id) || !c.AttachHook("call", id) {
 		t.Fatal("record/attach hook")
 	}
 	input.Review.ConcernRefs[0] = "changed input"
@@ -45,10 +45,10 @@ func TestHookRecordAttachmentAndDetachment(t *testing.T) {
 	if got := c.SnapshotAt(0).Payload.(ToolCardSnapshot).Hooks[0].Detail.State; got != HookDetailUnavailable {
 		t.Fatalf("attachment not derived from record: %q", got)
 	}
-	if c.AttachHook("missing", id) || c.AttachHook("call", id+1) || c.ReviseHook(id+1, updated) {
+	if c.AttachHook("missing", id) || c.AttachHook("call", id+"_missing") || c.ReviseHook(id+"_missing", updated) {
 		t.Fatal("accepted unknown reference")
 	}
-	if _, ok := c.Hook(id + 1); ok {
+	if _, ok := c.Hook(id + "_missing"); ok {
 		t.Fatal("unknown record found")
 	}
 	updated.Review.SourceRefs[0] = "changed after revision"

@@ -242,7 +242,7 @@ func TestGuardrailWithheldResultDoesNotSuggestRerunningTool(t *testing.T) {
 
 func TestGuardrailHookWhileApprovalActive(t *testing.T) {
 	m := guardrailTestModel(t, &guardrailDetailRecorder{}, false)
-	ask := client.PermissionAskMsg{AskID: "session:1:action", Tool: "Shell", Guardrail: &client.GuardrailApprovalScope{ReviewID: "action", Kind: "action"}}
+	ask := client.PermissionAskMsg{AskID: "session:1:action", OriginSessionID: "session", Tool: "Shell", Guardrail: &client.GuardrailApprovalScope{ReviewID: "action", Kind: "action"}}
 	m = applyAll(m, ask)
 	hook := guardrailTestHook("action", "operational_failure", "unresolved", "ask_action")
 	hook.Guardrail.Job = "action"
@@ -340,7 +340,7 @@ func TestGuardrailRetractedReceiptKeepsReviewIdentity(t *testing.T) {
 	for _, retract := range []string{"head", "queued"} {
 		m := guardrailTestModel(t, &guardrailDetailRecorder{}, false)
 		ask := func(id string) client.PermissionAskMsg {
-			return client.PermissionAskMsg{AskID: "session:1:" + id, Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: id, Kind: "result_release"}}
+			return client.PermissionAskMsg{AskID: "session:1:" + id, OriginSessionID: "session", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: id, Kind: "result_release"}}
 		}
 		m = applyAll(m, ask("head"), ask("queued"), client.PermissionRetractMsg{AskID: ask(retract).AskID})
 		before := m.conv.scrollback.SnapshotAt(0)
@@ -359,7 +359,7 @@ func TestGuardrailQueuedFailureStaysWithPromotedPrompt(t *testing.T) {
 	r := &guardrailDetailRecorder{}
 	m := guardrailTestModel(t, r, false)
 	ask := func(id string) client.PermissionAskMsg {
-		return client.PermissionAskMsg{AskID: "session:1:" + id, Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: id, Kind: "result_release"}}
+		return client.PermissionAskMsg{AskID: "session:1:" + id, OriginSessionID: "session", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: id, Kind: "result_release"}}
 	}
 	head := updateGuardrail(&m, ask("head"))[0]
 	queued := updateGuardrail(&m, ask("queued"))[0]

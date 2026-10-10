@@ -23,7 +23,11 @@ func (m *Model) applyApprovalDetail(msg client.GuardrailReviewDetailMsg) {
 		if ask.guardrail == nil || ask.review == nil {
 			continue
 		}
-		detail, ok := ask.applyDetail(msg, guardrailReviewSessionID(ask.AskID, s.sessionID), ask.guardrail.ReviewID)
+		origin := ask.OriginSessionID
+		if origin == "" {
+			continue
+		}
+		detail, ok := ask.applyDetail(msg, origin, ask.guardrail.ReviewID, ask.review.snapshot().OriginSessionID, ask.review.snapshot().CallID)
 		if !ok {
 			continue
 		}
@@ -169,7 +173,7 @@ func (m Model) applyApprovalSurfaceIntent(intent surfaceIntent) (model tea.Model
 	switch intent := intent.(type) {
 	case approvalResolvedIntent:
 		intent.notice = m.addApprovalNotice(intent.ask, intent.notice)
-		m.notifyHookPermissionResult(intent.askID)
+		m.notifyHookPermissionResult(intent.askID, intent.ask.OriginSessionID)
 		m.pendingApproval = &intent
 		cmd := (&m).approvalSendCmd(intent.askID, intent.verdict, intent.guardrail, intent.expectedRunID)
 		model, cmd, stopSurfaceDispatch = m.finishApprovalIntent(intent.advance, intent.resume, cmd)
@@ -205,7 +209,7 @@ func (m Model) finishApprovalIntent(advance approvalAdvance, resume phase, cmd t
 		// arrived behind a background-child head was queued silently, so without
 		// this the host never learns the main session wants attention.
 		if s := approvalSurfaceFor(&m); s != nil {
-			m.notifyHookPermissionAsk(s.ask.AskID, s.ask.Reason)
+			m.notifyHookPermissionAsk(s.ask.AskID, s.ask.Reason, s.ask.OriginSessionID)
 		}
 		return m, cmd, false
 	case approvalQueueDrained:
@@ -232,8 +236,8 @@ func (m Model) finishApprovalIntent(advance approvalAdvance, resume phase, cmd t
 // successor) route through here so the child filter cannot drift between them:
 // only a MAIN-session ask counts, since a host drives terminal-level status
 // from the main loop and never from a surfaced subagent ask.
-func (m Model) notifyHookPermissionAsk(askID, reason string) {
-	if m.deps.AgentHook == nil || askID == "" || isChildAsk(askID, m.sessionID) {
+func (m Model) notifyHookPermissionAsk(askID, reason, origin string) {
+	if m.deps.AgentHook == nil || askID == "" || !rootAsk(origin, m.sessionID) {
 		return
 	}
 	m.deps.AgentHook.PermissionRequest(m.deps.Ctx, m.sessionID, reason)
@@ -243,8 +247,8 @@ func (m Model) notifyHookPermissionAsk(askID, reason string) {
 // operator answers a visible main-session ask. The resumed run may not emit a
 // new turn.start before doing more work, so waiting for Start would leave the
 // host stuck on PermissionRequest until the terminal Stop.
-func (m Model) notifyHookPermissionResult(askID string) {
-	if m.deps.AgentHook == nil || askID == "" || isChildAsk(askID, m.sessionID) {
+func (m Model) notifyHookPermissionResult(askID, origin string) {
+	if m.deps.AgentHook == nil || askID == "" || !rootAsk(origin, m.sessionID) {
 		return
 	}
 	m.deps.AgentHook.PermissionResult(m.deps.Ctx, m.sessionID)
@@ -265,7 +269,7 @@ func (m Model) applyPermissionAsk(msg client.PermissionAskMsg) (tea.Model, tea.C
 	}
 	var review *guardrailPresentation
 	if msg.Guardrail != nil {
-		review = m.conv.guardrailReviewForAsk(msg.Guardrail.ReviewID, msg.AskID, m.sessionID)
+		review = m.conv.guardrailReviewForAsk(msg.Guardrail.ReviewID, m.sessionID, msg.OriginSessionID, msg.CallID)
 		review.handoffToApproval(&m.conv)
 		if !m.deps.Debug {
 			msg.Reason = "The safety review needs your decision before this action can run."
@@ -279,11 +283,10 @@ func (m Model) applyPermissionAsk(msg client.PermissionAskMsg) (tea.Model, tea.C
 	}
 	var detailCmd tea.Cmd
 	var detailRequest uint64
-	if msg.Guardrail != nil && m.deps.Guardrails != nil && msg.Guardrail.ReviewID != "" {
+	if msg.Guardrail != nil && m.deps.Guardrails != nil && msg.Guardrail.ReviewID != "" && msg.OriginSessionID != "" {
 		m.guardrailDetailRequest++
 		detailRequest = m.guardrailDetailRequest
-		detailSessionID := guardrailReviewSessionID(msg.AskID, m.sessionID)
-		detailCmd = client.GetGuardrailReviewDetailCmd(m.deps.Ctx, m.deps.Guardrails, detailSessionID, msg.Guardrail.ReviewID, detailRequest)
+		detailCmd = client.GetGuardrailReviewDetailCmd(m.deps.Ctx, m.deps.Guardrails, msg.OriginSessionID, msg.Guardrail.ReviewID, detailRequest)
 	}
 	open := s.ask.AskID != ""
 	opening := s.applyPermissionAsk(msg, open, m.phase, detailRequest, review)
@@ -293,7 +296,7 @@ func (m Model) applyPermissionAsk(msg client.PermissionAskMsg) (tea.Model, tea.C
 		m.toolProgress = ""
 		// Host hook PermissionRequest: this ask became the visible head, so the
 		// agent is now blocked on a human for it.
-		m.notifyHookPermissionAsk(msg.AskID, msg.Reason)
+		m.notifyHookPermissionAsk(msg.AskID, msg.Reason, msg.OriginSessionID)
 	}
 	model, cmd := m.afterEvent()
 	return model, tea.Batch(cmd, detailCmd)

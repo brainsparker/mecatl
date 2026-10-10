@@ -220,7 +220,7 @@ func TestHookAssociationUniqueAndStable(t *testing.T) {
 	var c Conversation
 	record := c.Tools().RecordHookEvent
 	pending := record(HookSnapshot{CallID: "late", RunID: "r", Seq: 1})
-	if pending.Attachment != HookPending || pending.ID == 0 || c.AttachHook("", pending.ID) || c.AttachHook("wrong", pending.ID) {
+	if pending.Attachment != HookPending || pending.ID == "" || c.AttachHook("", pending.ID) || c.AttachHook("wrong", pending.ID) {
 		t.Fatalf("pending or mismatched: %+v", pending)
 	}
 	if got := record(HookSnapshot{RunID: "r", Seq: 2}); got.Attachment != HookRejected {
@@ -235,7 +235,7 @@ func TestHookAssociationUniqueAndStable(t *testing.T) {
 	}
 	original := c.SnapshotAt(0)
 	c.Tools().Add(ToolCall{ID: "late"})
-	if c.AttachHook("late", pending.ID) || c.AttachHook("late", pending.ID+100) {
+	if c.AttachHook("late", pending.ID) || c.AttachHook("late", pending.ID+"_missing") {
 		t.Fatal("ambiguous attachment")
 	}
 	if got := record(HookSnapshot{CallID: "late", RunID: "r", Seq: 3}); got.Attachment != HookRejected {

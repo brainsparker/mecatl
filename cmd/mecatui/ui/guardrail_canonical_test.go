@@ -30,7 +30,7 @@ func TestGuardrailCanonicalReplayHasNoLiveDetail(t *testing.T) {
 
 func TestGuardrailCanonicalDetailRejectsMismatchedPayload(t *testing.T) {
 	m := guardrailTestModel(t, &guardrailDetailRecorder{}, false)
-	ask := client.PermissionAskMsg{AskID: "session:1:call", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "review", Kind: "action"}}
+	ask := client.PermissionAskMsg{AskID: "session:1:call", OriginSessionID: "session", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "review", Kind: "action"}}
 	reply := updateGuardrail(&m, ask)[0]
 	wrong := reply
 	wrong.Detail.ReviewID = "other"
@@ -94,7 +94,7 @@ func TestGuardrailCanonicalAskBeforeAndAfterHook(t *testing.T) {
 		}
 		r := approvalSurfaceOf(t, m).ask.review
 		record := r.snapshot()
-		if record.ID == 0 || record.Review.ReviewID != "review" || !strings.HasPrefix(record.Detail.Concern, "Test explanation") || strings.Contains(record.Detail.Concern, "\x1b") || strings.Contains(record.Detail.SourceDisplay, "\x1b") || record.CallID != "call" {
+		if record.ID == "" || record.Review.ReviewID != "review" || !strings.HasPrefix(record.Detail.Concern, "Test explanation") || strings.Contains(record.Detail.Concern, "\x1b") || strings.Contains(record.Detail.SourceDisplay, "\x1b") || record.CallID != "call" {
 			t.Fatalf("hookFirst=%v canonical record: %+v", hookFirst, record)
 		}
 		tool := m.conv.scrollback.SnapshotAt(0).Payload.(scrollback.ToolCardSnapshot)
@@ -146,7 +146,7 @@ func TestUnidentifiedGuardrailCannotChangeActiveApproval(t *testing.T) {
 	for _, width := range []int{40, 80, 100, 120} {
 		m := guardrailTestModel(t, nil, false)
 		m = applyAll(m, tea.WindowSizeMsg{Width: width, Height: 30})
-		m = applyAll(m, client.ToolCallMsg{ID: "call", Name: "Read"}, client.PermissionAskMsg{AskID: "session:1:call", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "review", Kind: "action"}})
+		m = applyAll(m, client.ToolCallMsg{ID: "call", Name: "Read"}, client.PermissionAskMsg{AskID: "session:1:call", OriginSessionID: "session", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "review", Kind: "action"}})
 		newer := guardrailTestHook("review", "complete", "unresolved", "withhold_result")
 		newer.CallID, newer.RunID, newer.Seq = "call", "run", 12
 		m = applyAll(m, newer)
@@ -167,13 +167,13 @@ func TestUnidentifiedGuardrailCannotChangeActiveApproval(t *testing.T) {
 
 func TestGuardrailChildAskDoesNotAdoptRootReview(t *testing.T) {
 	m := guardrailTestModel(t, &guardrailDetailRecorder{}, false)
-	ask := client.PermissionAskMsg{AskID: "child:1:call", CallID: "call", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "review", Kind: "action"}}
+	ask := client.PermissionAskMsg{AskID: "child:1:call", OriginSessionID: "child", CallID: "call", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "review", Kind: "action"}}
 	reply := updateGuardrail(&m, ask)[0]
 	root := guardrailTestHook("review", "operational_failure", "unresolved", "ask_action")
 	root.CallID, root.RunID, root.Seq = "call", "run", 2
 	m = applyAll(m, client.ToolCallMsg{ID: "call", Name: "Read"}, root)
 	s := approvalSurfaceOf(t, m)
-	if s.ask.review.snapshot().CallID != "" || s.ask.Reason == hookText(hookSnapshot(root)) {
+	if s.ask.review.snapshot().CallID != "call" || s.ask.review.snapshot().OriginSessionID != "child" || s.ask.Reason == hookText(hookSnapshot(root)) {
 		t.Fatalf("root hook adopted child ask: %+v", s.ask.review.snapshot())
 	}
 	m = applyAll(m, reply)

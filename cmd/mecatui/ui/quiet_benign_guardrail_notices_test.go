@@ -325,7 +325,7 @@ func TestQuietBenignGuardrailNotices_Scenario2_ApprovalDetailAlwaysVisible(t *te
 	m = model.(Model)
 	unrelated := runGuardrailDetailCommand(t, unrelatedCmd)
 
-	model, approvalCmd := m.applyPermissionAsk(client.PermissionAskMsg{AskID: "ask", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "approval", Kind: "action"}})
+	model, approvalCmd := m.applyPermissionAsk(client.PermissionAskMsg{AskID: "ask", OriginSessionID: "session", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "approval", Kind: "action"}})
 	m = model.(Model)
 	before := m.conv.scrollback.Len()
 	m = applyAll(m, unrelated)

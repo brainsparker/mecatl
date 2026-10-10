@@ -152,13 +152,13 @@ func TestHookPendingAttachmentPreservesSourceOrder(t *testing.T) {
 		apply(action)
 		apply(generic)
 		apply(inbound) // identical delivery must not move its slot
-		if len(c.pendingHooks) != 3 {
-			t.Fatalf("replay=%v pending: %v", replay, c.pendingHooks)
+		if len(c.pendingHookOrder) != 3 {
+			t.Fatalf("replay=%v pending: %v", replay, c.pendingHookOrder)
 		}
 		apply(client.ToolCallMsg{ID: "call", Name: "Read"})
 		tools, _ := hookCards(c)
-		if len(tools) != 1 || len(tools[0].Hooks) != 3 || tools[0].Hooks[0].Review.ReviewID != "inbound" || tools[0].Hooks[1].Review.ReviewID != "action" || tools[0].Hooks[2].Text != "generic" || len(c.pendingHooks) != 0 {
-			t.Fatalf("replay=%v order: %+v pending=%v", replay, tools, c.pendingHooks)
+		if len(tools) != 1 || len(tools[0].Hooks) != 3 || tools[0].Hooks[0].Review.ReviewID != "inbound" || tools[0].Hooks[1].Review.ReviewID != "action" || tools[0].Hooks[2].Text != "generic" || len(c.pendingHookOrder) != 0 {
+			t.Fatalf("replay=%v order: %+v pending=%v", replay, tools, c.pendingHookOrder)
 		}
 	}
 }
@@ -188,14 +188,14 @@ func TestHookCorrelationLiveAndReplay(t *testing.T) {
 			apply(hook)
 			apply(hook)
 			if beforeCall {
-				if len(c.pendingHooks) != 1 {
-					t.Fatalf("replay=%v pending=%v", replay, c.pendingHooks)
+				if len(c.pendingHookOrder) != 1 {
+					t.Fatalf("replay=%v pending=%v", replay, c.pendingHookOrder)
 				}
 				apply(client.ToolCallMsg{ID: "second", Name: "Read"})
 			}
 			tools, notices := hookCards(c)
-			if len(tools) != 2 || len(tools[0].Hooks) != 0 || len(tools[1].Hooks) != 1 || tools[1].Hooks[0].Text != "modified" || len(notices) != 1 || len(c.pendingHooks) != 0 {
-				t.Fatalf("replay=%v before=%v: tools=%+v notices=%+v pending=%v", replay, beforeCall, tools, notices, c.pendingHooks)
+			if len(tools) != 2 || len(tools[0].Hooks) != 0 || len(tools[1].Hooks) != 1 || tools[1].Hooks[0].Text != "modified" || len(notices) != 1 || len(c.pendingHookOrder) != 0 {
+				t.Fatalf("replay=%v before=%v: tools=%+v notices=%+v pending=%v", replay, beforeCall, tools, notices, c.pendingHookOrder)
 			}
 			// Text equality is not an event identity; distinct and identity-less evidence survives.
 			hook.Seq = 2
@@ -232,17 +232,17 @@ func TestHookCorrelationRejectedEvidenceAndPendingLifetime(t *testing.T) {
 			apply(client.HookMsg{CallID: id, RunID: "run", Seq: int64(i + 1), Text: "evidence"})
 		}
 		tools, notices := hookCards(c)
-		if len(notices) != 4 || len(tools[0].Hooks) != 0 || len(tools[1].Hooks) != 0 || len(c.pendingHooks) != 2 {
-			t.Fatalf("replay=%v rejected/pending evidence: tools=%+v notices=%+v pending=%v", replay, tools, notices, c.pendingHooks)
+		if len(notices) != 4 || len(tools[0].Hooks) != 0 || len(tools[1].Hooks) != 0 || len(c.pendingHookOrder) != 2 {
+			t.Fatalf("replay=%v rejected/pending evidence: tools=%+v notices=%+v pending=%v", replay, tools, notices, c.pendingHookOrder)
 		}
 		apply(client.ToolCallMsg{ID: "later", Name: "Read"})
 		tools, notices = hookCards(c)
-		if len(tools[2].Hooks) != 1 || len(notices) != 4 || len(c.pendingHooks) != 1 {
-			t.Fatalf("replay=%v late attachment: %+v %+v %v", replay, tools, notices, c.pendingHooks)
+		if len(tools[2].Hooks) != 1 || len(notices) != 4 || len(c.pendingHookOrder) != 1 {
+			t.Fatalf("replay=%v late attachment: %+v %+v %v", replay, tools, notices, c.pendingHookOrder)
 		}
 		apply(client.ResultMsg{})
-		if len(c.pendingHooks) != 0 {
-			t.Fatalf("replay=%v pending after terminal: %v", replay, c.pendingHooks)
+		if len(c.pendingHookOrder) != 0 {
+			t.Fatalf("replay=%v pending after terminal: %v", replay, c.pendingHookOrder)
 		}
 		apply(client.ToolCallMsg{ID: "unknown", Name: "Read"})
 		tools, notices = hookCards(c)
@@ -257,18 +257,18 @@ func TestHookPendingClearsOnLiveErrorCancelAndSessionReplacement(t *testing.T) {
 		m := guardrailTestModel(t, nil, false)
 		m.phase = phaseRunning
 		m = applyAll(m, client.HookMsg{CallID: "late", RunID: "run", Seq: 1, Text: "evidence"})
-		if len(m.conv.pendingHooks) != 1 {
+		if len(m.conv.pendingHookOrder) != 1 {
 			t.Fatal("missing candidate")
 		}
 		m = applyAll(m, end)
-		if len(m.conv.pendingHooks) != 0 {
-			t.Fatalf("pending after %T: %v", end, m.conv.pendingHooks)
+		if len(m.conv.pendingHookOrder) != 0 {
+			t.Fatalf("pending after %T: %v", end, m.conv.pendingHookOrder)
 		}
 	}
 	m := guardrailTestModel(t, nil, false)
 	m = applyAll(m, client.HookMsg{CallID: "late", Text: "evidence"})
 	m = m.resetSession()
-	if len(m.conv.pendingHooks) != 0 {
+	if len(m.conv.pendingHookOrder) != 0 {
 		t.Fatal("session replacement kept pending candidate")
 	}
 }
@@ -283,13 +283,13 @@ func TestHookReplayReceiptsRemainStandaloneAndEndDropsPending(t *testing.T) {
 				s.applyReplayEvent(client.PermissionAskMsg{AskID: "child:1:later", CallID: "later", Guardrail: &client.GuardrailApprovalScope{ReviewID: "historical-review", Kind: "action"}})
 			}
 			s.applyReplayEvent(client.ApprovalMsg{AskID: "child:1:later"})
-			if len(s.transcript.pendingHooks) != 1 || len(s.transcript.guardrailReviews) != 0 || s.transcript.scrollback.Len() != 2 {
+			if len(s.transcript.pendingHookOrder) != 1 || len(s.transcript.guardrailReviews) != 0 || s.transcript.scrollback.Len() != 2 {
 				t.Fatalf("withAsk=%v historical receipt inferred a join: %+v", withAsk, s.transcript)
 			}
 			s.applyReplayEvent(end)
 			s.applyReplayEvent(client.ToolCallMsg{ID: "later", Name: "Read"})
 			tools, notices := hookCards(&s.transcript)
-			if len(s.transcript.pendingHooks) != 0 || len(tools) != 1 || len(tools[0].Hooks) != 0 || len(notices) != 1 {
+			if len(s.transcript.pendingHookOrder) != 0 || len(tools) != 1 || len(tools[0].Hooks) != 0 || len(notices) != 1 {
 				t.Fatalf("withAsk=%v %T: historical receipt or expired hook joined call: %+v %+v", withAsk, end, tools, notices)
 			}
 		}
@@ -305,15 +305,15 @@ func TestHookRecoveryReconciledCallAttachesPendingOnce(t *testing.T) {
 		t.Fatal("recovery call did not reconcile")
 	}
 	tools, notices := hookCards(&c)
-	if len(tools) != 1 || len(tools[0].Hooks) != 1 || len(notices) != 1 || len(c.pendingHooks) != 0 {
-		t.Fatalf("recovery attachment: %+v %+v %v", tools, notices, c.pendingHooks)
+	if len(tools) != 1 || len(tools[0].Hooks) != 1 || len(notices) != 1 || len(c.pendingHookOrder) != 0 {
+		t.Fatalf("recovery attachment: %+v %+v %v", tools, notices, c.pendingHookOrder)
 	}
 }
 
 func TestHookReviewCorrelationAcrossResultAndQueuedApproval(t *testing.T) {
 	m := guardrailTestModel(t, nil, false)
 	for _, id := range []string{"first", "second"} {
-		m = applyAll(m, client.PermissionAskMsg{AskID: "session:1:" + id, CallID: id, Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: id, Kind: "result_release"}})
+		m = applyAll(m, client.PermissionAskMsg{AskID: "session:1:" + id, OriginSessionID: "session", CallID: id, Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: id, Kind: "result_release"}})
 	}
 	s := approvalSurfaceOf(t, m)
 	m = applyAll(m, client.ToolCallMsg{ID: "first", Name: "Read"}, client.ToolCallMsg{ID: "second", Name: "Read"})

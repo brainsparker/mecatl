@@ -43,9 +43,22 @@ func guardrailTestHook(id, inspection, assessment, disposition string) client.Ho
 // updateGuardrail runs the real reducer and its commands, leaving detail replies
 // unapplied so each test controls their ordering and correlation.
 func updateGuardrail(m *Model, msg tea.Msg) []client.GuardrailReviewDetailMsg {
+	if ask, ok := msg.(client.PermissionAskMsg); ok {
+		if ask.OriginSessionID == "" {
+			ask.OriginSessionID = m.sessionID // This fixture injects a known local ask.
+		}
+		msg = ask
+	}
 	next, cmd := m.Update(msg)
 	*m = next.(Model)
-	return guardrailReplies(cmd)
+	replies := guardrailReplies(cmd)
+	if ask, ok := msg.(client.PermissionAskMsg); ok {
+		for i := range replies {
+			replies[i].Detail.OriginSessionID = ask.OriginSessionID
+			replies[i].Detail.ToolCallID = ask.CallID
+		}
+	}
+	return replies
 }
 
 func guardrailReplies(cmd tea.Cmd) []client.GuardrailReviewDetailMsg {
@@ -208,7 +221,7 @@ func TestGuardrailApprovalOwnsExplanationAndQueuedReplies(t *testing.T) {
 	if r.calls != 1 || m.conv.scrollback.Len() != 0 {
 		t.Fatal("approval did not take exclusive ownership")
 	}
-	queued := client.PermissionAskMsg{AskID: "child:2:result", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "result", Kind: "result_release"}}
+	queued := client.PermissionAskMsg{AskID: "child:2:result", OriginSessionID: "child", Tool: "Read", Guardrail: &client.GuardrailApprovalScope{ReviewID: "result", Kind: "result_release"}}
 	resultReply := updateGuardrail(&m, queued)[0]
 	if resultReply.SessionID != "child" {
 		t.Fatalf("child detail request = %+v", resultReply)
@@ -325,7 +338,7 @@ func TestGuardrailApprovalVerdictsKeepExactScope(t *testing.T) {
 			recorder := &authorizationControlRecorder{}
 			m.authorization = mcpAuthorizationState{controlStream: client.NewAuthorizationEventStream(client.NewFakeEventStream(), recorder), controlGen: 1, runningControlGen: 1}
 			scope := &client.GuardrailApprovalScope{ReviewID: "review", Kind: tc.kind, RepeatAvailable: tc.repeat, SessionOnly: true, GrantDigest: "exact-action"}
-			m = applyAll(m, client.PermissionAskMsg{AskID: "session:1:call", Tool: "Shell", Guardrail: scope, ExpectedRunID: "run"})
+			m = applyAll(m, client.PermissionAskMsg{AskID: "session:1:call", OriginSessionID: "session", Tool: "Shell", Guardrail: scope, ExpectedRunID: "run"})
 			s := approvalSurfaceOf(t, m)
 			if got := len(approvalButtons(s.deps.theme, s.deps.marks, s.ask, false)); got != tc.buttons {
 				t.Fatalf("buttons=%d", got)

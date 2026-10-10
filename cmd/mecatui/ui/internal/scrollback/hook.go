@@ -1,12 +1,13 @@
 package scrollback
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 )
 
-// HookID identifies a conversation-owned hook record, independently of card IDs.
-type HookID uint64
+// HookID identifies a conversation-owned record. New records use the engine's opaque ID.
+type HookID string
 
 // HookReview is durable machine review data; no live rationale belongs here.
 type HookReview struct {
@@ -15,8 +16,8 @@ type HookReview struct {
 	ConcernRefs, SourceRefs                                        []string
 }
 
-// HookDetailState describes a live-only detail lookup or approval receipt. It
-// must not be inferred from the durable review projection on replay.
+// HookDetailState describes a detail lookup or explicitly correlated receipt.
+// Neither is inferred from the durable review projection alone.
 type HookDetailState string
 
 const (
@@ -28,29 +29,31 @@ const (
 	HookDetailReceipt HookDetailState = "receipt"
 )
 
-// HookLiveDetail holds UI-sanitized live explanation and receipt text. None of
-// these fields are durable review data; an empty State means no lookup outcome.
+// HookLiveDetail holds UI-sanitized explanation and receipt text. Explanations
+// are live-only; historical receipts require an explicit origin/record/call match.
 type HookLiveDetail struct {
 	State                  HookDetailState
 	Concern, SourceDisplay string
 	Receipt                string
 }
 
-// HookSnapshot is a detached presentation-neutral hook record. Text and all
-// live detail strings must be sanitized by the UI before recording them. CallID
-// and RunID/Seq are exact source identities, not display labels. ID is allocated
-// by the conversation and stable across revisions.
+// HookSnapshot is a detached view of a conversation-owned hook record. Text and
+// live detail strings must be sanitized by the UI before recording them. SourceID
+// and Revision are engine-owned; RunID/Seq remain legacy source identities.
 type HookSnapshot struct {
-	ID       HookID
-	CallID   string
-	RunID    string
-	Seq      int64
-	Phase    string
-	Tool     string
-	Decision string
-	Text     string
-	Review   *HookReview
-	Detail   HookLiveDetail
+	ID              HookID
+	SourceID        string
+	Revision        uint64
+	OriginSessionID string
+	CallID          string
+	RunID           string
+	Seq             int64
+	Phase           string
+	Tool            string
+	Decision        string
+	Text            string
+	Review          *HookReview
+	Detail          HookLiveDetail
 }
 
 func cloneHook(in HookSnapshot) HookSnapshot {
@@ -71,13 +74,36 @@ func cloneHooks(in []HookSnapshot) []HookSnapshot {
 	return out
 }
 
-// EnsureHookReview allocates a canonical live record for an ask that precedes its
+// SetOriginSession scopes new-format root-card attachment to this conversation.
+func (c *Conversation) SetOriginSession(id string) { c.originSessionID = id }
+
+// OriginSession returns the root session whose tool cards this document holds.
+func (c *Conversation) OriginSession() string { return c.originSessionID }
+
+// EnsureHookRecord makes a pre-hook review's engine identity available to live asks.
+// A conflicting existing record is never repurposed for another origin or call.
+func (c *Conversation) EnsureHookRecord(id, origin, call string) (HookID, bool) {
+	if id == "" || origin == "" || call == "" {
+		return "", false
+	}
+	key := HookID(id)
+	if prior, ok := c.hooks[key]; ok {
+		return key, prior.SourceID == id && prior.OriginSessionID == origin && prior.CallID == call && (reviewID(prior) == "" || reviewID(prior) == id)
+	}
+	if c.hooks == nil {
+		c.hooks = make(map[HookID]HookSnapshot)
+	}
+	c.hooks[key] = HookSnapshot{ID: key, SourceID: id, OriginSessionID: origin, CallID: call, Review: &HookReview{ReviewID: id}}
+	return key, true
+}
+
+// EnsureHookReview allocates a legacy live record for an ask that precedes its
 // hook event. It is not attached until source evidence supplies a call identity.
 func (c *Conversation) EnsureHookReview(reviewID string) HookID {
 	if reviewID == "" {
-		return 0
+		return ""
 	}
-	if id := c.hookReviews[reviewID]; id != 0 {
+	if id := c.hookReviews[reviewID]; id != "" {
 		return id
 	}
 	id := c.RecordHook(HookSnapshot{Review: &HookReview{ReviewID: reviewID}})
@@ -92,7 +118,7 @@ func (c *Conversation) EnsureHookReview(reviewID string) HookID {
 // for source deduplication, review upserts, and safe attachment.
 func (c *Conversation) RecordHook(hook HookSnapshot) HookID {
 	c.nextHookID++
-	id := c.nextHookID
+	id := HookID(fmt.Sprintf("legacy_hook_%d", c.nextHookID))
 	hook.ID = id
 	if c.hooks == nil {
 		c.hooks = make(map[HookID]HookSnapshot)
@@ -112,7 +138,7 @@ func (c *Conversation) Hook(id HookID) (HookSnapshot, bool) {
 // review updates must go through RecordHookEvent.
 func (c *Conversation) ReviseHook(id HookID, hook HookSnapshot) bool {
 	old, ok := c.hooks[id]
-	if !ok || old.CallID != hook.CallID || old.RunID != hook.RunID || old.Seq != hook.Seq || reviewID(old) != reviewID(hook) {
+	if !ok || old.SourceID != hook.SourceID || old.Revision != hook.Revision || old.OriginSessionID != hook.OriginSessionID || old.CallID != hook.CallID || old.RunID != hook.RunID || old.Seq != hook.Seq || reviewID(old) != reviewID(hook) {
 		return false
 	}
 	return c.replaceHook(id, hook)
@@ -138,7 +164,7 @@ func (c *Conversation) replaceHook(id HookID, hook HookSnapshot) bool {
 // card. It never rebinds a record, even if a later card reuses the call ID.
 func (c *Conversation) AttachHook(callID string, id HookID) bool {
 	hook, ok := c.hooks[id]
-	if !ok || id == 0 || callID == "" || hook.CallID != callID {
+	if !ok || id == "" || callID == "" || hook.CallID != callID || (hook.SourceID != "" && (hook.OriginSessionID == "" || hook.OriginSessionID != c.originSessionID)) {
 		return false
 	}
 	index := -1
@@ -222,14 +248,19 @@ type HookRecordOutcome struct {
 	Attachment HookAttachment
 }
 
-// RecordHookEvent records source evidence, upserts reviews by nonempty ReviewID,
-// and attaches only to a unique retained root call. Source event identities are
-// usable only with a nonempty RunID and positive Seq; identity-less generic events
-// are separate records. Source payloads are retained to reject stale replays.
+// RecordHookEvent records engine-identified updates directly; only legacy events
+// use source sequence and review lookup to find a record.
 func (t ToolCards) RecordHookEvent(hook HookSnapshot) HookRecordOutcome {
 	c := t.conversation
-	hook.ID = 0
+	hook.ID = ""
 	hook = cloneHook(hook)
+	if hook.SourceID != "" || hook.Revision != 0 {
+		return c.recordIdentifiedHook(hook)
+	}
+	if rid := reviewID(hook); rid != "" && !c.acceptLegacyReviewSource(rid, hook) {
+		return c.hookConflict(hook)
+	}
+
 	key := hookEventKey{hook.RunID, hook.Seq}
 	usable := hook.RunID != "" && hook.Seq > 0
 	if usable {
@@ -241,12 +272,9 @@ func (t ToolCards) RecordHookEvent(hook HookSnapshot) HookRecordOutcome {
 		}
 	}
 	if rid := reviewID(hook); rid != "" {
-		if id := c.hookReviews[rid]; id != 0 {
+		if id := c.hookReviews[rid]; id != "" {
 			previous := c.hooks[id]
-			if c.hasNewerHookSource(rid, hook.RunID, hook.Seq) ||
-				(previous.RunID != "" && previous.Seq > 0 && !usable) ||
-				(previous.CallID != "" && previous.CallID != hook.CallID) ||
-				(hook.CallID != "" && c.hookCallCount(hook.CallID) > 1) {
+			if c.legacyReviewConflicts(rid, hook, previous, usable) {
 				return c.hookConflict(hook)
 			}
 			updated := hook
@@ -265,6 +293,83 @@ func (t ToolCards) RecordHookEvent(hook HookSnapshot) HookRecordOutcome {
 	}
 	c.acceptHookEvent(key, usable, id, hook)
 	return c.hookOutcome(id, HookRecorded)
+}
+
+func (c *Conversation) legacyReviewConflicts(rid string, hook, previous HookSnapshot, usable bool) bool {
+	return c.hasNewerHookSource(rid, hook.RunID, hook.Seq) ||
+		(previous.RunID != "" && previous.Seq > 0 && !usable) ||
+		(previous.CallID != "" && previous.CallID != hook.CallID) ||
+		(hook.CallID != "" && c.hookCallCount(hook.CallID) > 1)
+}
+
+func (c *Conversation) acceptLegacyReviewSource(rid string, hook HookSnapshot) bool {
+	if id := c.hookReviews[rid]; id != "" && c.hooks[id].SourceID != "" {
+		return false
+	}
+	if id := HookID(rid); c.hooks[id].SourceID != "" {
+		prior := c.hooks[id]
+		if prior.Revision != 0 || prior.OriginSessionID == "" || prior.OriginSessionID != c.originSessionID || prior.CallID == "" || prior.CallID != hook.CallID {
+			return false
+		}
+		if c.hookReviews == nil {
+			c.hookReviews = make(map[string]HookID)
+		}
+		c.hookReviews[rid] = id // legacy event proves the same root call, not a new-format machine update
+		prior.SourceID = ""
+		c.replaceHook(id, prior)
+	}
+	return true
+}
+
+func (c *Conversation) recordIdentifiedHook(hook HookSnapshot) HookRecordOutcome {
+	id := HookID(hook.SourceID)
+	key := fmt.Sprintf("%s\x00%d", hook.SourceID, hook.Revision)
+	valid := hook.SourceID != "" && hook.Revision > 0 && hook.OriginSessionID != "" && (reviewID(hook) == "" || reviewID(hook) == hook.SourceID)
+	if !valid {
+		return c.identifiedHookConflict(key, hook)
+	}
+	if previous, ok := c.hooks[id]; ok {
+		if previous.SourceID != hook.SourceID || previous.OriginSessionID != hook.OriginSessionID || previous.CallID != hook.CallID || reviewID(previous) != reviewID(hook) || previous.Revision > hook.Revision {
+			return c.identifiedHookConflict(key, hook)
+		}
+		if previous.Revision == hook.Revision {
+			machine := cloneHook(previous)
+			machine.Detail = HookLiveDetail{}
+			if reflect.DeepEqual(machine, identifiedPayload(id, hook)) {
+				return c.hookOutcome(id, HookDuplicate)
+			}
+			return c.identifiedHookConflict(key, hook)
+		}
+		updated := identifiedPayload(id, hook)
+		updated.Detail = previous.Detail
+		c.replaceHook(id, updated)
+		return c.hookOutcome(id, HookUpdated)
+	}
+	if c.hooks == nil {
+		c.hooks = make(map[HookID]HookSnapshot)
+	}
+	c.hooks[id] = identifiedPayload(id, hook)
+	return c.hookOutcome(id, HookRecorded)
+}
+
+func identifiedPayload(id HookID, hook HookSnapshot) HookSnapshot {
+	hook.ID = id
+	hook.Detail = HookLiveDetail{}
+	return hook
+}
+
+func (c *Conversation) identifiedHookConflict(key string, hook HookSnapshot) HookRecordOutcome {
+	for _, prior := range c.newHookConflicts[key] {
+		if reflect.DeepEqual(prior.payload, hook) {
+			return HookRecordOutcome{ID: prior.id, Status: HookDuplicate, Attachment: HookRejected}
+		}
+	}
+	id := c.RecordHook(hook)
+	if c.newHookConflicts == nil {
+		c.newHookConflicts = make(map[string][]hookEvent)
+	}
+	c.newHookConflicts[key] = append(c.newHookConflicts[key], hookEvent{id: id, payload: cloneHook(hook)})
+	return HookRecordOutcome{ID: id, Status: HookConflict, Attachment: HookRejected}
 }
 
 func (c *Conversation) hasNewerHookSource(rid, runID string, seq int64) bool {
@@ -309,7 +414,7 @@ func (c *Conversation) hookConflict(hook HookSnapshot) HookRecordOutcome {
 func (c *Conversation) hookOutcome(id HookID, status HookRecordStatus) HookRecordOutcome {
 	hook := c.hooks[id]
 	out := HookRecordOutcome{ID: id, Status: status, Attachment: HookRejected}
-	if hook.CallID == "" {
+	if hook.CallID == "" || (hook.SourceID != "" && (hook.OriginSessionID == "" || hook.OriginSessionID != c.originSessionID)) {
 		return out
 	}
 	if c.AttachHook(hook.CallID, id) {

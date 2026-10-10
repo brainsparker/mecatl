@@ -1382,6 +1382,7 @@ func (m Model) updateStreamEvent(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) applyHookMsg(msg client.HookMsg) (tea.Model, tea.Cmd) {
+	m.conv.scrollback.SetOriginSession(m.sessionID)
 	r, outcome := m.conv.addGuardrailHook(msg, m.deps.Debug)
 	m.syncToolcalls()
 	if outcome.Status != scrollback.HookDuplicate && outcome.Status != scrollback.HookConflict && msg.Guardrail != nil && msg.Guardrail.ReviewID != "" {
@@ -1395,7 +1396,7 @@ func (m Model) applyHookMsg(msg client.HookMsg) (tea.Model, tea.Cmd) {
 	var detailCmd tea.Cmd
 	// Benign reviews are retained (hidden by default), so they fetch live detail
 	// too; ExpandConversation or hook_notices.show_benign reveals it with the summary.
-	if r != nil && msg.Guardrail.Disposition != "ask_action" && r.needsFinalDetail && m.deps.Guardrails != nil && msg.Guardrail.ReviewID != "" {
+	if r != nil && msg.Guardrail.Disposition != "ask_action" && r.needsFinalDetail && m.deps.Guardrails != nil && msg.Guardrail.ReviewID != "" && (msg.HookID == "" || msg.OriginSessionID == m.sessionID) {
 		m.guardrailDetailRequest++
 		r.beginDetailRequest(&m.conv, m.guardrailDetailRequest)
 		r.show(&m.conv, guardrailPresentationText(r, m.deps.Debug))

@@ -369,7 +369,7 @@ type conversation struct {
 	// scrollback is the authoritative logical conversation document.
 	scrollback       scrollback.Conversation
 	guardrailReviews map[string]*guardrailPresentation
-	pendingHooks     map[scrollback.HookID]string
+	pendingReceipts  map[string][]client.ApprovalMsg
 	pendingHookOrder []scrollback.HookID
 	// subagentFleet preserves first-seen order; fleetIndex maps ChildID → its slot so
 	// repeated tool/end events for a child update the same lane in O(1).
@@ -497,21 +497,19 @@ func (c *conversation) addTool(id, name, args string) {
 func (c *conversation) attachPendingHooks(id string) {
 	remaining := c.pendingHookOrder[:0]
 	for _, hookID := range c.pendingHookOrder {
-		callID, pending := c.pendingHooks[hookID]
-		if !pending {
+		hook, ok := c.scrollback.Hook(hookID)
+		if !ok {
 			continue
 		}
-		if callID == id && c.scrollback.AttachHook(callID, hookID) {
-			delete(c.pendingHooks, hookID)
-		} else {
-			remaining = append(remaining, hookID)
+		if hook.CallID == id && c.scrollback.AttachHook(id, hookID) {
+			continue
 		}
+		remaining = append(remaining, hookID)
 	}
 	c.pendingHookOrder = remaining
 }
 
 func (c *conversation) clearPendingHooks() {
-	c.pendingHooks = nil
 	c.pendingHookOrder = nil
 }
 

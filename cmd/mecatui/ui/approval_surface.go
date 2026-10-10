@@ -153,13 +153,25 @@ func (s *approvalSurface) applyGuardrailHook(hook scrollback.HookSnapshot) *guar
 		asks = append(asks, &s.queue[i])
 	}
 	for _, ask := range asks {
-		if hook.Review != nil && hook.Review.ReviewID != "" && ask.guardrail != nil && !isChildAsk(ask.AskID, s.sessionID) && ask.guardrail.ReviewID == hook.Review.ReviewID && ask.review != nil {
-			ask.Reason = hookText(ask.review.snapshot())
-			s.argsVPReady = false
-			return ask.review
+		if !s.hookMatchesAsk(hook, ask) {
+			continue
 		}
+		ask.Reason = hookText(ask.review.snapshot())
+		s.argsVPReady = false
+		return ask.review
 	}
 	return nil
+}
+
+func (s *approvalSurface) hookMatchesAsk(hook scrollback.HookSnapshot, ask *pendingAsk) bool {
+	if hook.Review == nil || hook.Review.ReviewID == "" || ask.guardrail == nil || ask.guardrail.ReviewID != hook.Review.ReviewID || ask.review == nil {
+		return false
+	}
+	if hook.SourceID != "" {
+		return hook.SourceID == hook.Review.ReviewID && ask.OriginSessionID != "" && ask.OriginSessionID == hook.OriginSessionID && ask.CallID != "" && ask.CallID == hook.CallID && hook.OriginSessionID == s.sessionID &&
+			(ask.review.hookID == hook.ID || string(ask.review.hookID) == hook.SourceID)
+	}
+	return ask.OriginSessionID == s.sessionID && s.sessionID != "" && (hook.OriginSessionID == "" || hook.OriginSessionID == ask.OriginSessionID) && hook.CallID == ask.CallID
 }
 
 func (s *approvalSurface) HandleWheel(msg tea.MouseWheelMsg) (tea.Cmd, bool) {
@@ -231,32 +243,9 @@ func (s *approvalSurface) takeSurfaceIntent() surfaceIntent {
 // Surface-local state transitions and semantic intent construction
 // ---------------------------------------------------------------------------
 
-// isChildAsk reports whether askID identifies a surfaced SUBAGENT (child)
-// permission ask rather than one from the main session. The askID namespace
-// contract (engine/agent/dispatch.go newAskID; CLAUDE.md: "the child session id
-// IS the namespace") is "<sessionID>:<n>:<callID>:<discriminator>" — only the
-// LEADING "<sessionID>:" prefix is consumed here (the trailing discriminator is the
-// server's per-run uniqueness suffix — a host-supplied value or "r<runSerial>"
-// — and is opaque to the client). A MAIN-agent
-// ask is prefixed with the live session id, a child ask is prefixed with the
-// CHILD session id. So an askID that contains a colon but is NOT prefixed by
-// "<sessionID>:" is a child ask. Fail-safe both directions: a colon-free fixture
-// id classifies as the main agent (offers always-allow), and if sessionID were
-// empty everything would classify as a child (the always button is merely
-// withheld — never a wrong allow).
-func guardrailReviewSessionID(askID, parentID string) string {
-	if !isChildAsk(askID, parentID) {
-		return parentID
-	}
-	if i := strings.IndexByte(askID, ':'); i > 0 {
-		return askID[:i]
-	}
-	return parentID
-}
-
-func isChildAsk(askID, sessionID string) bool {
-	return strings.Contains(askID, ":") && !strings.HasPrefix(askID, sessionID+":")
-}
+// Only an explicit origin can establish a root ask; unknown origins are not
+// inferred from the syntax of the opaque AskID.
+func rootAsk(origin, sessionID string) bool { return origin != "" && origin == sessionID }
 
 func (s *approvalSurface) isDebugMCPMutationAsk(msg client.PermissionAskMsg) bool {
 	return s.debugSession && strings.HasPrefix(msg.Tool, "mcp__") && strings.Contains(msg.Reason, "debug MCP call")
@@ -272,12 +261,12 @@ func (s *approvalSurface) applyPermissionAsk(msg client.PermissionAskMsg, open b
 	if s.known(msg.AskID) {
 		return false
 	}
-	offerAlways := !msg.Recovery && !isChildAsk(msg.AskID, s.sessionID) && !s.isDebugMCPMutationAsk(msg)
+	offerAlways := !msg.Recovery && rootAsk(msg.OriginSessionID, s.sessionID) && !s.isDebugMCPMutationAsk(msg)
 	if msg.Guardrail != nil {
-		offerAlways = msg.Guardrail.Kind == "action" && msg.Guardrail.RepeatAvailable
+		offerAlways = rootAsk(msg.OriginSessionID, s.sessionID) && msg.Guardrail.Kind == "action" && msg.Guardrail.RepeatAvailable
 	}
 	next := pendingAsk{
-		AskID: msg.AskID, Tool: msg.Tool, Args: msg.Args, Reason: msg.Reason, expectedRunID: msg.ExpectedRunID,
+		AskID: msg.AskID, CallID: msg.CallID, OriginSessionID: msg.OriginSessionID, Tool: msg.Tool, Args: msg.Args, Reason: msg.Reason, expectedRunID: msg.ExpectedRunID,
 		focusedVerdict: client.VerdictAllowOnce, offerAlways: offerAlways, guardrail: msg.Guardrail, review: review,
 		guardrailDetailState: guardrailDetailState{requestID: detailRequest},
 	}
@@ -514,15 +503,17 @@ func (s *approvalSurface) approvalExpandToggle() (approval bool) {
 // a surfaced subagent ask (a child engine's permission policy has a nil learn
 // store, so always-allow would be a silent no-op there).
 type pendingAsk struct {
-	AskID          string
-	Tool           string
-	Args           string
-	Reason         string
-	focusedVerdict client.Verdict
-	offerAlways    bool
-	guardrail      *client.GuardrailApprovalScope
-	review         *guardrailPresentation
-	expectedRunID  string
+	AskID           string
+	CallID          string
+	OriginSessionID string
+	Tool            string
+	Args            string
+	Reason          string
+	focusedVerdict  client.Verdict
+	offerAlways     bool
+	guardrail       *client.GuardrailApprovalScope
+	review          *guardrailPresentation
+	expectedRunID   string
 	guardrailDetailState
 }
 

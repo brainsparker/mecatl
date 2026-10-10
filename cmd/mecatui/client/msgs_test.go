@@ -126,9 +126,9 @@ func TestHookAndPermissionAskCorrelationIdentity(t *testing.T) {
 		{
 			name: "hook preserves call and event identity",
 			ev: &mecatlv1.Event{Type: "hook", RunId: "root-run", Seq: 42, Text: "checked", Hook: &mecatlv1.Hook{
-				CallId: callID,
+				CallId: callID, HookId: "review_1", Revision: 7, OriginSessionId: "root",
 			}},
-			want: HookMsg{Text: "checked", CallID: callID, RunID: "root-run", Seq: 42, Decision: HookInfo},
+			want: HookMsg{Text: "checked", CallID: callID, HookID: "review_1", Revision: 7, OriginSessionID: "root", RunID: "root-run", Seq: 42, Decision: HookInfo},
 		},
 		{
 			name: "older server hook omits correlation identity",
@@ -138,9 +138,9 @@ func TestHookAndPermissionAskCorrelationIdentity(t *testing.T) {
 		{
 			name: "permission ask preserves call identity",
 			ev: &mecatlv1.Event{Type: "permission.ask", RunId: "root-run", Ask: &mecatlv1.PermissionAsk{
-				AskId: "ask-1", CallId: &callID,
+				AskId: "ask-1", CallId: &callID, OriginSessionId: "root",
 			}},
-			want: PermissionAskMsg{RunID: "root-run", ExpectedRunID: "root-run", AskID: "ask-1", CallID: callID},
+			want: PermissionAskMsg{RunID: "root-run", ExpectedRunID: "root-run", AskID: "ask-1", CallID: callID, OriginSessionID: "root"},
 		},
 		{
 			name: "older server permission ask omits call identity",
@@ -150,9 +150,9 @@ func TestHookAndPermissionAskCorrelationIdentity(t *testing.T) {
 		{
 			name: "surfaced child ask retains child call identity",
 			ev: &mecatlv1.Event{Type: "permission.ask", RunId: "child-run", Ask: &mecatlv1.PermissionAsk{
-				AskId: "child-ask", CallId: &childCallID,
+				AskId: "child-ask", CallId: &childCallID, OriginSessionId: "child",
 			}},
-			want: PermissionAskMsg{RunID: "child-run", ExpectedRunID: "child-run", AskID: "child-ask", CallID: childCallID},
+			want: PermissionAskMsg{RunID: "child-run", ExpectedRunID: "child-run", AskID: "child-ask", CallID: childCallID, OriginSessionID: "child"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
