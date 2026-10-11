@@ -21,7 +21,7 @@ func TestMecatuiQuieterToolCalls_Scenario3_RebindAndLegacyAlias(t *testing.T) {
 	m = applyAll(m, client.ToolCallMsg{ID: "long", Name: "Shell", Args: `{"command":"` + strings.Repeat("private argument ", 90) + `"}`})
 	m.refreshView()
 	collapsed := detailText(m)
-	for _, want := range []string{"ctrl+f12 expand", "ctrl+f12 shows details", "ctrl+f10 inspect"} {
+	for _, want := range []string{"ctrl+f12 shows details", "ctrl+f10 inspect"} {
 		if !strings.Contains(collapsed, want) {
 			t.Errorf("collapsed hint missing %q: %q", want, collapsed)
 		}
@@ -35,7 +35,7 @@ func TestMecatuiQuieterToolCalls_Scenario3_RebindAndLegacyAlias(t *testing.T) {
 	for _, row := range []struct{ action, chords string }{
 		{"open tool calls", "ctrl+f10/ctrl+f11"},
 		{"open full approval details", "ctrl+f10/ctrl+f11"},
-		{"expand turn details", "ctrl+f12/ctrl+f13"},
+		{"expand execution and session details, including turn outlines", "ctrl+f12/ctrl+f13"},
 	} {
 		found := false
 		for _, line := range strings.Split(help, "\n") {

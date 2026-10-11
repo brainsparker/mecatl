@@ -1,6 +1,11 @@
 package ui
 
 import (
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/stacklok/mecatl/cmd/mecatui/internal/terminaltext"
 	"github.com/stacklok/mecatl/cmd/mecatui/ui/internal/blocks"
 	"github.com/stacklok/mecatl/cmd/mecatui/ui/internal/scrollback"
 )
@@ -40,6 +45,36 @@ func (r *renderer) renderPreparedSnapshot(index int, id scrollback.BlockID, revi
 }
 
 func (r *renderer) renderUserSnapshot(index int, s scrollback.BlockSnapshot, p scrollback.UserCardSnapshot, expand bool) string {
+	if r.outlineInset > 0 {
+		return r.renderCachedSnapshot(index, uint64(s.ID), rendererRevision(s.Revision), expand, func(blockID uint64) blockRenderOutput {
+			content := terminaltext.Sanitize(p.Text)
+			for _, media := range p.Media {
+				if content != "" {
+					content += "\n"
+				}
+				content += r.th.Style("muted").Render("📎 " + terminaltext.Sanitize(media))
+			}
+			content = normalizeEmojiWidth(content)
+			source := ansi.Strip(content)
+			out := ansi.Hardwrap(ansi.Wrap(content, max(1, r.width-r.outlineInset), ""), max(1, r.width-r.outlineInset), true)
+			rows := make([]renderedRow, strings.Count(out, "\n")+1)
+			cursor, offset := 0, 0
+			for i, line := range strings.Split(out, "\n") {
+				rows[i] = renderedRow{blockID: blockID, region: conversationRegionChrome, kind: scrollback.KindUser, row: i}
+				plain := strings.TrimRight(ansi.Strip(line), " ")
+				at := strings.Index(source[cursor:], plain)
+				if at < 0 {
+					continue // Unmatched layout cannot safely supply selectable source coordinates.
+				}
+				// Soft-wrap whitespace belongs to the source; physical newlines are layout.
+				offset += graphemeCount(strings.ReplaceAll(source[cursor:cursor+at], "\n", ""))
+				rows[i].region, rows[i].text, rows[i].sourceOffset, rows[i].span = conversationRegionBody, plain != "", offset, graphemeCount(plain)
+				offset += rows[i].span
+				cursor += at + len(plain)
+			}
+			return blockRenderOutput{text: out, rows: rows}
+		})
+	}
 	return r.renderPreparedSnapshot(index, s.ID, s.Revision, scrollback.KindUser, expand, func() blocks.Prepared { return r.prepareUserSnapshot(p) })
 }
 

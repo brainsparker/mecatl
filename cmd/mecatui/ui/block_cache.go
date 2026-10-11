@@ -15,6 +15,8 @@ type mdEntry struct {
 // admission remains one comparison rather than a collection of partial guards.
 type renderContextKey struct {
 	width    int
+	inset    int
+	duration int64
 	expanded bool
 }
 
@@ -55,8 +57,9 @@ type renderPass struct {
 // render. Per-block revisions are unnecessary because a prefix contains only
 // blocks that did not re-render in the current frame.
 type joinPrefixState struct {
-	width  int
-	expand bool
+	width          int
+	expand         bool
+	outlineVersion uint64
 }
 
 // blockRenderCache owns all conversation-block state that survives a rendered
@@ -191,6 +194,8 @@ func (r *renderer) resetBlockCaches() {
 func (r *renderer) renderContext(expanded bool) renderContextKey {
 	return renderContextKey{
 		width:    r.width,
+		inset:    r.outlineInset,
+		duration: r.toolDurationMs,
 		expanded: expanded,
 	}
 }

@@ -295,6 +295,8 @@ func (t *Theme) compile() {
 		"userLabel": lipgloss.NewStyle().
 			Foreground(col(p.User)).
 			Bold(true),
+		"runRail":  lipgloss.NewStyle().Foreground(col(p.BorderActive)),
+		"turnRail": lipgloss.NewStyle().Foreground(col(p.Assistant)),
 		"assistantLabel": lipgloss.NewStyle().
 			Foreground(col(p.Assistant)).
 			Bold(true),

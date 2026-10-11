@@ -162,6 +162,7 @@ func (m Model) applyApprovalSurfaceIntent(intent surfaceIntent) (model tea.Model
 func (m *Model) addApprovalNotice(ask pendingAsk, text string) string {
 	if ask.guardrail == nil {
 		m.conv.addNotice(text)
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		return text
 	}
 	return ask.review.resolveApproval(&m.conv, ask.guardrailDetailState, text, m.deps.Debug)

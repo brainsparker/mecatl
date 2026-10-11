@@ -1216,6 +1216,7 @@ func conversationFromTranscript(messages []client.ConversationMessage) conversat
 			}
 		}
 	}
+	out.outlinePrompt = 0
 	return out
 }
 func stateBadge(state string) string {

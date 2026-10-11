@@ -66,7 +66,7 @@ func TestMecatuiTypedScrollbackModel_Scenario3_FrameAnchorAndSelectionContinuity
 	r := newCacheRenderer()
 	before := r.renderConversationFrame(&c.scrollback, false)
 	point := scenario3SelectionPoint(t, before, conversationRegionArguments, "SELECTION-SOURCE")
-	anchor, ok := before.observedAnchorForRow(0, towardStart)
+	anchor, ok := before.observedAnchorForRow(0)
 	if !ok {
 		t.Fatal("missing specialized-card anchor")
 	}

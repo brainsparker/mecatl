@@ -369,6 +369,7 @@ type conversation struct {
 	// scrollback is the authoritative logical conversation document.
 	scrollback       scrollback.Conversation
 	guardrailReviews map[string]*guardrailPresentation
+	outlinePrompt    scrollback.BlockID // live prompt candidate; snapshot loading clears it
 	// subagentFleet preserves first-seen order; fleetIndex maps ChildID → its slot so
 	// repeated tool/end events for a child update the same lane in O(1).
 	subagentFleet []subagentLane
@@ -443,7 +444,7 @@ func (c *conversation) isEmpty() bool { return c.scrollback.Len() == 0 }
 
 // addUser appends a text-only user-prompt block.
 func (c *conversation) addUser(text string) scrollback.BlockID {
-	return c.scrollback.Messages().AddUser(scrollback.UserInput{Text: text})
+	return c.addUserWithMedia(text, nil)
 }
 
 // addUserWithMedia appends a user-prompt block carrying media-part placeholders.
@@ -452,13 +453,14 @@ func (c *conversation) addUser(text string) scrollback.BlockID {
 // the text so a multimodal prompt is never silently rendered as text-only. With
 // no media it is equivalent to addUser.
 func (c *conversation) addUserWithMedia(text string, media []string) scrollback.BlockID {
-	return c.scrollback.Messages().AddUser(scrollback.UserInput{Text: text, Media: media})
+	c.outlinePrompt = c.scrollback.Messages().AddUser(scrollback.UserInput{Text: text, Media: media})
+	return c.outlinePrompt
 }
 
 // startAssistant opens a fresh, empty assistant block to accumulate deltas into.
 // Called on turn.start so each turn is its own markdown block.
-func (c *conversation) startAssistant() {
-	c.scrollback.Messages().AddAssistant(scrollback.AssistantInput{})
+func (c *conversation) startAssistant() scrollback.BlockID {
+	return c.scrollback.Messages().AddAssistant(scrollback.AssistantInput{})
 }
 
 // appendAssistant appends streamed text to the current assistant block, opening
@@ -483,12 +485,12 @@ func (c *conversation) endReasoningStream() {
 }
 
 // addTurnStat appends a muted per-turn usage/elapsed stat line.
-func (c *conversation) addTurnStat(text string) {
-	c.scrollback.Notices().AddTurnStat(text)
+func (c *conversation) addTurnStat(text string) scrollback.BlockID {
+	return c.scrollback.Notices().AddTurnStat(text)
 }
 
-func (c *conversation) addTool(id, name, args string) {
-	c.scrollback.Tools().Add(scrollback.ToolCall{ID: id, Name: name, Arguments: args})
+func (c *conversation) addTool(id, name, args string) scrollback.BlockID {
+	return c.scrollback.Tools().Add(scrollback.ToolCall{ID: id, Name: name, Arguments: args})
 }
 
 // reconcileUnresolvedTool updates the snapshot card for a replayed call. Recovery

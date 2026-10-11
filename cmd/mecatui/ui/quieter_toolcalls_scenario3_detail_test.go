@@ -27,7 +27,7 @@ func TestMecatuiQuieterToolCalls_Scenario3_ConversationDetailToggle(t *testing.T
 			m.phase = ph.phase
 			m.refreshView()
 			before := detailText(m)
-			if !strings.Contains(before, "f9 expand") || !strings.Contains(before, "f9 shows details") || strings.Contains(before, "reason one full text") || strings.Contains(before, "permanent detail hidden") || strings.Contains(before, "changed this session") {
+			if !strings.Contains(before, "f9 shows details") || !strings.Contains(before, "reasoning · ~1 line · f9 expand") || strings.Contains(before, "reason one full text") || strings.Contains(before, "permanent detail hidden") || strings.Contains(before, "changed this session") {
 				t.Fatalf("bad collapsed view: %q", before)
 			}
 			seen := map[scrollback.Kind]int{}
@@ -52,7 +52,7 @@ func TestMecatuiQuieterToolCalls_Scenario3_ConversationDetailToggle(t *testing.T
 			}
 			m, _ = pressKey(m, f9)
 			after := detailText(m)
-			for _, s := range []string{"reason one full text", "reason two full text", "may not reflect its actual process", "permanent detail hidden", "changed this session", "transient remains visible", "no reasoning answer"} {
+			for _, s := range []string{"reason one full text", "reason two full text", "permanent detail hidden", "changed this session", "transient remains visible", "no reasoning answer"} {
 				if !strings.Contains(after, s) {
 					t.Errorf("missing %q in expanded view", s)
 				}
@@ -97,11 +97,11 @@ func TestMecatuiQuieterToolCalls_Scenario3_ConversationDetailToggle(t *testing.T
 		m := scenario2Model(t, 90, 24, false, phaseRunning, nil)
 		m = applyAll(m, client.TurnStartMsg{Turn: 1}, client.ReasoningDeltaMsg{Turn: 1, Text: "streamed summary content"})
 		before := detailText(m)
-		if !strings.Contains(before, "reasoning… · f9 expand") || strings.Contains(before, "streamed summary content") {
+		if !strings.Contains(before, "reasoning · ~1 line · f9 expand") || strings.Contains(before, "streamed summary content") {
 			t.Fatalf("streaming summary not collapsed: %q", before)
 		}
 		m, _ = pressKey(m, f9)
-		if after := detailText(m); !strings.Contains(after, "streamed summary content") || !strings.Contains(after, reasoningCaveat) {
+		if after := detailText(m); !strings.Contains(after, "streamed summary content") || strings.Contains(after, "may not reflect its actual process") {
 			t.Fatalf("streaming summary not expanded: %q", after)
 		}
 		m, _ = pressKey(m, f9)
@@ -139,12 +139,12 @@ func TestConversationDetailToggleShowsTurnChromeOnlyOnF9(t *testing.T) {
 	m.phase = phaseIdle
 	m.refreshView()
 	collapsed := detailText(m)
-	for _, want := range []string{"Please check the files", "I will inspect them.", "notice stays visible", "reasoning summary", "✓ Read", "✓ Grep"} {
+	for _, want := range []string{"Please check the files", "I will inspect them.", "notice stays visible", "reasoning · ~1 line · f9 expand", "✓ Read", "✓ Grep"} {
 		if !strings.Contains(collapsed, want) {
 			t.Errorf("normal conversation lacks %q: %q", want, collapsed)
 		}
 	}
-	for _, hidden := range []string{"● mecatl", "↑1.2K ↓100", "↑1.3K ↓110", "4.1s", "3.1s", "why this tool is needed", "changed this session", "appendix-only.go"} {
+	for _, hidden := range []string{"● mecatl", "↑1.2K ↓100", "↑1.3K ↓110", "4.1s", "3.1s", "changed this session", "appendix-only.go"} {
 		if strings.Contains(collapsed, hidden) {
 			t.Errorf("normal conversation shows hidden detail %q: %q", hidden, collapsed)
 		}

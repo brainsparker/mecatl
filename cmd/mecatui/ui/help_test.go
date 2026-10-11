@@ -141,6 +141,10 @@ func TestHelpAnnotationsTrackCaps(t *testing.T) {
 			t.Errorf("help should carry the usage legend %q:\n%s", sub, embedded)
 		}
 	}
+	// F9 exposes observed execution/session structure, not measured tool telemetry.
+	if !strings.Contains(embedded, "expand execution and session details, including turn outlines") {
+		t.Errorf("help should describe F9 execution outlines:\n%s", embedded)
+	}
 	// The permission-modal group (issue #488) is always present: the verdict
 	// chords, the ctrl+t full-details row, and the raw-args toggle row.
 	for _, sub := range []string{

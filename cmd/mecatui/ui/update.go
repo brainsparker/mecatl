@@ -19,6 +19,7 @@ import (
 	"github.com/stacklok/mecatl/cmd/mecatui/internal/terminaltext"
 	"github.com/stacklok/mecatl/cmd/mecatui/theme"
 	"github.com/stacklok/mecatl/cmd/mecatui/ui/internal/bounded"
+	"github.com/stacklok/mecatl/cmd/mecatui/ui/internal/scrollback"
 	"github.com/stacklok/mecatl/cmd/mecatui/ui/welcome"
 )
 
@@ -993,6 +994,7 @@ func (m Model) updateLifecycle(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			// continue the source.
 			if msg.Err != nil {
 				m.conv.addError("stream error: " + msg.Err.Error())
+				m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 			}
 			m.notifyHookFailed(streamErrReason(msg.Err))
 			m = m.endRun(stopError)
@@ -1040,6 +1042,7 @@ func (m Model) updateLifecycle(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			m.promptRecovery.autoReplay = true
 		}
 		m.conv.addError("stream error: " + friendlyWorkspaceEnrollmentRejection(msg.Err.Error()))
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		m.notifyHookFailed(streamErrReason(msg.Err))
 		m = m.endRun(stopError)
 		liveCmd := m.armLiveFeed()
@@ -1262,6 +1265,11 @@ func (m Model) updateStreamEvent(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.settleApprovalOnEvent(msg)
 	switch msg := msg.(type) {
 	case client.SessionInitMsg:
+		if m.outlineRun == 0 {
+			m.outlineRun = m.conv.scrollback.Outline().StartRun(m.conv.outlinePrompt)
+			m.conv.outlinePrompt = 0
+			m.outlineTurn = 0
+		}
 		m.admissionSubmission = nil
 		if m.startupFirstPromptPending {
 			m.startupFirstPromptPending = false
@@ -1277,14 +1285,20 @@ func (m Model) updateStreamEvent(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// refreshView (that re-runs glamour on the growing live block every token —
 		// O(n²) over a turn). The next turn/tool/result boundary force-flushes too.
 		m.conv.appendAssistant(msg.Text)
+		if strings.TrimSpace(msg.Text) != "" {
+			m.conv.scrollback.Outline().MarkTurnVisible(m.outlineTurn)
+		}
 		return m.markDirty()
 	case client.ReasoningDeltaMsg:
 		// Same coalescing as the assistant delta: append, markDirty, no refreshView.
 		m.conv.appendReasoning(msg.Text)
+		if strings.TrimSpace(msg.Text) != "" {
+			m.conv.scrollback.Outline().MarkTurnVisible(m.outlineTurn)
+		}
 		return m.markDirty()
 	case client.TurnEndMsg:
 		// The turn's model exchange is done: freeze any live "reasoning…"
-		// affordance, then append a muted stat line unless the turn was trivial.
+		// affordance, then retain its formatted stat for expanded boundaries.
 		// The turn's prompt size is the CURRENT context occupancy (latest turn,
 		// assigned not summed — mirroring the team lane meter's turn.end handling).
 		// Keep it STICKY: a turn that reports zero input tokens (a stalled/usage-less
@@ -1301,9 +1315,12 @@ func (m Model) updateStreamEvent(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.contextEstimated = msg.Estimated
 		}
 		m.conv.endReasoningStream()
-		if !renderfmt.TrivialTurn(msg) {
-			m.conv.addTurnStat(renderfmt.TurnStatLine(msg))
-		}
+		m.conv.scrollback.Outline().EndTurn(m.outlineTurn, scrollback.TurnStats{
+			Usage: outlineUsage(msg.Usage), DurationMs: msg.DurationMs, Estimated: msg.Estimated,
+		})
+		statID := m.conv.addTurnStat(renderfmt.TurnStatLine(msg))
+		m.conv.scrollback.Outline().AddTurnStat(m.outlineTurn, statID)
+		m.outlineTurn = 0
 		mm, cmd := m.afterEvent()
 		// Footer context-meter self-heal (issue #66): if the meter's denominator is
 		// still UNKNOWN (m.resolvedSessionModel.ContextWindow == 0), refetch the session's
@@ -1326,7 +1343,8 @@ func (m Model) updateStreamEvent(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return mm, cmd
 	case client.ToolCallMsg:
-		m.conv.addTool(msg.ID, msg.Name, msg.Args)
+		cardID := m.conv.addTool(msg.ID, msg.Name, msg.Args)
+		m.conv.scrollback.Outline().AddTool(m.outlineRun, cardID)
 		m.activeTool = msg.Name
 		m.toolProgress = ""
 		// Accumulate the file path for the session changed-files summary. Tracked
@@ -1341,6 +1359,7 @@ func (m Model) updateStreamEvent(msg tea.Msg) (tea.Model, tea.Cmd) {
 		resolved := m.conv.resolveToolResult(msg)
 		if !resolved {
 			m.conv.addNotice("orphan tool result for " + msg.CallID)
+			m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		}
 		m.activeTool = m.conv.latestPendingToolName()
 		m.toolProgress = ""
@@ -1380,7 +1399,11 @@ func (m Model) applyHookMsg(msg client.HookMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	before := m.conv.scrollback.Len()
 	r := m.conv.addGuardrailHook(msg, m.deps.Debug)
+	for i := before; i < m.conv.scrollback.Len(); i++ {
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(i).ID)
+	}
 	var detailCmd tea.Cmd
 	// Benign reviews are retained (hidden by default), so they fetch live detail
 	// too; ExpandConversation or hook_notices.show_benign reveals it with the summary.
@@ -1415,6 +1438,7 @@ func (m Model) applyDeliveryNote(msg client.DeliveryNoteMsg) (tea.Model, tea.Cmd
 		m.seenFireIDs[msg.FireID] = struct{}{}
 	}
 	m.conv.addDelivery(msg.ScheduleName, msg.FireID, msg.Text)
+	m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 	return m.afterEvent()
 }
 
@@ -1429,7 +1453,8 @@ func (m *Model) beginTurnEvent() {
 	if m.deps.AgentHook != nil {
 		m.deps.AgentHook.Start(m.deps.Ctx, m.sessionID)
 	}
-	m.conv.startAssistant()
+	cardID := m.conv.startAssistant()
+	m.outlineTurn = m.conv.scrollback.Outline().StartTurn(m.outlineRun, cardID)
 	m.activeTool = ""
 	m.toolProgress = ""
 	// Routing metadata is per turn. OpenRouter omits it on cache hits, so the
@@ -1473,12 +1498,14 @@ func (m Model) updateStreamSecondary(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.failedStepRetryRun = true
 		m.failedStepRetryAuthoritative = false
 		m.conv.addNotice(noticeLine(msg))
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		m.statusMsg = m.deps.Theme.Style("muted").Render("retrying failed model step…")
 		return m.afterEvent()
 	case client.CompactionMsg:
 		// A compaction boundary is a DURABLE fact worth keeping in the transcript, so it
 		// stays a scrollback notice.
 		m.conv.addNotice(noticeLine(msg))
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		return m.afterEvent()
 	case client.NoProgressMsg:
 		// No-progress (advisory nudge OR terminal give-up) is TRANSIENT: a successful
@@ -1507,6 +1534,7 @@ func (m Model) updateStreamSecondary(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// blockNotice recover branch). It carries only harness-authored advisory
 		// Text (no model content).
 		m.conv.addRecoverNotice(msg.Text)
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		return m.afterEvent()
 	case client.SteerOutcomeMsg:
 		return m.applySteerOutcome(msg)
@@ -1737,6 +1765,7 @@ func (m Model) applySteerEcho(msg client.SteerEchoMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.conv.addUser(msg.Text)
 		}
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 		m.statusMsg = m.deps.Theme.Style("muted").Render("steer applied")
 	}
 	return m.afterEvent()
@@ -1804,6 +1833,13 @@ func (m Model) applyResult(msg client.ResultMsg) (tea.Model, tea.Cmd) {
 	// context-occupancy meter (m.contextTokens), never m.usage — adding both
 	// would double-count.
 	m.usage = sumUsage(m.usage, msg.Usage)
+	status := scrollback.RunNormal
+	switch msg.Stop {
+	case stopError:
+		status = scrollback.RunError
+	case "cancelled":
+		status = scrollback.RunInterrupted
+	}
 	if msg.Stop == stopError && msg.Error != "" {
 		rejection := friendlyWorkspaceEnrollmentRejection(msg.Error)
 		if msg.Permanent {
@@ -1811,7 +1847,10 @@ func (m Model) applyResult(msg client.ResultMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.conv.addError(rejection)
 		}
+		m.conv.scrollback.Outline().AddActivity(m.outlineRun, m.conv.scrollback.MetadataAt(m.conv.scrollback.Len()-1).ID)
 	}
+	m.conv.scrollback.Outline().EndRun(m.outlineRun, status, outlineUsage(msg.Usage))
+	m.outlineRun, m.outlineTurn = 0, 0
 	if m.clearPending != nil {
 		// The terminal facts still belong in the source projection, but Clear owns
 		// what happens next. Settle only: no queued prompt, failed-step retry,
@@ -2720,6 +2759,8 @@ func (m Model) retryPendingModeCmd() tea.Cmd {
 // staged input clears it (no arm); a first press on an empty prompt arms the guard,
 // shows the hint, and schedules the timed disarm. See onKey's doc for the rationale.
 func (m Model) quitNow() (tea.Model, tea.Cmd) {
+	m.conv.scrollback.Outline().Interrupt(m.outlineRun)
+	m.outlineRun, m.outlineTurn = 0, 0
 	m.admissionSubmission = nil
 	(&m).retirePendingApprovalRecovery()
 	if m.cancelRun != nil {
@@ -3981,6 +4022,7 @@ func (m *Model) startReconnect(prevErr error) tea.Cmd {
 	// Seed the degraded footer state immediately so the operator sees the feed
 	// is down before the first LiveReconnectingMsg lands.
 	m.liveReconnecting = true
+	m.conv.scrollback.Outline().SetReconnecting(m.outlineRun, true)
 	m.liveReconnectAttempt = 1
 	if prevErr != nil {
 		m.liveReconnectErr = prevErr.Error()
@@ -4036,6 +4078,7 @@ func (m Model) updateReconnectMsg(rm reconnectMsg) (tea.Model, tea.Cmd) {
 	switch msg := rm.msg.(type) {
 	case client.LiveReconnectingMsg:
 		m.liveReconnecting = true
+		m.conv.scrollback.Outline().SetReconnecting(m.outlineRun, true)
 		m.liveReconnectAttempt = msg.Attempt
 		if msg.Err != nil {
 			m.liveReconnectErr = msg.Err.Error()
@@ -4045,6 +4088,7 @@ func (m Model) updateReconnectMsg(rm reconnectMsg) (tea.Model, tea.Cmd) {
 		return m, m.waitReconnectCmd()
 	case client.LiveReconnectedMsg:
 		m.liveReconnecting = false
+		m.conv.scrollback.Outline().SetReconnecting(m.outlineRun, false)
 		m.liveReconnectAttempt = 0
 		m.liveReconnectErr = ""
 		// Tear down the reconnect loop (its ctx also cancels the probe stream
@@ -4062,6 +4106,7 @@ func (m Model) updateReconnectMsg(rm reconnectMsg) (tea.Model, tea.Cmd) {
 		// cancelled — session switch / TUI exit). Clear the degraded state; a
 		// subsequent arm (if any) re-opens the live feed fresh.
 		m.liveReconnecting = false
+		m.conv.scrollback.Outline().SetReconnecting(m.outlineRun, false)
 		m.liveReconnectAttempt = 0
 		m.liveReconnectErr = ""
 		(&m).disarmReconnect()
@@ -4214,6 +4259,8 @@ func (Model) refreshCmd() tea.Cmd { return tea.ClearScreen }
 // endRun tears down the current run: clears the stream/channel/cancel, returns to
 // idle, and re-focuses input. The stop reason updates the status line.
 func (m Model) endRun(stop string) Model {
+	m.conv.scrollback.Outline().Interrupt(m.outlineRun)
+	m.outlineRun, m.outlineTurn = 0, 0
 	m.settlePendingApproval()
 	m.admissionSubmission = nil
 	if m.cancelRun != nil {
@@ -5017,6 +5064,14 @@ func suffix(text string) string {
 }
 
 // sumUsage accumulates token usage across a session for the footer.
+func outlineUsage(u client.Usage) scrollback.Usage {
+	return scrollback.Usage{
+		InputTokens: u.InputTokens, OutputTokens: u.OutputTokens,
+		CacheReadTokens: u.CacheReadTokens, CacheWriteTokens: u.CacheWriteTokens,
+		ReasoningTokens: u.ReasoningTokens,
+	}
+}
+
 func sumUsage(a, b client.Usage) client.Usage {
 	return client.Usage{
 		InputTokens:      a.InputTokens + b.InputTokens,

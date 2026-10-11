@@ -262,11 +262,8 @@ func TestToolcallsShortcutOpensInspector(t *testing.T) {
 	}
 }
 
-// TestReasoningBlockCollapsedThenExpanded asserts a reasoning delta renders as a
-// dim, collapsed one-line "reasoning summary" header by default (the full text
-// hidden), and that the retained expansion state shows the streamed reasoning text
-// under a lossy-summary caveat. It also asserts the reasoning renders ABOVE the
-// assistant answer of the same turn.
+// TestReasoningBlockCollapsedThenExpanded keeps compact chrome above the answer
+// and exposes the full subdued reasoning only in expanded mode.
 func TestReasoningBlockCollapsedThenExpanded(t *testing.T) {
 	m := newTestModelFromDeps(Deps{Theme: theme.New("aztec", theme.AztecPalette())})
 	m = applyAll(m, tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -277,29 +274,26 @@ func TestReasoningBlockCollapsedThenExpanded(t *testing.T) {
 		client.AssistantDeltaMsg{Turn: 1, Text: "Here is the answer."},
 	)
 
-	// Collapsed (default): the "reasoning summary" header is shown, body hidden.
+	// Collapsed (default): the "◆ reasoning" header is shown, body hidden.
 	collapsed := stripANSIstr(m.rend.renderConversation(&m.conv, m.expandConversation))
-	if !strings.Contains(collapsed, "reasoning summary · 2 lines · f9 expand") {
-		t.Errorf("expected collapsed reasoning-summary header, got:\n%s", collapsed)
-	}
-	if strings.Contains(collapsed, "inspect the file") {
-		t.Errorf("collapsed reasoning must hide the body text:\n%s", collapsed)
+	if strings.Contains(collapsed, "first I will inspect the file") || strings.Contains(collapsed, "then I will edit it") || !strings.Contains(collapsed, "reasoning · ~2 lines · f9 expand") {
+		t.Errorf("collapsed reasoning content/chrome: %s", collapsed)
 	}
 	if strings.Contains(collapsed, "may not reflect") {
 		t.Errorf("collapsed reasoning must not show the expanded caveat:\n%s", collapsed)
 	}
 
 	// Reasoning must precede the assistant answer.
-	if ri, ai := strings.Index(collapsed, "reasoning summary"), strings.Index(collapsed, "Here is the answer"); ri < 0 || ai < 0 || ri > ai {
+	if ri, ai := strings.Index(collapsed, "reasoning ·"), strings.Index(collapsed, "Here is the answer"); ri < 0 || ai < 0 || ri > ai {
 		t.Errorf("reasoning (%d) should render above the answer (%d):\n%s", ri, ai, collapsed)
 	}
 
 	// f9 expands reasoning; Toolcalls never changes this state.
 	m, _ = pressKey(m, f9)
-	// Expanded: the caveat + the full reasoning text become visible.
+	// Expanded: the full reasoning text becomes visible without a stock caveat.
 	expanded := stripANSIstr(m.rend.renderConversation(&m.conv, m.expandConversation))
-	if !strings.Contains(expanded, "may not reflect its actual process") {
-		t.Errorf("expanded reasoning should carry the lossy-summary caveat:\n%s", expanded)
+	if strings.Contains(expanded, "may not reflect its actual process") {
+		t.Errorf("expanded reasoning must omit the stock caveat:\n%s", expanded)
 	}
 	if !strings.Contains(expanded, "inspect the file") || !strings.Contains(expanded, "then I will edit it") {
 		t.Errorf("expanded reasoning should show the body text:\n%s", expanded)
@@ -338,25 +332,21 @@ func TestReasoningInterleavedRendersOnce(t *testing.T) {
 		t.Fatalf("want exactly 1 assistant block, got %d", asst)
 	}
 
-	// Exactly one collapsed reasoning header, with the true 2-line count.
+	// Interleaved fragments produce one compact callout, not body excerpts.
 	view := stripANSIstr(m.rend.renderConversation(&m.conv, false))
-	if got := strings.Count(view, "reasoning summary"); got != 1 {
-		t.Errorf("want exactly one reasoning region, got %d:\n%s", got, view)
-	}
-	if !strings.Contains(view, "reasoning summary · 2 lines · f9 expand") {
-		t.Errorf("merged reasoning should report 2 lines:\n%s", view)
+	if strings.Contains(view, "step one") || strings.Contains(view, "step two") || strings.Count(view, "reasoning · ~2 lines · f9 expand") != 1 {
+		t.Errorf("merged reasoning rendering: %s", view)
 	}
 	// Reasoning above both answer fragments.
-	ri := strings.Index(view, "reasoning summary")
+	ri := strings.Index(view, "reasoning ·")
 	ai := strings.Index(view, "Answer part A")
 	if ri < 0 || ai < 0 || ri > ai {
 		t.Errorf("reasoning (%d) should render above the merged answer (%d):\n%s", ri, ai, view)
 	}
 }
 
-// TestReasoningLiveAffordance asserts that while reasoning is streaming and no
-// answer text has arrived, the collapsed header reads "reasoning…", flipping to
-// the static expandable form once answer text begins.
+// TestReasoningLiveAffordance keeps the compact callout while reasoning streams
+// and after answer text begins, without exposing reasoning body text.
 func TestReasoningLiveAffordance(t *testing.T) {
 	m := newTestModelFromDeps(Deps{Theme: theme.New("aztec", theme.AztecPalette())})
 	m = applyAll(m, tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -366,21 +356,15 @@ func TestReasoningLiveAffordance(t *testing.T) {
 		client.ReasoningDeltaMsg{Turn: 1, Text: "thinking about it\n"},
 	)
 	live := stripANSIstr(m.rend.renderConversation(&m.conv, false))
-	if !strings.Contains(live, "reasoning…") {
-		t.Errorf("streaming reasoning (no answer yet) should show the live affordance:\n%s", live)
-	}
-	if !strings.Contains(live, "reasoning… · f9 expand") {
-		t.Errorf("live reasoning must advertise its detail toggle:\n%s", live)
+	if strings.Contains(live, "thinking about it") || !strings.Contains(live, "reasoning · ~1 line · f9 expand") {
+		t.Errorf("streaming reasoning content/chrome: %s", live)
 	}
 
-	// Answer text begins → flips to the static, expandable header.
+	// Answer text begins; the source count and compact affordance remain.
 	m = applyAll(m, client.AssistantDeltaMsg{Turn: 1, Text: "Done."})
 	settled := stripANSIstr(m.rend.renderConversation(&m.conv, false))
-	if strings.Contains(settled, "reasoning…") {
-		t.Errorf("reasoning should stop showing the live affordance once answer begins:\n%s", settled)
-	}
-	if !strings.Contains(settled, "reasoning summary · 1 line · f9 expand") {
-		t.Errorf("settled reasoning should show the static header:\n%s", settled)
+	if strings.Contains(settled, "thinking about it") || !strings.Contains(settled, "reasoning · ~1 line · f9 expand") || !strings.Contains(settled, "Done.") {
+		t.Errorf("settled reasoning content/chrome: %s", settled)
 	}
 }
 
@@ -418,7 +402,7 @@ func TestTurnEndStatLine(t *testing.T) {
 // path (TurnEndMsg → addTurnStat(renderfmt.TurnStatLine) → blockTurnStat → renderBlockFresh),
 // must surface "% cached" in the rendered conversation scrollback. TestTurnStatLine
 // tests the formatter in isolation; this proves the string actually reaches a rendered
-// block (the renderfmt.TrivialTurn gate, the conversation append, and the block render all wired).
+// block (the conversation append and the block render are wired).
 func TestTurnStatCacheReachesScrollback(t *testing.T) {
 	m, _, _ := newTestModel(t, theme.New("aztec", theme.AztecPalette()))
 	m = applyAll(m,
@@ -434,25 +418,26 @@ func TestTurnStatCacheReachesScrollback(t *testing.T) {
 	}
 }
 
-// TestTurnEndTrivialSuppressed asserts a near-empty turn (tiny tokens, sub-second
-// or no duration) produces NO stat line, so a long run isn't littered.
-func TestTurnEndTrivialSuppressed(t *testing.T) {
+// TestTurnEndTrivialRetained asserts tiny and textless turns keep their raw stats
+// for expanded boundaries without introducing noise in the collapsed transcript.
+func TestTurnEndTrivialRetained(t *testing.T) {
 	m := newTestModelFromDeps(Deps{Theme: theme.New("aztec", theme.AztecPalette())})
 	m = applyAll(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m.phase = phaseRunning
 
-	before := len(m.conv.testBlocks())
-	// Tiny tokens, no clock → trivial → suppressed.
+	before := stripANSIstr(m.rend.renderConversation(&m.conv, false))
 	m = applyAll(m, client.TurnEndMsg{Turn: 1, Usage: client.Usage{InputTokens: 5, OutputTokens: 2}, DurationMs: 0})
-	// Tiny tokens, sub-second duration → still trivial → suppressed.
-	m = applyAll(m, client.TurnEndMsg{Turn: 2, Usage: client.Usage{InputTokens: 10, OutputTokens: 0}, DurationMs: 300})
-	if len(m.conv.testBlocks()) != before {
-		t.Errorf("trivial turns should add no stat block; blocks grew %d→%d", before, len(m.conv.testBlocks()))
+	m = applyAll(m, client.TurnEndMsg{Turn: 2, Usage: client.Usage{InputTokens: 10}, DurationMs: 300})
+	if got := stripANSIstr(m.rend.renderConversation(&m.conv, false)); got != before {
+		t.Errorf("trivial stats should not change collapsed transcript: %q → %q", before, got)
+	}
+	view := stripANSIstr(m.rend.renderConversation(&m.conv, true))
+	if !strings.Contains(view, "↑5 ↓2") || !strings.Contains(view, "↑10 ↓0") {
+		t.Errorf("expanded trivial turn statistics missing:\n%s", view)
 	}
 
-	// A turn over the duration threshold is NOT trivial even with tiny tokens.
-	m = applyAll(m, client.TurnEndMsg{Turn: 3, Usage: client.Usage{InputTokens: 10, OutputTokens: 0}, DurationMs: 1500})
-	view := stripANSIstr(m.rend.renderConversation(&m.conv, true))
+	m = applyAll(m, client.TurnEndMsg{Turn: 3, Usage: client.Usage{InputTokens: 10}, DurationMs: 1500})
+	view = stripANSIstr(m.rend.renderConversation(&m.conv, true))
 	if !strings.Contains(view, "↑10 ↓0 · 1.5s") {
 		t.Errorf("a turn with a measurable duration should not be suppressed:\n%s", view)
 	}

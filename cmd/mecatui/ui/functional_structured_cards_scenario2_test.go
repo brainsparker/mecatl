@@ -107,7 +107,7 @@ func TestMecatuiFunctionalConversationCards_Scenario2_MarkdownAndInputExceptions
 	if r.mdRenders != markdownBefore+1 || strings.Contains(collapsedPlain, "*formatted*") {
 		t.Fatal("assistant bypassed Markdown")
 	}
-	if !strings.Contains(collapsedPlain, "reasoning summary · 2 lines · f9 expand") {
+	if !strings.Contains(collapsedPlain, "reasoning · ~2 lines · f9 expand") || strings.Contains(collapsedPlain, "first summary line") {
 		t.Fatal("reasoning summary missing")
 	}
 	for _, line := range strings.Split(collapsed, "\n") {

@@ -257,7 +257,7 @@ func TestInterBlockSeparatorAnchorsAdjacentContent(t *testing.T) {
 	if m.conversationView.frame.provenance[terminal].separator {
 		t.Fatal("terminal blank row must not be an inter-block separator")
 	}
-	anchor, ok := m.conversationView.frame.observedAnchorForRow(terminal, towardStart)
+	anchor, ok := m.conversationView.frame.observedAnchorForRow(terminal)
 	if !ok || anchor.blockID != 0 || anchor.region != conversationRegionChrome || anchor.row != 0 {
 		t.Fatalf("terminal blank anchor = %#v, ok=%t; want ordinary chrome anchor", anchor, ok)
 	}

@@ -60,10 +60,15 @@ type renderedRow struct {
 	text         bool
 	kind         scrollback.Kind
 	indent       int
+	// rail counts the generated actor/outline prefix on content rows.
+	rail int
 	// Functional-card rows retain only their structural location in the rendered
 	// line: canonical source offset, leading semantic grapheme, and visible span.
 	leading int
 	span    int
+	// omittedStart/Length locate the F9-only tool duration in the visible
+	// semantic row; logical selection offsets exclude this display-only facet.
+	omittedStart, omittedLength int
 	// separator identifies a derived blank line between conversation blocks. It has
 	// no logical position of its own; observing it anchors to an adjacent block.
 	separator bool
@@ -108,18 +113,14 @@ func (f renderedFrame) anchorForRow(row int) (readingAnchor, bool) {
 
 // observedAnchorForRow translates a derived inter-block separator to its adjacent
 // logical content. The terminal blank row remains its own ordinary chrome anchor.
-func (f renderedFrame) observedAnchorForRow(row int, bias edgeBias) (readingAnchor, bool) {
+func (f renderedFrame) observedAnchorForRow(row int) (readingAnchor, bool) {
 	if row < 0 || row >= len(f.provenance) {
 		return readingAnchor{}, false
 	}
 	if !f.provenance[row].separator {
 		return f.anchorForRow(row)
 	}
-	start, end, step := row-1, -1, -1
-	if bias == towardEnd {
-		start, end, step = row+1, len(f.provenance), 1
-	}
-	for i := start; i != end; i += step {
+	for i := row - 1; i >= 0; i-- {
 		if f.provenance[i].blockID != 0 {
 			return f.anchorForRow(i)
 		}
@@ -159,7 +160,7 @@ func (r *renderer) renderConversationFrame(c *scrollback.Conversation, expand bo
 	passes, firstChanged := r.renderPasses(c, expand)
 	n := len(passes)
 	prefixN := min(firstChanged, n)
-	key := joinPrefixState{width: r.width, expand: expand}
+	key := joinPrefixState{width: r.width, expand: expand, outlineVersion: c.Outline().Version()}
 	prefixLines, prefixProvenance, ok := r.blocks.prefix(key, prefixN)
 	if !ok {
 		prefixLines, prefixProvenance = r.rebuildFramePrefix(passes, prefixN)
@@ -182,6 +183,9 @@ func (r *renderer) renderConversationFrame(c *scrollback.Conversation, expand bo
 	}
 	frame.lines = append(frame.lines, "")
 	frame.provenance = append(frame.provenance, renderedRow{region: conversationRegionChrome})
+	if len(c.Outline().Runs()) > 0 {
+		frame = r.outlinedFrame(c, frame, expand)
+	}
 	r.frameProvenanceScratch = frame.provenance
 	return frame
 }
@@ -244,26 +248,25 @@ func (r *renderer) snapshotProvenanceRows(blockID uint64, kind scrollback.Kind, 
 		if expand {
 			textStart = 2 // expanded speaker label plus its blank row
 		}
-		if strings.TrimSpace(assistant.Reasoning) != "" {
-			reasoning := r.renderReasoningSnapshot(assistant, expand)
+		if reasoning := r.renderReasoningSnapshot(assistant, expand); reasoning != "" {
 			reasoningRows := len(strings.Split(reasoning, "\n"))
 			for i := textStart; i < min(textStart+reasoningRows, len(rows)); i++ {
-				rows[i] = renderedRow{blockID: blockID, region: conversationRegionReasoning, row: i - textStart}
-			}
-			if expand {
-				caveatRows := len(strings.Split(r.wrapStyled(reasoningCaveat, r.th.Style("reasoning")), "\n"))
-				for i := textStart + 1 + caveatRows; i < min(textStart+reasoningRows, len(rows)); i++ {
-					rows[i].text = true
+				rows[i] = renderedRow{blockID: blockID, region: conversationRegionChrome, row: i}
+				if expand {
+					rows[i].region, rows[i].row, rows[i].text = conversationRegionReasoning, i-textStart, true
 				}
 			}
 			textStart += reasoningRows
+		}
+		if strings.TrimSpace(assistant.Text) == "" {
+			textStart = len(rows)
 		}
 		region = conversationRegionBody
 	default:
 		textStart, region = 0, conversationRegionBody
 	}
 	for i := range rows {
-		if rows[i].region == conversationRegionReasoning {
+		if rows[i].blockID != 0 {
 			continue
 		}
 		rows[i] = renderedRow{blockID: blockID, region: conversationRegionChrome, row: i}
@@ -289,9 +292,13 @@ func (r *renderer) assignVisibleOffsets(kind scrollback.Kind, rows []renderedRow
 			(rows[i].region == conversationRegionReasoning && !rows[i].text) {
 			continue
 		}
+		plain := canonicalRowText(kind, ansi.Strip(lines[i]), r.indent)
+		if kind == scrollback.KindAssistant && rows[i].region == conversationRegionBody && plain == "" {
+			rows[i].text = false
+			continue
+		}
 		rows[i].text = true
 		rows[i].sourceOffset = offsets[rows[i].region]
-		plain := canonicalRowText(kind, ansi.Strip(lines[i]), r.indent)
 		offsets[rows[i].region] += graphemeCount(plain)
 	}
 }

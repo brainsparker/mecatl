@@ -93,8 +93,23 @@ func TestMecatuiTypedScrollbackModel_Scenario2_LiveAndReplayProjectionParity(t *
 
 	liveSnapshots := conversationSnapshots(&live.conv.scrollback)
 	replaySnapshots := conversationSnapshots(&replay.transcript.scrollback)
-	if !reflect.DeepEqual(liveSnapshots, replaySnapshots) {
-		t.Fatalf("live/replay typed projection diverged:\nlive:   %#v\nreplay: %#v", liveSnapshots, replaySnapshots)
+	// Live turn boundaries now retain even trivial stats; the test-only replay
+	// projection deliberately keeps its old flat, trivial-stat policy.
+	var liveWithoutStats []scrollback.BlockSnapshot
+	for _, card := range liveSnapshots {
+		if card.Payload.Kind() != scrollback.KindTurnStat {
+			liveWithoutStats = append(liveWithoutStats, card)
+		}
+	}
+	if len(liveWithoutStats) != len(liveSnapshots)-1 {
+		t.Fatalf("live turn stat not retained: %#v", liveSnapshots)
+	}
+	for i, card := range liveWithoutStats {
+		card.ID = scrollback.BlockID(i + 1)
+		liveWithoutStats[i] = card
+	}
+	if !reflect.DeepEqual(liveWithoutStats, replaySnapshots) {
+		t.Fatalf("live/replay content projection diverged:\nlive:   %#v\nreplay: %#v", liveWithoutStats, replaySnapshots)
 	}
 }
 

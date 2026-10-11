@@ -16,7 +16,7 @@ func (v *conversationView) observe(vp viewport.Model) {
 		v.mode = followTail
 		return
 	}
-	if anchor, ok := v.frame.observedAnchorForRow(vp.YOffset(), towardStart); ok {
+	if anchor, ok := v.frame.observedAnchorForRow(vp.YOffset()); ok {
 		anchor.bias = towardStart
 		v.anchor = anchor
 	}

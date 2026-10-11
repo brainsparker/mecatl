@@ -16,6 +16,8 @@
 //     corresponding delegation lifecycle updates.
 //   - RecordFileChange and AppendixSnapshot manage the document-local
 //     changed-files appendix.
+//   - Outline records transient observed run, turn, and tool structure without
+//     changing card payloads or renderer-facing card revisions.
 //
 // Conversation owns card state. Facade inputs are detached before storage, and
 // SnapshotAt and SnapshotForCall return detached snapshots, so a caller cannot

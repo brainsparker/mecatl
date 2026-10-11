@@ -82,22 +82,14 @@ func TestInlineCardsReflectKeyOverride(t *testing.T) {
 		wantExpand = "ctrl+f11" // overridden Toolcalls
 		wantAgents = "ctrl+f9"  // overridden Agents
 	)
-	t.Run("reasoning collapsed/expanded header", func(t *testing.T) {
+	t.Run("reasoning compact hint follows detail key", func(t *testing.T) {
 		r := remderRenderer()
 		b := scrollback.AssistantCardSnapshot{Reasoning: "line one\nline two"}
-		collapsed := stripANSIstr(r.renderReasoningSnapshot(b, false))
-		if !strings.Contains(collapsed, wantDetail+" expand") {
-			t.Errorf("collapsed reasoning header should carry %q, got %q", wantDetail+" expand", collapsed)
+		if got := stripANSIstr(r.renderReasoningSnapshot(b, false)); got != "reasoning · ~2 lines · "+wantDetail+" expand" {
+			t.Errorf("reasoning callout changed: %q", got)
 		}
-		if strings.Contains(collapsed, "ctrl+t") {
-			t.Errorf("collapsed reasoning header still shows the default ctrl+t: %q", collapsed)
-		}
-		expanded := stripANSIstr(r.renderReasoningSnapshot(b, true))
-		if !strings.Contains(expanded, wantDetail+" collapse") {
-			t.Errorf("expanded reasoning header should carry %q, got %q", wantDetail+" collapse", expanded)
-		}
-		if strings.Contains(expanded, "ctrl+t") {
-			t.Errorf("expanded reasoning header still shows the default ctrl+t: %q", expanded)
+		if got := stripANSIstr(r.renderReasoningSnapshot(b, true)); got != b.Reasoning {
+			t.Errorf("expanded reasoning changed: %q", got)
 		}
 	})
 
@@ -429,13 +421,13 @@ func TestDefaultFooterHelp(t *testing.T) {
 // Reasoning follows ExpandConversation (f9); tool-card helpers retain ctrl+t hints.
 func TestDefaultInlineCardsBytesUnchanged(t *testing.T) {
 	r := newTestRenderer()
-	// Reasoning header.
+	// The reasoning callout uses f9; expanded content has no hint.
 	b := scrollback.AssistantCardSnapshot{Reasoning: "line one\nline two"}
-	if got := stripANSIstr(r.renderReasoningSnapshot(b, false)); !strings.Contains(got, "f9 expand") {
-		t.Errorf("default reasoning header should carry f9 inspect, got %q", got)
+	if got := stripANSIstr(r.renderReasoningSnapshot(b, false)); got != "reasoning · ~2 lines · f9 expand" {
+		t.Errorf("reasoning callout changed: %q", got)
 	}
-	if got := stripANSIstr(r.renderReasoningSnapshot(b, true)); !strings.Contains(got, "f9 collapse") {
-		t.Errorf("default reasoning header should carry f9 collapse, got %q", got)
+	if got := stripANSIstr(r.renderReasoningSnapshot(b, true)); got != b.Reasoning {
+		t.Errorf("expanded reasoning changed: %q", got)
 	}
 	// Subagent live line.
 	sb := subagentCardPresentation{current: "Grep", toolCount: 1}

@@ -162,7 +162,8 @@ func TurnStatLine(msg client.TurnEndMsg) string {
 	return b.String()
 }
 
-// TrivialTurn reports whether a turn's statistics are too negligible for scrollback.
+// TrivialTurn reports whether a turn's statistics are negligible enough to hide
+// in a collapsed transcript.
 func TrivialTurn(msg client.TurnEndMsg) bool {
 	return msg.Usage.InputTokens <= trivialTurnTokens && msg.Usage.OutputTokens <= trivialTurnTokens && msg.DurationMs < 1000
 }

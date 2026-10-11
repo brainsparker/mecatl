@@ -336,6 +336,9 @@ const selectionContextGraphemes = 16
 
 func selectionRowText(_ renderedFrame, row renderedRow, line string) (text string, leading int) {
 	plain := ansi.Strip(line)
+	if row.rail > 0 && row.kind != scrollback.KindTool && row.kind != scrollback.KindSubagent && row.kind != scrollback.KindTeam {
+		return strings.TrimRight(graphemeSlice(plain, row.rail, graphemeCount(plain)), " "), row.rail
+	}
 	if row.kind == scrollback.KindTool || row.kind == scrollback.KindSubagent || row.kind == scrollback.KindTeam {
 		return graphemeSlice(plain, row.leading, row.leading+row.span), row.leading
 	}
@@ -360,7 +363,11 @@ func selectionPointFor(frame renderedFrame, line, col int) (selectionPoint, bool
 		return selectionPoint{}, false
 	}
 	lineText, leading := selectionRowText(frame, row, frame.lines[line])
-	offset := col - leading
+	offset, valid := canonicalSelectionOffset(row, col-leading)
+	if !valid {
+		return selectionPoint{}, false
+	}
+	lineText = canonicalSelectionText(row, lineText)
 	if offset < 0 || offset > graphemeCount(lineText) {
 		return selectionPoint{}, false
 	}
@@ -369,6 +376,23 @@ func selectionPointFor(frame renderedFrame, line, col int) (selectionPoint, bool
 		before: graphemeSlice(lineText, max(0, offset-selectionContextGraphemes), offset),
 		after:  graphemeSlice(lineText, offset, min(graphemeCount(lineText), offset+selectionContextGraphemes)),
 	}, true
+}
+
+func canonicalSelectionText(row renderedRow, text string) string {
+	if row.omittedLength == 0 {
+		return text
+	}
+	return graphemeSlice(text, 0, row.omittedStart) + graphemeSlice(text, row.omittedStart+row.omittedLength, graphemeCount(text))
+}
+
+func canonicalSelectionOffset(row renderedRow, displayOffset int) (int, bool) {
+	if row.omittedLength == 0 || displayOffset <= row.omittedStart {
+		return displayOffset, true
+	}
+	if displayOffset < row.omittedStart+row.omittedLength {
+		return 0, false
+	}
+	return displayOffset - row.omittedLength, true
 }
 
 func graphemeSlice(text string, start, end int) string {
@@ -401,6 +425,7 @@ func resolveSelectionPoint(frame renderedFrame, point selectionPoint) (int, int,
 			continue
 		}
 		text, leading := selectionRowText(frame, row, frame.lines[i])
+		text = canonicalSelectionText(row, text)
 		for offset := 0; offset <= graphemeCount(text); offset++ {
 			if row.sourceOffset+offset != point.sourceOffset {
 				continue
@@ -408,7 +433,11 @@ func resolveSelectionPoint(frame renderedFrame, point selectionPoint) (int, int,
 			before := graphemeSlice(text, max(0, offset-selectionContextGraphemes), offset)
 			after := graphemeSlice(text, offset, min(graphemeCount(text), offset+selectionContextGraphemes))
 			if strings.HasSuffix(before, point.before) && strings.HasPrefix(after, point.after) {
-				line, col, matches = i, leading+offset, matches+1
+				displayOffset := offset
+				if row.omittedLength > 0 && offset >= row.omittedStart {
+					displayOffset += row.omittedLength
+				}
+				line, col, matches = i, leading+displayOffset, matches+1
 			}
 		}
 	}

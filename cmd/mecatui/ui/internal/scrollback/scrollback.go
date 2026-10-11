@@ -78,6 +78,7 @@ type Conversation struct {
 	calls    map[string]int
 	appendix *AppendixSnapshot
 	seen     map[string]struct{}
+	outline  *outlineState
 }
 
 // ToolCallMetadata is the compact tool-card projection used by inventories. It

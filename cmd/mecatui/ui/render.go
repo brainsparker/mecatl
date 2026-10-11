@@ -85,6 +85,9 @@ var resultProminentKeys = []string{
 type renderer struct {
 	th    theme.Theme
 	width int
+	// outlineInset budgets actor and rail columns before observed-card layout.
+	outlineInset   int
+	toolDurationMs int64
 
 	// traceWidth is the available width of a delegation-inspector card's body. A
 	// zero value preserves the transcript renderer's existing trace layout.
@@ -262,10 +265,14 @@ func newRenderer(th theme.Theme, hk helpKeys) *renderer {
 // rendered line is prefixed with `indent` spaces in renderBlock, the total never
 // exceeds r.width. A width-0/tiny renderer (indent 0) collapses to r.width unchanged.
 func (r *renderer) contentWidth() int {
-	if r.width <= r.indent {
-		return r.width // unknown/tiny: don't go non-positive; the helpers guard further.
+	width := r.width - r.outlineInset
+	if r.outlineInset == 0 && width <= r.indent {
+		return r.width // standalone width-0 renderers retain their unbounded layout.
 	}
-	return r.width - r.indent
+	if width <= r.indent {
+		return max(1, width) // narrow terminals still need a positive layout budget.
+	}
+	return width - r.indent
 }
 
 // indentLines prefixes every line of a rendered block with `indent` spaces — the
@@ -428,11 +435,16 @@ func (r *renderer) markdown(src string) string {
 // rests on markdown() being pure in (src, width, theme) with a fixed theme; the
 // cache therefore can never return a stale render. Update-goroutine-only.
 func (r *renderer) markdownAt(idx int, src string) string {
-	if out, ok := r.blocks.markdownBlock(idx, src, r.width); ok {
+	if out, ok := r.blocks.markdownBlock(idx, src, r.contentWidth()); ok {
 		return out
 	}
 	out := r.markdown(src)
-	r.blocks.storeMarkdown(idx, mdEntry{src: src, width: r.width, out: out})
+	if r.outlineInset > 0 && r.contentWidth() <= assistantBodyHang+8 {
+		// Glamour treats a non-positive wrap width as unbounded. Reflow its styled
+		// output before provenance is built rather than clipping the prefixed card.
+		out = ansi.Hardwrap(out, max(1, r.contentWidth()-assistantBodyHang), true)
+	}
+	r.blocks.storeMarkdown(idx, mdEntry{src: src, width: r.contentWidth(), out: out})
 	return out
 }
 
@@ -627,6 +639,22 @@ func (r *renderer) renderPasses(c *scrollback.Conversation, expand bool) ([]rend
 			revision: rendererRevision(meta.Revision),
 			kind:     meta.Kind,
 		}
+		r.outlineInset, r.toolDurationMs = 0, 0
+		if role, ok := c.Outline().Card(meta.ID); ok {
+			if meta.Kind == scrollback.KindUser {
+				r.outlineInset = 3
+				if expand {
+					r.outlineInset = 4
+				}
+			} else if role.TurnID != 0 || (expand && role.Tool) {
+				r.outlineInset = 4
+			} else if expand {
+				r.outlineInset = 2
+			}
+			if expand && role.Tool {
+				r.toolDurationMs = role.DurationMs
+			}
+		}
 		effectiveExpand := expand
 		switch meta.Kind {
 		case scrollback.KindTool, scrollback.KindSubagent, scrollback.KindTeam:
@@ -647,6 +675,7 @@ func (r *renderer) renderPasses(c *scrollback.Conversation, expand bool) ([]rend
 			firstChanged = i
 		}
 	}
+	r.outlineInset, r.toolDurationMs = 0, 0
 	return passes, firstChanged
 }
 
@@ -765,59 +794,19 @@ func blockBlankLinesAfter(kinds []scrollback.Kind, i int) int {
 	return blockBlankLinesBetween(kinds[i-1], kinds[i])
 }
 
-// reasoningCaveat is the dim one-line disclaimer prepended to the EXPANDED
-// reasoning. It signals the prose is a lossy summary, not the model's actual
-// process — streamed chain-of-thought is often unfaithful and drives
-// over-reliance, so it must never read as ground truth.
-const reasoningCaveat = "— summary of the model's reasoning; may not reflect its actual process"
-
-// renderReasoning renders the dim, collapsed-by-default reasoning summary that
-// belongs to an assistant block. It returns "" when the block carries no
-// reasoning. Collapsed (the default) it is a single dim header: while reasoning
-// is still streaming and no answer text has begun it reads "reasoning…" (a live
-// "the model is working" affordance); otherwise it is the static
-// "reasoning summary · N lines · f9 expand". When the conversation detail toggle
-// is on, a dim caveat plus the full summary text are shown with no line cap.
-// Streamed reasoning is never a trust anchor: hidden unless explicitly asked for, and
-// clearly labelled as a lossy summary.
+// renderReasoningSnapshot shows source-count chrome when collapsed and subdued
+// source text when expanded. The frame supplies the call's actor marker.
 func (r *renderer) renderReasoningSnapshot(p scrollback.AssistantCardSnapshot, expand bool) string {
-	if strings.TrimSpace(p.Reasoning) == "" {
+	text := normalizeEmojiWidth(terminaltext.Sanitize(strings.TrimRight(p.Reasoning, "\n")))
+	if strings.TrimSpace(text) == "" {
 		return ""
 	}
-	style := r.th.Style("reasoning")
-	text := terminaltext.Sanitize(strings.TrimRight(p.Reasoning, "\n"))
-	n := lineCount(text)
-	expandMark := r.marks.expandConversation
 	if !expand {
-		if p.ReasoningStreaming {
-			return style.Render("reasoning… · " + expandMark + " expand")
-		}
-		return style.Render("reasoning summary · " + plural(n, "line") + " · " + expandMark + " expand")
+		count := lineCount(strings.TrimSpace(text))
+		text = "reasoning · ~" + plural(count, "line") + " · " + r.marks.expandConversation + " expand"
 	}
-	header := style.Render("reasoning summary · " + plural(n, "line") + " · " + expandMark + " collapse")
-	return header + "\n" + r.wrapStyled(reasoningCaveat, style) + "\n" + r.wrapStyled(text, style)
-}
-
-// wrapStyled word-wraps s to the CONTENT width (viewport minus the left indent)
-// MINUS the style's own horizontal frame (border+padding+margin, via
-// GetHorizontalFrameSize — the single source of truth, so the wrap budget tracks
-// theme.go edits automatically and never drifts behind a hardcoded inset) and renders
-// it through st. A content width at or below the frame (e.g. the width-0 team focus
-// renderer, team.go) means "unknown/tiny: do not wrap" and the body renders unwrapped.
-// Wrapping against contentWidth (not r.width) keeps the body within budget once
-// Whole-card rendering prefixes each line with `indent` spaces.
-func (r *renderer) wrapStyled(s string, st lipgloss.Style) string {
-	frame := st.GetHorizontalFrameSize()
-	cw := r.contentWidth()
-	if cw <= frame+1 {
-		return st.Render(s)
-	}
-	// Normalise emoji presentation BEFORE ansi.Wrap, for the same reason the
-	// glamour path does (see markdown's long comment): ansi.Wrap measures cells
-	// on GraphemeWidth while the viewport paints on WcWidth, so a divergent
-	// cluster (e.g. a VS16 emoji) would wrap to a line that then overflows under
-	// the paint width — the exact overflow this wrapping exists to prevent.
-	return st.Render(ansi.Wrap(normalizeEmojiWidth(s), cw-frame, ""))
+	width := max(1, r.contentWidth()-assistantBodyHang)
+	return r.th.Style("reasoning").Render(ansi.Hardwrap(ansi.Wrap(text, width, ""), width, true))
 }
 
 // plural formats a count with a noun, pluralising with a trailing "s" for any
@@ -833,6 +822,10 @@ func plural(n int, noun string) string {
 // width. renderTool uses the same body width to wrap and cap collapsed results,
 // keeping result-row accounting aligned with the final card layout.
 func (r *renderer) toolCardLayout() (card lipgloss.Style, outerWidth, bodyWidth int) {
+	if r.toolDurationMs > 0 {
+		width := max(1, r.contentWidth())
+		return lipgloss.NewStyle().Width(width), width, width
+	}
 	card = r.th.Style("toolCard")
 	if cw := r.contentWidth(); cw > card.GetHorizontalFrameSize()+2 {
 		// Width includes the card's border and padding. Keep the 2-cell right inset

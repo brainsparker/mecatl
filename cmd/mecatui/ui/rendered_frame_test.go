@@ -110,7 +110,7 @@ func TestEmptyAssistantTurnsDoNotSeparateSettledCalls(t *testing.T) {
 	if got := strings.Count(plain, "● mecatl"); got != 0 {
 		t.Fatalf("collapsed reasoning-only turn rendered %d speaker labels", got)
 	}
-	if !strings.Contains(plain, "reasoning…") || !frame.hasRegion(lastEmpty, conversationRegionReasoning) {
+	if !strings.Contains(plain, "reasoning · ~1 line · f9 expand") || strings.Contains(plain, "a summary") || frame.hasRegion(lastEmpty, conversationRegionReasoning) {
 		t.Fatalf("reasoning-only turn lost its collapsed summary or provenance: %q", plain)
 	}
 	expandedFrame := r.renderConversationFrame(&c.scrollback, true)
@@ -151,7 +151,7 @@ func TestEmptyAssistantBecomesVisibleWithoutMovingReader(t *testing.T) {
 }
 
 // TestExpandedReasoningProvenanceUsesWrappedRows pins the narrow-width path where
-// the caveat and reasoning body wrap into more rows than the unwrapped source.
+// the reasoning header and body wrap into more rows than the unwrapped source.
 func TestExpandedReasoningProvenanceUsesWrappedRows(t *testing.T) {
 	c := &conversation{}
 	c.startAssistant()
@@ -190,7 +190,7 @@ func TestExpandedReasoningProvenanceUsesWrappedRows(t *testing.T) {
 }
 
 // TestExpandedReasoningAnchorSurvivesReflow keeps the visible reasoning text at
-// its logical grapheme location while leaving the header and caveat as chrome.
+// its logical grapheme location while leaving the header as chrome.
 func TestExpandedReasoningAnchorSurvivesReflow(t *testing.T) {
 	c := &conversation{}
 	c.startAssistant()
@@ -204,7 +204,7 @@ func TestExpandedReasoningAnchorSurvivesReflow(t *testing.T) {
 	anchorRow := -1
 	for i, line := range narrow.lines {
 		row := narrow.provenance[i]
-		if row.blockID == uint64(assistant.ID) && row.region == conversationRegionReasoning && strings.Contains(stripANSIstr(line), "REASONING-ANCHOR") {
+		if row.blockID == uint64(assistant.ID) && row.region == conversationRegionReasoning && strings.Contains(stripANSIstr(line), "REASONING-") {
 			if !row.text {
 				t.Fatal("expanded reasoning text row must be text-bearing")
 			}
@@ -217,9 +217,8 @@ func TestExpandedReasoningAnchorSurvivesReflow(t *testing.T) {
 	}
 	for i, line := range narrow.lines {
 		row := narrow.provenance[i]
-		if row.blockID == uint64(assistant.ID) && row.region == conversationRegionReasoning &&
-			(strings.Contains(stripANSIstr(line), "reasoning summary") || strings.Contains(stripANSIstr(line), reasoningCaveat)) && row.text {
-			t.Fatalf("reasoning presentation row %q must not be text-bearing", line)
+		if row.blockID == uint64(assistant.ID) && row.region == conversationRegionReasoning && !row.text {
+			t.Fatalf("reasoning content row %q must be text-bearing", line)
 		}
 	}
 
@@ -228,6 +227,7 @@ func TestExpandedReasoningAnchorSurvivesReflow(t *testing.T) {
 	vp.SetContentLines(narrow.lines)
 	vp.SetYOffset(anchorRow)
 	view := conversationView{mode: anchored, frame: narrow}
+	view.frame.provenance = append([]renderedRow(nil), narrow.provenance...)
 	r.setWidth(100)
 	wide := r.renderConversationFrame(&c.scrollback, true)
 	view.replace(&vp, wide)

@@ -207,11 +207,8 @@ func TestUserBlockInsetTracksStyle(t *testing.T) {
 	}
 }
 
-// TestReasoningExpandedShowsFullBody locks the issue #96 fix: expanding a
-// reasoning summary (f9) shows the FULL body with no line cap, NOT the old
-// 24-line tail truncation. A 58-line reasoning block must render all 58 lines
-// (plus header + caveat) when expanded — matching how resultBody handles tool
-// results — while the collapsed path still shows only the one-line header.
+// TestReasoningExpandedShowsFullBody keeps the complete expanded reasoning body
+// without the old 24-line tail truncation; compact mode exposes only a callout.
 func TestReasoningExpandedShowsFullBody(t *testing.T) {
 	r := newTestRenderer()
 	r.setWidth(200) // wide so each reasoning line stays one logical line
@@ -222,13 +219,10 @@ func TestReasoningExpandedShowsFullBody(t *testing.T) {
 	reasoning := strings.Join(lines, "\n")
 	b := testSnapshot(0, scrollback.AssistantCardSnapshot{Text: "the answer", Reasoning: reasoning})
 
-	// Collapsed: only the header, none of the body lines.
+	// The compact callout hides the body and counts source lines, not wrapped rows.
 	collapsed := stripANSIstr(r.renderSnapshot(0, b, false))
-	if !strings.Contains(collapsed, "reasoning summary · 58 lines · f9 expand") {
-		t.Errorf("collapsed should report 58 lines:\n%s", collapsed)
-	}
-	if strings.Contains(collapsed, "reasoning step 1") || strings.Contains(collapsed, "reasoning step 58") {
-		t.Errorf("collapsed must hide the body:\n%s", collapsed)
+	if strings.Contains(collapsed, "reasoning step") || !strings.Contains(collapsed, "reasoning · ~58 lines · f9 expand") || !strings.Contains(collapsed, "the answer") {
+		t.Errorf("collapsed reasoning content/chrome: %s", collapsed)
 	}
 	if strings.Contains(collapsed, "…(truncated)") {
 		t.Errorf("collapsed must not carry a truncation tail:\n%s", collapsed)
@@ -251,7 +245,7 @@ func TestReasoningExpandedShowsFullBody(t *testing.T) {
 // single-line reasoning summary, expanded (f9), wraps without overflow. The
 // short collapsed/expanded HEADER line is intentionally left unwrapped per the
 // fix (it is a short fixed affordance, not free-form body), so the assertion is
-// scoped to the caveat + body lines that follow it.
+// scoped to the body lines that follow it.
 func TestReasoningExpandedWraps(t *testing.T) {
 	r := newTestRenderer()
 	r.setWidth(60)
@@ -262,19 +256,8 @@ func TestReasoningExpandedWraps(t *testing.T) {
 	if len(lines) <= 3 {
 		t.Fatalf("expected expanded reasoning to wrap the body to multiple lines, got %d", len(lines))
 	}
-	// Find the wrapped caveat/body region (everything after the header line, which
-	// is the line ending in "f9 collapse"). Those free-form lines must not
-	// overflow the viewport width.
-	bodyStart := 0
-	for i, ln := range lines {
-		if strings.Contains(stripANSIstr(ln), "f9 collapse") {
-			bodyStart = i + 1
-			break
-		}
-	}
-	if bodyStart == 0 || bodyStart >= len(lines) {
-		t.Fatalf("could not locate the wrapped reasoning body after the header: %q", stripANSIstr(out))
-	}
+	// Skip only the historical expanded speaker label and its blank row.
+	bodyStart := 2
 	wrapped := false
 	for i := bodyStart; i < len(lines); i++ {
 		ln := lines[i]

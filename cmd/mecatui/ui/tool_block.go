@@ -67,14 +67,30 @@ func (r *renderer) renderToolSnapshot(idx int, s scrollback.BlockSnapshot, p scr
 
 func (r *renderer) renderSettledToolLine(blockID uint64, projection toolcallProjection) blockRenderOutput {
 	line := projection.line()
-	out := r.th.Style(line.StatusStyle()).Render(line.Glyph()) + " " + line.Content()
+	content := line.Content()
+	omittedStart, omittedLength := 0, 0
+	if r.toolDurationMs > 0 {
+		// Keep the inspector projection unchanged: this prototype duration is transcript-only.
+		parts := strings.SplitN(content, " · ", 2)
+		if len(parts) == 2 {
+			omittedStart = graphemeCount(line.Glyph() + " " + parts[0] + " · ")
+			omittedLength = graphemeCount(renderfmt.FormatDuration(r.toolDurationMs) + " · ")
+			content = parts[0] + " · " + renderfmt.FormatDuration(r.toolDurationMs) + " · " + parts[1]
+		} else {
+			content += " · " + renderfmt.FormatDuration(r.toolDurationMs)
+		}
+	}
+	out := r.th.Style(line.StatusStyle()).Render(line.Glyph()) + " " + content
 	indent := 0
-	width := r.width
+	width := r.width - r.outlineInset
 	if r.width > r.indent {
 		indent = r.indent
 		width = r.contentWidth()
 	}
 	out = ansi.Truncate(out, width, "…")
+	if omittedLength > 0 && !strings.Contains(ansi.Strip(out), renderfmt.FormatDuration(r.toolDurationMs)+" · ") {
+		omittedStart, omittedLength = 0, 0
+	}
 	if indent > 0 {
 		out = strings.Repeat(" ", indent) + out
 	}
@@ -83,6 +99,7 @@ func (r *renderer) renderSettledToolLine(blockID uint64, projection toolcallProj
 		rows: []renderedRow{{
 			blockID: blockID, region: conversationRegionBody, text: true,
 			kind: scrollback.KindTool, indent: indent, leading: indent, span: graphemeCount(ansi.Strip(out)),
+			omittedStart: omittedStart, omittedLength: omittedLength,
 		}},
 	}
 }
@@ -103,6 +120,9 @@ func (r *renderer) prepareTypedToolCard(p toolCardPresentation, state toolcallPr
 	}
 	if status != "" {
 		headLabel = status + " · " + headLabel
+	}
+	if r.toolDurationMs > 0 {
+		headLabel += " · " + renderfmt.FormatDuration(r.toolDurationMs)
 	}
 	head := renderToolHeader(glyph, glyphText, headLabel, r.th.Style("toolName"), bodyWidth)
 	sections := []preparedToolSection{{Region: blocks.RegionChrome, Text: head}}

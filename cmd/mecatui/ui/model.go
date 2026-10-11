@@ -902,6 +902,10 @@ type Model struct {
 	// (SessionReadyMsg) or a retry is fired.
 	restartFailed bool
 
+	// Outline IDs identify only boundaries observed on the current live stream.
+	outlineRun  scrollback.RunID
+	outlineTurn scrollback.TurnID
+
 	// usage accumulates across the session for the footer.
 	usage client.Usage
 
@@ -1222,6 +1226,7 @@ func (m Model) resetSession() Model {
 }
 
 func (m Model) resetSessionDerived() Model {
+	m.outlineRun, m.outlineTurn = 0, 0
 	m.settlePendingApproval()
 	(&m).retirePendingApprovalRecovery()
 	m.admissionSubmission = nil
