@@ -290732,6 +290732,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791756998831,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccfd074a81f4814b45a02275a0d283d1397ca300",
+          "message": "feat(mecatui): migrate effort picker to a bounded modal surface (#2266)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-11T15:58:05-07:00",
+          "tree_id": "d2a6759d88bf4f723f811be0631cfdf2a7930b7e",
+          "url": "https://github.com/stacklok/mecatl/commit/ccfd074a81f4814b45a02275a0d283d1397ca300"
+        },
+        "date": 1791760248913,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -421242,6 +421276,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791760245842,
+  "lastUpdate": 1791760249890,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
