@@ -322172,6 +322172,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791757002442,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccfd074a81f4814b45a02275a0d283d1397ca300",
+          "message": "feat(mecatui): migrate effort picker to a bounded modal surface (#2266)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-11T15:58:05-07:00",
+          "tree_id": "d2a6759d88bf4f723f811be0631cfdf2a7930b7e",
+          "url": "https://github.com/stacklok/mecatl/commit/ccfd074a81f4814b45a02275a0d283d1397ca300"
+        },
+        "date": 1791760252933,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -421276,6 +421315,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791760249890,
+  "lastUpdate": 1791760253967,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
