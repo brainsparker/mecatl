@@ -291806,6 +291806,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791843138946,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f0534f85938c27f40133f849ef3ea7b02119c298",
+          "message": "fix(temp): use managed job tmp for isolated test runtime (#2278)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-12T15:30:43-07:00",
+          "tree_id": "fec5b5c7f3a8fa23c1430fa3f3fafecfb518087a",
+          "url": "https://github.com/stacklok/mecatl/commit/f0534f85938c27f40133f849ef3ea7b02119c298"
+        },
+        "date": 1791844958445,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -422775,6 +422809,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791844955396,
+  "lastUpdate": 1791844959104,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
