@@ -291448,6 +291448,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791808543808,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2fbdea1787ab4fbccc577cacdaa174d04a29d3a6",
+          "message": "feat(mecatui): enforce API compatibility before startup (#2269)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-12T14:59:52-07:00",
+          "tree_id": "33a8fe5fac8e491255497f130941e4ae8aeede80",
+          "url": "https://github.com/stacklok/mecatl/commit/2fbdea1787ab4fbccc577cacdaa174d04a29d3a6"
+        },
+        "date": 1791843138946,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -422264,6 +422298,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791843136031,
+  "lastUpdate": 1791843139997,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
