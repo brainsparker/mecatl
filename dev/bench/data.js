@@ -322569,6 +322569,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791760252933,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "987f0c31ce457ed1514c1da1a611285d9e846b2f",
+          "message": "feat: add execution templates with platform-managed identity (#2219)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-12T15:24:18+03:00",
+          "tree_id": "e3845d8c8f13a8c9c4a2d7fd0eaf45bf40e0161a",
+          "url": "https://github.com/stacklok/mecatl/commit/987f0c31ce457ed1514c1da1a611285d9e846b2f"
+        },
+        "date": 1791808547757,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3252,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 53,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -421787,6 +421826,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791808544610,
+  "lastUpdate": 1791808548574,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
