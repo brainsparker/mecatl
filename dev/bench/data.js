@@ -291090,6 +291090,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791760248913,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "987f0c31ce457ed1514c1da1a611285d9e846b2f",
+          "message": "feat: add execution templates with platform-managed identity (#2219)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-12T15:24:18+03:00",
+          "tree_id": "e3845d8c8f13a8c9c4a2d7fd0eaf45bf40e0161a",
+          "url": "https://github.com/stacklok/mecatl/commit/987f0c31ce457ed1514c1da1a611285d9e846b2f"
+        },
+        "date": 1791808543808,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -421753,6 +421787,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791808541205,
+  "lastUpdate": 1791808544610,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
