@@ -17,3 +17,4 @@ The `studio-alignment-2228/` folder holds the before/after composites for the St
 - `studio-alignment-2207d/`: before/after/prototype composites for #2207 part (d) (session dialogs, menus, side panels).
 - `studio-alignment-2208/`: before/after/prototype composites for #2208 (accessibility and 500px sweep).
 - `studio-alignment-fix-<pr>/`: before/after (and prototype where relevant) composites for the final-review fixes of each Studio alignment PR.
+- `engine-2263/`: mecatui approval request before/after for #2263 (system temp-scope Shell command).
