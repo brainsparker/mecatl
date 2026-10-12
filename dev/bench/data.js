@@ -322966,6 +322966,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791808547757,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2fbdea1787ab4fbccc577cacdaa174d04a29d3a6",
+          "message": "feat(mecatui): enforce API compatibility before startup (#2269)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-12T14:59:52-07:00",
+          "tree_id": "33a8fe5fac8e491255497f130941e4ae8aeede80",
+          "url": "https://github.com/stacklok/mecatl/commit/2fbdea1787ab4fbccc577cacdaa174d04a29d3a6"
+        },
+        "date": 1791843143100,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3268.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 68.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -422298,6 +422337,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791843139997,
+  "lastUpdate": 1791843144136,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
