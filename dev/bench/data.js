@@ -297534,6 +297534,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791922100473,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113200276+Nashon-Steffen@users.noreply.github.com",
+            "name": "Nashon-Steffen",
+            "username": "Nashon-Steffen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2cda4521a8e86688ec6ed48e4f3791c38fc38bdc",
+          "message": "ci: prune old continuous main builds from GHCR daily (#2293)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T13:00:42-07:00",
+          "tree_id": "9fccee7a0203c56f623dff1a55e7b66e6807c71a",
+          "url": "https://github.com/stacklok/mecatl/commit/2cda4521a8e86688ec6ed48e4f3791c38fc38bdc"
+        },
+        "date": 1791922876930,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -430951,6 +430985,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791922873743,
+  "lastUpdate": 1791922877997,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
