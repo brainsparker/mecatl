@@ -293238,6 +293238,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791882319827,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "63ab9dcce987d2e2e66adcb49d39a768f743cc12",
+          "message": "feat(skills): read a skill's files through the client API (#2192)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T11:38:19+02:00",
+          "tree_id": "4616ad7edf0744b8de95ab9874ae24df51817b41",
+          "url": "https://github.com/stacklok/mecatl/commit/63ab9dcce987d2e2e66adcb49d39a768f743cc12"
+        },
+        "date": 1791885058143,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -424819,6 +424853,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791885054909,
+  "lastUpdate": 1791885058869,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
