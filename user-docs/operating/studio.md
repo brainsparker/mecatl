@@ -136,8 +136,10 @@ in the browser, while deployment-managed provider, model, posture, and storage
 facts are read-only. Appearance controls explain theme and palette choices.
 Delegated-activity panels explain their observed history and incomplete replay.
 **About** identifies the Studio image, installed SDK, and connected daemon
-builds. Ask users for **Copy support summary** when diagnosing a deployment
-issue.
+builds. In a published image, the SDK version ends with the Studio release it
+was built from, after a `+`, such as `0.5.0+v0.0.48`. Images built without a
+release tag show only the SDK package version. Ask users for **Copy support
+summary** when diagnosing a deployment issue.
 
 ## Install Studio in your browser
 
