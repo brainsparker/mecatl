@@ -325745,6 +325745,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791888501988,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd9a609c202e40c671076b4e5cbf7d54ff365991",
+          "message": "fix(ci): trigger in-flight renewal and reuse qualified live deployment (#2280)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T13:44:02+03:00",
+          "tree_id": "a41f98300415626707f8607c469e058c54d1a06f",
+          "url": "https://github.com/stacklok/mecatl/commit/fd9a609c202e40c671076b4e5cbf7d54ff365991"
+        },
+        "date": 1791889209074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3268,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 69,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -425875,6 +425914,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791889204752,
+  "lastUpdate": 1791889209857,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
