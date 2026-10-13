@@ -325348,6 +325348,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791885062610,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "36b6ca993df98245a0e3b32e443957420a9671f2",
+          "message": "test(scheduler): add schedule-store claim and retry checks (#2281)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T13:35:39+03:00",
+          "tree_id": "f4144ca8575ff471e740a17355fff4d0fab5416e",
+          "url": "https://github.com/stacklok/mecatl/commit/36b6ca993df98245a0e3b32e443957420a9671f2"
+        },
+        "date": 1791888501988,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -425364,6 +425403,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791888498480,
+  "lastUpdate": 1791888503057,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
