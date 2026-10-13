@@ -329318,6 +329318,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791920659925,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113200276+Nashon-Steffen@users.noreply.github.com",
+            "name": "Nashon-Steffen",
+            "username": "Nashon-Steffen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73795a66eabfe945bd2f45835c68462a86276590",
+          "message": "chore(studio): build the SDK from the checkout permanently (#2288)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T12:56:30-07:00",
+          "tree_id": "7cb1d698ff46e3ebde76e923111391c2e3fbaa89",
+          "url": "https://github.com/stacklok/mecatl/commit/73795a66eabfe945bd2f45835c68462a86276590"
+        },
+        "date": 1791922104357,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3279,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 78.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -430474,6 +430513,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791922101228,
+  "lastUpdate": 1791922105009,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
