@@ -20,9 +20,23 @@ var (
 	// state cannot be recovered. Callers should resolve a parked authorization
 	// deterministically rather than silently creating a replacement transaction.
 	ErrStateUnavailable = errors.New("mcp broker state unavailable")
+	// ErrBrokerIncarnationLost marks structured proof from a remote broker that
+	// the client's pinned process incarnation no longer serves the request. It is
+	// always returned together with ErrStateUnavailable; generic transport loss
+	// must never satisfy this marker.
+	ErrBrokerIncarnationLost = errors.New("mcp broker incarnation lost")
 	// ErrContinuityUnavailable means a continuity operation could not safely
 	// proceed. It intentionally reveals no custody or provisional-state detail.
 	ErrContinuityUnavailable = errors.New("mcp broker continuity unavailable")
+	// ErrContinuityProfileChanged marks a custody guard whose protected provider,
+	// destination, or profile no longer matches the broker configuration. It is
+	// also ErrContinuityUnavailable so existing callers remain fail-closed.
+	ErrContinuityProfileChanged = errors.New("mcp broker continuity profile changed")
+	// ErrContinuityRevoked means matching custody was permanently tombstoned.
+	// Hosts must invalidate their local reference rather than retry it.
+	ErrContinuityRevoked = errors.New("mcp broker continuity revoked")
+	// ErrCapacity means admission was refused without evicting existing authority.
+	ErrCapacity = errors.New("mcp broker capacity reached")
 	// ErrAttachmentClosed means an operation used a locally closed attachment.
 	ErrAttachmentClosed = errors.New("mcp broker attachment closed")
 	// ErrAuthorizationNotFound means the exact authorization reference is unknown
@@ -43,6 +57,31 @@ func ValidLogicalSessionID(id session.SessionID) bool {
 	return sessionaffinity.ValidValue(string(id))
 }
 
+// ExecutionMetadata is private execution provenance for broker diagnostics. It
+// deliberately excludes URLs, scopes, credentials, and request data.
+type ExecutionMetadata struct {
+	Backend                string
+	OutboundCredentialKind OutboundCredentialKind
+}
+
+// OutboundCredentialKind is the closed credential-custody vocabulary.
+type OutboundCredentialKind string
+
+// Outbound credential kinds are diagnostic-only labels, not credentials.
+const (
+	OutboundCredentialNone OutboundCredentialKind = "none"
+	//nolint:gosec // Diagnostic label, not a hardcoded credential.
+	OutboundCredentialRouteOAuth OutboundCredentialKind = "route_oauth"
+	//nolint:gosec // Diagnostic label, not a hardcoded credential.
+	OutboundCredentialBrokerOAuth OutboundCredentialKind = "broker_oauth"
+)
+
+// ExecutionMetadataProvider is optional. Absence is safe and means that a
+// transport must log no backend or outbound credential attribution.
+type ExecutionMetadataProvider interface {
+	ExecutionMetadata(session.ToolCall) (ExecutionMetadata, bool)
+}
+
 // AttachOutcome is the closed result vocabulary for AttachSession.
 type AttachOutcome string
 
@@ -51,6 +90,9 @@ const (
 	AttachCreated AttachOutcome = "created"
 	// AttachReattached means a session handle was opened to existing logical state.
 	AttachReattached AttachOutcome = "reattached"
+	// AttachRecoveredProvisional means a fresh handle was opened to an exact
+	// recovered provisional attempt. It remains unpublished until Commit.
+	AttachRecoveredProvisional AttachOutcome = "recovered_provisional"
 )
 
 // CloseOutcome is the closed, idempotent result vocabulary for Attachment.Close.
@@ -234,6 +276,14 @@ type frozenTool struct {
 
 func (t *frozenTool) Spec() tool.ToolSpec { return cloneToolSpec(t.spec) }
 
+func (t *frozenTool) ExecutionMetadata(call session.ToolCall) (ExecutionMetadata, bool) {
+	metadata, ok := t.Tool.(ExecutionMetadataProvider)
+	if !ok {
+		return ExecutionMetadata{}, false
+	}
+	return metadata.ExecutionMetadata(call)
+}
+
 // Advertised forwards to the wrapped tool's own Disclosable projection when it
 // has one, so the freeze boundary does not silently widen what the model sees
 // (Catalog.AdvertisedSpecs falls back to Spec() for a non-Disclosable tool,
@@ -251,6 +301,14 @@ type frozenAuthorizationTool struct {
 }
 
 func (t *frozenAuthorizationTool) Spec() tool.ToolSpec { return cloneToolSpec(t.spec) }
+
+func (t *frozenAuthorizationTool) ExecutionMetadata(call session.ToolCall) (ExecutionMetadata, bool) {
+	metadata, ok := t.AuthorizationRequester.(ExecutionMetadataProvider)
+	if !ok {
+		return ExecutionMetadata{}, false
+	}
+	return metadata.ExecutionMetadata(call)
+}
 
 func (t *frozenAuthorizationTool) Advertised() tool.ToolSpec {
 	if d, ok := t.AuthorizationRequester.(tool.Disclosable); ok {
@@ -336,6 +394,14 @@ type Service interface {
 	// new incarnation; stale session handles must return ErrStateUnavailable. Any
 	// generation or fencing mechanism used to enforce this remains private.
 	DeleteSession(context.Context, session.SessionID) (DeleteOutcome, error)
+}
+
+// BindingSessionDeleter is the optional atomic logical-delete capability. It
+// preserves the legacy unbound DeleteSession contract while allowing a remote
+// caller that holds an opaque binding to fail closed rather than deleting a
+// newer incarnation of the same session.
+type BindingSessionDeleter interface {
+	DeleteSessionIfBinding(context.Context, session.SessionID, session.ExternalBinding) (DeleteOutcome, error)
 }
 
 // Attachment is a process-local handle to one logical broker session.

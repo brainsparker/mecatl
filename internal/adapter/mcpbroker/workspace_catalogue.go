@@ -328,7 +328,7 @@ func (a *Attachment) freezeAuthenticatedCatalogue(ctx context.Context, ref contr
 		return nil, nil, ErrAuthenticatedDiscovery
 	}
 
-	stagedRoutes, err := stageAuthenticatedRoutes(ctx, runtime, brokerCredential, backends, base, config.occupied)
+	stagedRoutes, verifiedTSID, err := stageAuthenticatedRoutes(ctx, runtime, brokerCredential, backends, base, config.occupied)
 	if err != nil {
 		reason := diagnosticReasonDiscoveryFailed
 		if errors.Is(err, ErrInvalidCatalogue) {
@@ -362,6 +362,9 @@ func (a *Attachment) freezeAuthenticatedCatalogue(ctx context.Context, ref contr
 		}
 		if publish {
 			a.catalogue = candidate
+		}
+		if verifiedTSID != "" {
+			a.verifiedTSID = verifiedTSID
 		}
 		return nil
 	}); err != nil {
@@ -433,14 +436,14 @@ func stageAuthenticatedDeclaredRoutes(ctx context.Context, runtime *Runtime, bro
 	return staged, nil
 }
 
-func stageAuthenticatedRoutes(ctx context.Context, runtime *Runtime, brokerCredential oauth2.TokenSource, backends []string, base *attachmentCatalogue, occupied []string) ([]route, error) {
+func stageAuthenticatedRoutes(ctx context.Context, runtime *Runtime, brokerCredential oauth2.TokenSource, backends []string, base *attachmentCatalogue, occupied []string) ([]route, string, error) {
 	// The attachment lock remains held by FreezeAuthenticatedCatalogue throughout
 	// this work. Cancel/close races have one winner, and Tools cannot expose a
 	// partly staged catalogue.
 	seen := make(map[string]struct{}, len(occupied)+len(base.routes))
 	for _, name := range occupied {
 		if name == "" {
-			return nil, ErrInvalidCatalogue
+			return nil, "", ErrInvalidCatalogue
 		}
 		seen[name] = struct{}{}
 	}
@@ -450,6 +453,8 @@ func stageAuthenticatedRoutes(ctx context.Context, runtime *Runtime, brokerCrede
 		}
 	}
 	staged := make([]route, 0)
+	verifiedTSID := ""
+	captureTSID := processCapturesTSID(runtime)
 	for backendIndex, backend := range backends {
 		capabilities, err := runtime.discovery.QueryAuthenticatedCapabilities(ctx, brokerCredential, backend)
 		if err != nil || capabilities.Backend != backend {
@@ -461,13 +466,17 @@ func stageAuthenticatedRoutes(ctx context.Context, runtime *Runtime, brokerCrede
 			// backend position broke a catalogue freeze that otherwise fails
 			// all-or-nothing, without logging its configured name.
 			runtime.diag.Log(ctx, port.LevelWarn, "mcp broker authenticated catalogue backend", "event", diagnosticEventAuthenticatedCatalogueBackend, "reason", diagnosticReasonDiscoveryFailed, "backend_index", backendIndex)
-			return nil, ErrAuthenticatedDiscovery
+			return nil, "", ErrAuthenticatedDiscovery
+		}
+		verifiedTSID, err = retainVerifiedTSID(captureTSID, verifiedTSID, capabilities.verifiedTSID)
+		if err != nil {
+			return nil, "", err
 		}
 		runtime.diag.Log(ctx, port.LevelInfo, "mcp broker authenticated catalogue backend", "event", diagnosticEventAuthenticatedCatalogueBackend, "reason", diagnosticReasonDiscovered, "backend_index", backendIndex, "tools", len(capabilities.Tools))
 		for _, definition := range capabilities.Tools {
 			route, err := validateAuthenticatedRoute(backend, definition, seen)
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			// Execution reuses the one outer ToolHive broker credential. The
 			// wrapper intentionally has no oauth route, so the agent loop cannot
@@ -478,9 +487,26 @@ func stageAuthenticatedRoutes(ctx context.Context, runtime *Runtime, brokerCrede
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return staged, nil
+	if captureTSID && verifiedTSID == "" {
+		return nil, "", ErrAuthenticatedDiscovery
+	}
+	return staged, verifiedTSID, nil
+}
+
+func processCapturesTSID(runtime *Runtime) bool {
+	return runtime.process != nil && runtime.process.discovery != nil && runtime.process.discovery.captureTSID
+}
+
+func retainVerifiedTSID(captureTSID bool, current, observed string) (string, error) {
+	if !captureTSID {
+		return current, nil
+	}
+	if observed == "" || (current != "" && observed != current) {
+		return "", ErrAuthenticatedDiscovery
+	}
+	return observed, nil
 }
 
 // validateAuthenticatedRoute is the single admission boundary for protected
