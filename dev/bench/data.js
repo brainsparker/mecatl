@@ -328524,6 +328524,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791899808775,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aaded48448709f20802195772afea8e4e1e65038",
+          "message": "feat(studio): complete schedule management workspace (#2194)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T18:35:20+02:00",
+          "tree_id": "06a46d718655a589e260ad3fd1ce4a312ddbafde",
+          "url": "https://github.com/stacklok/mecatl/commit/aaded48448709f20802195772afea8e4e1e65038"
+        },
+        "date": 1791910037391,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3247,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 48,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -429452,6 +429491,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791910034778,
+  "lastUpdate": 1791910038373,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
