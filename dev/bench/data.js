@@ -327333,6 +327333,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791891765734,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "280093410+toolhive-release-app[bot]@users.noreply.github.com",
+            "name": "toolhive-release-app[bot]",
+            "username": "toolhive-release-app[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed28347ff4e8ab3cce49ea32d98592af55e12cbb",
+          "message": "Release TypeScript SDK v0.5.0 (#2284)\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-13T13:58:38+02:00",
+          "tree_id": "25ab3fc0edb2883211d28ac368e0067ac2af8690",
+          "url": "https://github.com/stacklok/mecatl/commit/ed28347ff4e8ab3cce49ea32d98592af55e12cbb"
+        },
+        "date": 1791893438343,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -427919,6 +427958,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791893435432,
+  "lastUpdate": 1791893438967,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
