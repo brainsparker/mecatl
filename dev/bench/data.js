@@ -330509,6 +330509,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791923551780,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "reynier@stacklok.com",
+            "name": "reyortiz3",
+            "username": "reyortiz3"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "656ac8eaeb0b641500be0e224156bd9780487f09",
+          "message": "fix(mcp/oauthlogin): pin mcp login's callback path, keep the port ephemeral (#1377)\n\nCo-authored-by: Claude Sonnet 5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T17:19:05-04:00",
+          "tree_id": "0924c5ba60811610da8dcf29ad72008f1f047fae",
+          "url": "https://github.com/stacklok/mecatl/commit/656ac8eaeb0b641500be0e224156bd9780487f09"
+        },
+        "date": 1791927065902,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3266.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 66,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -432007,6 +432046,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791927062699,
+  "lastUpdate": 1791927066978,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
