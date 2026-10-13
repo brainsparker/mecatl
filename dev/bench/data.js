@@ -330112,6 +330112,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791922881225,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113200276+Nashon-Steffen@users.noreply.github.com",
+            "name": "Nashon-Steffen",
+            "username": "Nashon-Steffen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad8f1b0ef2a5e300e5b7220a4f5aee21376d6fd7",
+          "message": "fix(studio): align the mecatl-studio chart with VERSION 0.0.48 (#2295)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T13:19:27-07:00",
+          "tree_id": "8bb4ed67f4950115158999966989b7d52da3b70e",
+          "url": "https://github.com/stacklok/mecatl/commit/ad8f1b0ef2a5e300e5b7220a4f5aee21376d6fd7"
+        },
+        "date": 1791923551780,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3263,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 64,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -431496,6 +431535,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791923548932,
+  "lastUpdate": 1791923552380,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
