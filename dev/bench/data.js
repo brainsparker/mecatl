@@ -328127,6 +328127,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791897035808,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e3bea42e33544035dfa3f82114ae575541afd3c",
+          "message": "fix(scheduler): keep polling behind stuck fires without releasing ownership (#2277)\n\nKeep scheduler polling independent of stuck fires while retaining bounded capacity and execution ownership. Enforce atomic schedule claims and retries, preserve late results safely, and adopt the merged schedule-store conformance suite.\n\nFixes #2273\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T16:43:35+03:00",
+          "tree_id": "275967115d9917d6c1176ab8bdef97af6f15c1b1",
+          "url": "https://github.com/stacklok/mecatl/commit/8e3bea42e33544035dfa3f82114ae575541afd3c"
+        },
+        "date": 1791899808775,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3274,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 73,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -428941,6 +428980,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791899805405,
+  "lastUpdate": 1791899809729,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
