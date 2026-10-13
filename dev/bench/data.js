@@ -324554,6 +324554,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791881613447,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b5a23243e44d4fa401d7efee632590818bdc73a6",
+          "message": "feat(studio): add the @/ alias and port the prototype's foundation primitives and utilities (#2225)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T10:41:52+02:00",
+          "tree_id": "578c0ed16614a2488e17640215527a0c43839e2e",
+          "url": "https://github.com/stacklok/mecatl/commit/b5a23243e44d4fa401d7efee632590818bdc73a6"
+        },
+        "date": 1791882324060,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3271,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 72,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -424342,6 +424381,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791882320616,
+  "lastUpdate": 1791882324822,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
