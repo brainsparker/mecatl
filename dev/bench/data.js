@@ -298250,6 +298250,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791923548325,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "reynier@stacklok.com",
+            "name": "reyortiz3",
+            "username": "reyortiz3"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "656ac8eaeb0b641500be0e224156bd9780487f09",
+          "message": "fix(mcp/oauthlogin): pin mcp login's callback path, keep the port ephemeral (#1377)\n\nCo-authored-by: Claude Sonnet 5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T17:19:05-04:00",
+          "tree_id": "0924c5ba60811610da8dcf29ad72008f1f047fae",
+          "url": "https://github.com/stacklok/mecatl/commit/656ac8eaeb0b641500be0e224156bd9780487f09"
+        },
+        "date": 1791927061635,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -431973,6 +432007,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791927057647,
+  "lastUpdate": 1791927062699,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
