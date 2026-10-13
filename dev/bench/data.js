@@ -326142,6 +326142,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791889209074,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "23c3659dbe2a6e2b742728a723f5c4148e3bf809",
+          "message": "feat(studio): converge card, table, tooltip, and input with the prototype (#2226)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T12:54:31+02:00",
+          "tree_id": "87c990e06ed1f4faed275caa1cb9fba6f06a767c",
+          "url": "https://github.com/stacklok/mecatl/commit/23c3659dbe2a6e2b742728a723f5c4148e3bf809"
+        },
+        "date": 1791889939031,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 76.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -426386,6 +426425,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791889934952,
+  "lastUpdate": 1791889940585,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
