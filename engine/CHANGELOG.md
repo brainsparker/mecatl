@@ -13,6 +13,14 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
 
 ### Added
 
+- **Schedule-store claim and retry conformance** — adds
+  `scheduleconformance.RunClaimAndRetryConformance` with the complete shared
+  suite plus unresolved prior-claim rejection, late-result isolation, and
+  eligible, single-winner one-shot rearming. Claim reserves a schedule
+  occurrence in stored state, and rearming re-enables a failed one-shot; this
+  suite does not run an executor. Legacy `Run` expectations remain unchanged.
+  Added (minor); test-helper API only, outside the core API snapshot surface.
+
 - **Durable bound execution affordances** — adds `session.ExecutionCapabilities`
   and `Session.ExecutionCapabilities` for host-stamped, creation-time filesystem
   and Shell availability facts. Snapshot and event-source restoration preserve
