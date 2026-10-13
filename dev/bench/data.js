@@ -292164,6 +292164,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791844958445,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "22d44c26012f3b37bdf4ee95b7352ea085e4fdab",
+          "message": "fix(ci): make full-expiry renewal qualification explicit (#2276)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T11:26:43+03:00",
+          "tree_id": "5697cec1ad90dff2cb671dadf3f54b1e6fad0eb5",
+          "url": "https://github.com/stacklok/mecatl/commit/22d44c26012f3b37bdf4ee95b7352ea085e4fdab"
+        },
+        "date": 1791880762939,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -423286,6 +423320,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791880759612,
+  "lastUpdate": 1791880763820,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
