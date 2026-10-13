@@ -329715,6 +329715,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791922104357,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113200276+Nashon-Steffen@users.noreply.github.com",
+            "name": "Nashon-Steffen",
+            "username": "Nashon-Steffen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2cda4521a8e86688ec6ed48e4f3791c38fc38bdc",
+          "message": "ci: prune old continuous main builds from GHCR daily (#2293)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T13:00:42-07:00",
+          "tree_id": "9fccee7a0203c56f623dff1a55e7b66e6807c71a",
+          "url": "https://github.com/stacklok/mecatl/commit/2cda4521a8e86688ec6ed48e4f3791c38fc38bdc"
+        },
+        "date": 1791922881225,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3278.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 79,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -430985,6 +431024,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791922877997,
+  "lastUpdate": 1791922882107,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
