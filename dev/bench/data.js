@@ -295744,6 +295744,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791893434703,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6859db3038747718a9169fde2f8e7d523d6aedcd",
+          "message": "fix(engine): show the full command in system temp-scope approval asks (#2263)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T14:58:39+02:00",
+          "tree_id": "de2fb73b47616807e2caed6a06c497e0143106f3",
+          "url": "https://github.com/stacklok/mecatl/commit/6859db3038747718a9169fde2f8e7d523d6aedcd"
+        },
+        "date": 1791897032306,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -428396,6 +428430,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791897029417,
+  "lastUpdate": 1791897033057,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
