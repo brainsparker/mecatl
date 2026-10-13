@@ -297176,6 +297176,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791920656305,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113200276+Nashon-Steffen@users.noreply.github.com",
+            "name": "Nashon-Steffen",
+            "username": "Nashon-Steffen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73795a66eabfe945bd2f45835c68462a86276590",
+          "message": "chore(studio): build the SDK from the checkout permanently (#2288)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T12:56:30-07:00",
+          "tree_id": "7cb1d698ff46e3ebde76e923111391c2e3fbaa89",
+          "url": "https://github.com/stacklok/mecatl/commit/73795a66eabfe945bd2f45835c68462a86276590"
+        },
+        "date": 1791922100473,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -430440,6 +430474,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791922097444,
+  "lastUpdate": 1791922101228,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
