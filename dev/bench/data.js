@@ -296460,6 +296460,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791899804456,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aaded48448709f20802195772afea8e4e1e65038",
+          "message": "feat(studio): complete schedule management workspace (#2194)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T18:35:20+02:00",
+          "tree_id": "06a46d718655a589e260ad3fd1ce4a312ddbafde",
+          "url": "https://github.com/stacklok/mecatl/commit/aaded48448709f20802195772afea8e4e1e65038"
+        },
+        "date": 1791910034004,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -429418,6 +429452,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791910030916,
+  "lastUpdate": 1791910034778,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
