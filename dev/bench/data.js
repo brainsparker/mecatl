@@ -327730,6 +327730,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791893438343,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6859db3038747718a9169fde2f8e7d523d6aedcd",
+          "message": "fix(engine): show the full command in system temp-scope approval asks (#2263)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T14:58:39+02:00",
+          "tree_id": "de2fb73b47616807e2caed6a06c497e0143106f3",
+          "url": "https://github.com/stacklok/mecatl/commit/6859db3038747718a9169fde2f8e7d523d6aedcd"
+        },
+        "date": 1791897035808,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3267,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 67,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -428430,6 +428469,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791897033057,
+  "lastUpdate": 1791897036665,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
