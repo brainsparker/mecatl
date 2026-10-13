@@ -9,6 +9,31 @@ release behavior. This page is only a stable index to operational guidance.
 - [Mecatequi CI adoption](../../user-docs/building/ci/mecatequi.md)
 - [microVM environment operations](../../user-docs/operating/microvm-environments.md)
 
+## Continuous builds from main
+
+[Continuous main build](continuous.yml) publishes signed `mecak8s` and Studio images
+and their charts after [CI](ci.yml) passes on a push to `main`. Its header comment
+describes the version scheme and publication order.
+
+- **Packages:** images at `ghcr.io/stacklok/mecatl/main/{mecak8s,studio}` and charts
+  at `oci://ghcr.io/stacklok/mecatl/main/charts`, each pinning its image by digest.
+  Follow the newest build with a prerelease range such as `>=0.0.0-0`. GitHub creates
+  these packages as private; pull them with a GHCR credential or make them public.
+  Main builds ship without the product-metrics ingest key.
+- **Verification:** signatures and attestations name
+  `.github/workflows/continuous.yml@refs/heads/main`. Have followers verify charts
+  with that identity (for Flux, `verify.provider: cosign`), so they never deploy a
+  chart whose signing failed.
+- **Publishing by hand:** dispatch the workflow from `main` once CI has passed on its
+  commit. Dispatch while no run is in progress and check that it published, because
+  a later automatic run replaces a pending dispatch. Dispatching again republishes a
+  commit whose chart was pushed but not signed and attested.
+- **Rolling back:** dispatch with `force` and an older `commit_sha`. Followers move to
+  it until the next main build publishes; to hold a version, pin it on the follower.
+- **Partial failures:** the `mecak8s` chart publishes before `mecatl-studio`, so a run
+  that fails between them leaves followers on the new daemon with the previous Studio
+  until the next build publishes.
+
 ## Cutting a root release
 
 Releases go through a pull request; nothing pushes a commit to `main`.
