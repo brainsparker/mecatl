@@ -295028,6 +295028,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791891047926,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21b999ccd79d1241f767825b1eb443e71e744482",
+          "message": "feat(broker): encrypt ToolHive credential storage (#2275)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T13:24:30+02:00",
+          "tree_id": "c8e479da6d7811d7b2a8a0fe4b668558ad7f3b82",
+          "url": "https://github.com/stacklok/mecatl/commit/21b999ccd79d1241f767825b1eb443e71e744482"
+        },
+        "date": 1791891762283,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -427374,6 +427408,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791891759416,
+  "lastUpdate": 1791891762879,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
