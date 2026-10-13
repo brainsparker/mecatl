@@ -324951,6 +324951,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791882324060,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "63ab9dcce987d2e2e66adcb49d39a768f743cc12",
+          "message": "feat(skills): read a skill's files through the client API (#2192)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T11:38:19+02:00",
+          "tree_id": "4616ad7edf0744b8de95ab9874ae24df51817b41",
+          "url": "https://github.com/stacklok/mecatl/commit/63ab9dcce987d2e2e66adcb49d39a768f743cc12"
+        },
+        "date": 1791885062610,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -424853,6 +424892,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791885058869,
+  "lastUpdate": 1791885063338,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
