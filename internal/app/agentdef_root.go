@@ -46,7 +46,7 @@ func buildAgentDefRootEngine(
 	def agents.AgentDef,
 	source string,
 	provider port.LLMProvider,
-	model string,
+	providerModel session.ProviderModelID,
 	windowFn func() int,
 	base map[string]tool.Tool,
 	allowShell bool,
@@ -69,10 +69,11 @@ func buildAgentDefRootEngine(
 	// scope "memory: project" to two sessions on the same def bound to
 	// different placements (ADR 0353 Scenario 2, AC2.5). See
 	// resolveAgentMemoryHead's docs.
+	model := providerModel.ModelID
 	cat, pc, hooks, mcpClose, _, resources, _ := resolvedAgentDefCatalog(
 		ctx, cfg, def, source, model, base, true /*allowMutating*/, allowShell, skillIdx, defaultHooks, runner, mainMgr, sessionRoot)
 
-	deps := engineDepsForProvider(cfg, provider, session.ProviderModelID{ProviderID: parentProviderID, ModelID: model}, windowFn, store, policy, hooks, mcpProvider, instructions)
+	deps := engineDepsForProvider(cfg, provider, providerModel, windowFn, store, policy, hooks, mcpProvider, instructions)
 	deps.Catalog = cat
 	deps.PromptConfig = pc
 	// Deps.Role is deliberately left at engineDepsForProvider's default (empty)
@@ -205,7 +206,7 @@ func agentDefSessionEngineFactory(
 		// resolveAgentMemoryHead's "project" tier a no-op, never an error (AC2.6).
 		sessionRoot := server.AgentDefSessionRootFromContext(ctx)
 		eng, mcpClose, authority := buildAgentDefRootEngine(ctx, cfg, def, assets.agentReg.Detail(def.Name),
-			childProvider, model, windowFn, base, allowShell, assets.skillIndex, hooks, runner, assets.globalMgr,
+			childProvider, session.ProviderModelID{ProviderID: pid, ModelID: model}, windowFn, base, allowShell, assets.skillIndex, hooks, runner, assets.globalMgr,
 			store, policy, mcpProvider, instructions, provReg, parentProviderID, guardrailWaiver, sessionRoot)
 
 		closeFn := func() error {
