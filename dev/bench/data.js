@@ -292522,6 +292522,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791880762939,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1e49cb41976eaece0ee79777edfd29e662800259",
+          "message": "test(e2e): retain live qualification artifact diagnostics (#2274)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T11:41:39+03:00",
+          "tree_id": "a2c30ab43ab97d230e1020a68a38cef510cdd3cc",
+          "url": "https://github.com/stacklok/mecatl/commit/1e49cb41976eaece0ee79777edfd29e662800259"
+        },
+        "date": 1791881609663,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -423797,6 +423831,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791881606778,
+  "lastUpdate": 1791881610480,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
