@@ -324157,6 +324157,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791880766983,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1e49cb41976eaece0ee79777edfd29e662800259",
+          "message": "test(e2e): retain live qualification artifact diagnostics (#2274)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T11:41:39+03:00",
+          "tree_id": "a2c30ab43ab97d230e1020a68a38cef510cdd3cc",
+          "url": "https://github.com/stacklok/mecatl/commit/1e49cb41976eaece0ee79777edfd29e662800259"
+        },
+        "date": 1791881613447,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 78,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -423831,6 +423870,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791881610480,
+  "lastUpdate": 1791881614212,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
