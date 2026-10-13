@@ -293954,6 +293954,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791888497475,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd9a609c202e40c671076b4e5cbf7d54ff365991",
+          "message": "fix(ci): trigger in-flight renewal and reuse qualified live deployment (#2280)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T13:44:02+03:00",
+          "tree_id": "a41f98300415626707f8607c469e058c54d1a06f",
+          "url": "https://github.com/stacklok/mecatl/commit/fd9a609c202e40c671076b4e5cbf7d54ff365991"
+        },
+        "date": 1791889203952,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -425841,6 +425875,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791889200852,
+  "lastUpdate": 1791889204752,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
