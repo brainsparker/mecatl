@@ -294670,6 +294670,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791889934218,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5cd89223130c430aab6926ed5b2a043b425a932d",
+          "message": "fix(cli): simplify YOLO startup warnings (#2283)\n\nReplace the jargon-heavy YOLO startup warnings with concise risk and permission guidance. Show the advisory safety-check notice only when the resolved embedded checker is enabled under YOLO.\n\nCloses #2282.\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-13T14:19:44+03:00",
+          "tree_id": "422929b17f6b431e405bfb3c31a48fef2290f1ca",
+          "url": "https://github.com/stacklok/mecatl/commit/5cd89223130c430aab6926ed5b2a043b425a932d"
+        },
+        "date": 1791891047926,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -426863,6 +426897,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791891045009,
+  "lastUpdate": 1791891048902,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
