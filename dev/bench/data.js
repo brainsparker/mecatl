@@ -294312,6 +294312,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791889203952,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "23c3659dbe2a6e2b742728a723f5c4148e3bf809",
+          "message": "feat(studio): converge card, table, tooltip, and input with the prototype (#2226)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T12:54:31+02:00",
+          "tree_id": "87c990e06ed1f4faed275caa1cb9fba6f06a767c",
+          "url": "https://github.com/stacklok/mecatl/commit/23c3659dbe2a6e2b742728a723f5c4148e3bf809"
+        },
+        "date": 1791889934218,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -426352,6 +426386,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791889930355,
+  "lastUpdate": 1791889934952,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
