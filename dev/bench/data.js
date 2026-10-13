@@ -297892,6 +297892,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791922876930,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113200276+Nashon-Steffen@users.noreply.github.com",
+            "name": "Nashon-Steffen",
+            "username": "Nashon-Steffen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad8f1b0ef2a5e300e5b7220a4f5aee21376d6fd7",
+          "message": "fix(studio): align the mecatl-studio chart with VERSION 0.0.48 (#2295)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-13T13:19:27-07:00",
+          "tree_id": "8bb4ed67f4950115158999966989b7d52da3b70e",
+          "url": "https://github.com/stacklok/mecatl/commit/ad8f1b0ef2a5e300e5b7220a4f5aee21376d6fd7"
+        },
+        "date": 1791923548325,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -431462,6 +431496,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791923545282,
+  "lastUpdate": 1791923548932,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
