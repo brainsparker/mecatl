@@ -332494,6 +332494,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791969732842,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1ade902c7071da55c1ea235e45f163b543267130",
+          "message": "fix(studio): classify destructive tool approvals by name tokens (#2230)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T11:40:56+02:00",
+          "tree_id": "f4deaaf2abc6a0c2c39e3315f049c59a8c6c76fd",
+          "url": "https://github.com/stacklok/mecatl/commit/1ade902c7071da55c1ea235e45f163b543267130"
+        },
+        "date": 1791971578593,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -434562,6 +434601,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791971575730,
+  "lastUpdate": 1791971579314,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
