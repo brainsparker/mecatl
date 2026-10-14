@@ -301114,6 +301114,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791972949231,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0f472e6b1228fb17203ae3ec97f444c3b4cb35f9",
+          "message": "feat(studio): port the prototype's chat composer, pills, and queued strip (#2253)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T12:23:39+02:00",
+          "tree_id": "90be97eebead7d271256adc7b78deee62a31ee8b",
+          "url": "https://github.com/stacklok/mecatl/commit/0f472e6b1228fb17203ae3ec97f444c3b4cb35f9"
+        },
+        "date": 1791974148654,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -436061,6 +436095,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791974144866,
+  "lastUpdate": 1791974149690,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
