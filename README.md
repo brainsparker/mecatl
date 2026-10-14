@@ -19,3 +19,7 @@ The `studio-alignment-2228/` folder holds the before/after composites for the St
 - `studio-alignment-fix-<pr>/`: before/after (and prototype where relevant) composites for the final-review fixes of each Studio alignment PR.
 - `engine-2263/`: mecatui approval request before/after for #2263 (system temp-scope Shell command).
 - `studio-alignment-restack-2253/`: before/after/prototype composites for #2253 after its rebase onto #2219 (the new-chat composer with the Execution picker).
+- `studio-fix-2259/`: before/after/prototype composites for #2259 (whole approval command and invisible characters).
+- `studio-fix-2261/`: before/after/prototype composites for #2261 (phone Settings section index).
+- `studio-fix-2260/`: before/after/prototype composites for #2260 (provider display names from the BFF).
+- `studio-fix-2258/`: before/after/prototype composites for #2258 (Escape in another approval card).
