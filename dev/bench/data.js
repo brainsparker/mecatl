@@ -333685,6 +333685,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791972952816,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0f472e6b1228fb17203ae3ec97f444c3b4cb35f9",
+          "message": "feat(studio): port the prototype's chat composer, pills, and queued strip (#2253)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T12:23:39+02:00",
+          "tree_id": "90be97eebead7d271256adc7b78deee62a31ee8b",
+          "url": "https://github.com/stacklok/mecatl/commit/0f472e6b1228fb17203ae3ec97f444c3b4cb35f9"
+        },
+        "date": 1791974152746,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -436095,6 +436134,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791974149690,
+  "lastUpdate": 1791974153797,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
