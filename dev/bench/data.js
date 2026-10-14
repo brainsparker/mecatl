@@ -334876,6 +334876,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791975594638,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d6e0c96a274e1ffbb3567878d9e7b44cf834589",
+          "message": "fix(studio): apply the tiny follow-up fixes from #2303 (#2309)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T14:16:03+02:00",
+          "tree_id": "526a69b547b9bd9429de0494c670d734c531227b",
+          "url": "https://github.com/stacklok/mecatl/commit/8d6e0c96a274e1ffbb3567878d9e7b44cf834589"
+        },
+        "date": 1791980858983,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3281,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 82,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -437628,6 +437667,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791980855638,
+  "lastUpdate": 1791980860080,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
