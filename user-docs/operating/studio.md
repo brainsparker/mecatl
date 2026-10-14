@@ -235,9 +235,24 @@ can be sent after the current run ends.
 
 When a tool needs permission, review its name, reason, and arguments in the
 approval card. Edit and Write cards show a line diff with display limits when
-the arguments support one. Open **Raw arguments** to inspect the arguments,
-then choose **Allow once**, **Always allow**, or **Deny**. If the arguments are
-unavailable, only **Deny** is enabled.
+the arguments support one; commands show their text, with any timeout or
+temporary-storage scope, and other arguments show formatted JSON. Arguments
+that repeat a name, spell one in another case, or add one the tool doesn't
+define also show as formatted JSON, because the tool could read them
+differently from a diff or command view. Select **Raw arguments** to see the
+exact arguments, then choose **Allow once**, **Always allow**, or **Deny**. If
+the arguments are unavailable, only **Deny** is enabled. In a chat, **Open in
+detail panel** shows the same request in the side panel with its complete diff,
+and you can decide there too.
+
+On the chat's active request, with focus in its card or detail panel, press Y or
+A to allow it once, W to always allow it, or N or D to deny it. The arrow keys
+move between the verdict buttons. A new request never takes focus, so a key you
+type as it arrives answers nothing: press Tab or click to move focus into its
+card first. These keys never act from outside the request's card or panel, while
+you type in the composer or another field, while a verdict is being sent, or
+when its outcome is uncertain. Escape denies the active request; in a detail
+panel showing a different request, Escape closes the panel instead.
 
 The card is red when a word in the tool name is delete, remove, drop, revoke,
 destroy, purge, rm, or rmdir, in any naming style, such as `delete_file` or

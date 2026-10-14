@@ -117,6 +117,13 @@ export function ShortcutReference() {
         <p className="mt-2 text-sm text-muted-foreground">
           A focused verdict button uses Enter or Space. Its action does not send the composer.
         </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          With focus in the active tool request's card or detail panel, Y or A allows once, W always
+          allows, and N or D denies. The arrow keys move between its verdict buttons. These keys
+          pause while you type, and while a verdict is being sent or its outcome is uncertain. A
+          detail panel showing another request closes on Escape. A new request never takes focus:
+          Tab or click into its card first.
+        </p>
       </section>
 
       <section aria-labelledby="agent-features" className={CARD_CLASS}>
