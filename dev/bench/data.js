@@ -332891,6 +332891,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791971578593,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f93588902f0038944d30df0adcf4cf7a06a327ae",
+          "message": "feat(studio): port the prototype's chat approval card, detail panel, and shortcuts (#2251)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T11:48:14+02:00",
+          "tree_id": "703a8f0cb1b85542ad917aeaa32199f80dabe1ee",
+          "url": "https://github.com/stacklok/mecatl/commit/f93588902f0038944d30df0adcf4cf7a06a327ae"
+        },
+        "date": 1791972267917,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3250.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 51,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -435073,6 +435112,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791972265086,
+  "lastUpdate": 1791972268707,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
