@@ -334082,6 +334082,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791974152746,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1a3150fd15db7db0d6223256ed4bd0e4ede36fe3",
+          "message": "refactor(studio): describe cron schedules with cronstrue (#2285)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T12:36:00+02:00",
+          "tree_id": "3a8c80f9e868f6a9bccbda92d33797de09e5f485",
+          "url": "https://github.com/stacklok/mecatl/commit/1a3150fd15db7db0d6223256ed4bd0e4ede36fe3"
+        },
+        "date": 1791974883705,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3272,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 72.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -436606,6 +436645,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791974880661,
+  "lastUpdate": 1791974884867,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
