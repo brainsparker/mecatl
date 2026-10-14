@@ -331303,6 +331303,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791951479884,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3145b607f1f8878dad577ec8f37d6d24c5e9e6f9",
+          "message": "perf(microvm): reuse native copy-on-write rootfs cloning (#2297)\n\nUse the existing go-microvm rootfs.CloneDir implementation for repository-private writable rootfs materialization, with integration coverage for independent writes and retained guest-agent contents and executable permissions.\n\nCloses #2296.\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-14T10:27:10+03:00",
+          "tree_id": "0d9090bdacc46bd31a690d5ce2f1c7186fdf6605",
+          "url": "https://github.com/stacklok/mecatl/commit/3145b607f1f8878dad577ec8f37d6d24c5e9e6f9"
+        },
+        "date": 1791963551131,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3274,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 74,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -433029,6 +433068,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791963548180,
+  "lastUpdate": 1791963552230,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
