@@ -301830,6 +301830,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791974879544,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab30305e7bb013f25458b75a79425cfbefa84374",
+          "message": "fix(studio): sweep Studio's accessibility, 500px breakpoints, and phone overflow (#2256)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T12:47:09+02:00",
+          "tree_id": "768273186d17a51239bd1618fdad139f515b79b4",
+          "url": "https://github.com/stacklok/mecatl/commit/ab30305e7bb013f25458b75a79425cfbefa84374"
+        },
+        "date": 1791975590664,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -437083,6 +437117,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791975587700,
+  "lastUpdate": 1791975591589,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
