@@ -331700,6 +331700,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791963551131,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cee52d7a21591b59cae903ea4167b465a87ad351",
+          "message": "feat(studio): rebuild global search on cmdk and align the shell with the prototype (#2228)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T10:58:56+02:00",
+          "tree_id": "e7666cc44200b4ec181f25deeb3489383caa4ec8",
+          "url": "https://github.com/stacklok/mecatl/commit/cee52d7a21591b59cae903ea4167b465a87ad351"
+        },
+        "date": 1791969062971,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -433540,6 +433579,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791969059175,
+  "lastUpdate": 1791969063712,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
