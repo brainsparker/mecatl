@@ -300040,6 +300040,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791969728583,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1ade902c7071da55c1ea235e45f163b543267130",
+          "message": "fix(studio): classify destructive tool approvals by name tokens (#2230)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T11:40:56+02:00",
+          "tree_id": "f4deaaf2abc6a0c2c39e3315f049c59a8c6c76fd",
+          "url": "https://github.com/stacklok/mecatl/commit/1ade902c7071da55c1ea235e45f163b543267130"
+        },
+        "date": 1791971575186,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -434528,6 +434562,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791971571951,
+  "lastUpdate": 1791971575730,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
