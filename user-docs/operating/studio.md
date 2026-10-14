@@ -271,8 +271,10 @@ approval button selects that decision without sending your draft. The
 
 ### Review external authorization
 
-If a tool needs external authorization, select **Review authorization** in the
-chat. Select **Open authorization** to complete the external step in a new tab,
+If a tool needs external authorization, the chat header shows **Waiting for
+authorization**; on a phone, where the header has no room for the label, an amber
+key replaces the spinner that marks a working run. Select **Review authorization**
+in the chat. Select **Open authorization** to complete the external step in a new tab,
 then return to Studio and select **Recheck**. The panel shows the observed
 status. **Cancel authorization** ends the pending handoff. Opening the external
 page alone does not grant access, and closing the review panel leaves the
@@ -321,7 +323,8 @@ thread, even when two messages have the same text.
 
 Select an image or tool result in the transcript to inspect its preview in the
 same side panel. Select **Canvas** in the chat header to edit Markdown notes and
-switch between **Edit** and **Preview**. Canvas notes stay in this browser for
+switch between **Edit** and **Preview**. On a phone, an open chat has it under
+**Chat options > Open local canvas** instead. Canvas notes stay in this browser for
 your account and the selected chat. Opening or previewing them does not send
 their text to Mecatl.
 
