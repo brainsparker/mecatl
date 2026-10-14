@@ -302546,6 +302546,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791980854499,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "remi.rey@algolia.com",
+            "name": "Rémi REY",
+            "username": "rrey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42b933fb4ddcc37f168be15016a7ab88c6bbb21b",
+          "message": "fix(helm): add the global key unrestricted (#2289)",
+          "timestamp": "2026-10-14T14:45:34+02:00",
+          "tree_id": "72792f1615069ed625e813bbd59631bcb21054ae",
+          "url": "https://github.com/stacklok/mecatl/commit/42b933fb4ddcc37f168be15016a7ab88c6bbb21b"
+        },
+        "date": 1791982659797,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -438105,6 +438139,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791982656796,
+  "lastUpdate": 1791982660820,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
