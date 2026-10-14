@@ -332097,6 +332097,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791969062971,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7cd9bb0f9ae81a2f8c9630f3bdc2a9d35e3aceac",
+          "message": "feat(studio): align Settings > Learning with the prototype (#2232)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T11:00:32+02:00",
+          "tree_id": "879f382f4edb16c939a5beb052da912c472e9992",
+          "url": "https://github.com/stacklok/mecatl/commit/7cd9bb0f9ae81a2f8c9630f3bdc2a9d35e3aceac"
+        },
+        "date": 1791969732842,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3264,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 65,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -434051,6 +434090,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791969729650,
+  "lastUpdate": 1791969733891,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
