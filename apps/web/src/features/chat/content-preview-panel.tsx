@@ -2,6 +2,8 @@
 
 import {
   Braces,
+  Copy,
+  Eraser,
   FileText,
   ListTree,
   NotebookPen,
@@ -11,17 +13,32 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Textarea } from "../../components/ui/textarea";
+import { Toggle } from "../../components/ui/toggle";
+import { copyToClipboard } from "../../lib/clipboard";
 import { cn } from "../../lib/utils";
+import { useShortcutSuppression } from "../shortcuts/shortcut-provider";
 import { type ApprovalDetail, ApprovalDetailPanel } from "./approval-detail-panel";
 import {
   type AuthorizationHandoff,
   type AuthorizationOperation,
   AuthorizationReview,
 } from "./authorization-review";
-import { HighlightedCode } from "./code-highlight";
+import { CodeBlock } from "./code-block";
+import { HighlightedCode, langForClassName } from "./code-highlight";
 import type { DelegationFocus } from "./delegation-card";
 import type { DelegationFleet } from "./delegation-fleet";
 import { SessionActivityContent } from "./delegation-panel";
@@ -208,17 +225,17 @@ function GenericPreviewPanel({
       autoFocusClose={preview.kind !== "activity"}
       icon={
         preview.kind === "approval" ? (
-          <ShieldAlert aria-hidden="true" className="size-4 text-brand-ink" />
+          <ShieldAlert aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         ) : preview.kind === "authorization" ? (
-          <ShieldCheck aria-hidden="true" className="size-4 text-brand-ink" />
+          <ShieldCheck aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         ) : preview.kind === "activity" ? (
-          <ListTree aria-hidden="true" className="size-4 text-brand-ink" />
+          <ListTree aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         ) : preview.kind === "canvas" ? (
-          <NotebookPen aria-hidden="true" className="size-4 text-brand-ink" />
+          <NotebookPen aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         ) : preview.kind === "tool" ? (
-          <Braces aria-hidden="true" className="size-4 text-brand-ink" />
+          <Braces aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         ) : (
-          <FileText aria-hidden="true" className="size-4 text-brand-ink" />
+          <FileText aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         )
       }
       // An ask's panel shows its Escape hint under its verdicts, beside "Esc to
@@ -275,6 +292,12 @@ function GenericPreviewPanel({
   );
 }
 
+/**
+ * The local canvas, in the prototype's `local-canvas-panel.tsx` layout: a
+ * toolbar with the view switch, Copy, and Clear above the editor, and the
+ * browser-only note under it. Studio keeps its Edit and Preview words for the
+ * two views (the prototype's Raw and Styled).
+ */
 function LocalCanvasEditor({
   onChange,
   value,
@@ -283,28 +306,115 @@ function LocalCanvasEditor({
   value: string;
 }) {
   const [previewing, setPreviewing] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  const clearTrigger = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
+  const previewToggle = useRef<HTMLButtonElement>(null);
+  // A modal confirmation: app shortcuts must not act on the chat behind it.
+  useShortcutSuppression(confirmingClear);
+  const segment =
+    "h-7 min-w-0 rounded-full px-3 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm";
   return (
-    <div className="flex min-h-full flex-col p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">Saved only in this browser.</p>
-        <Button onClick={() => setPreviewing((current) => !current)} size="sm" variant="outline">
-          {previewing ? <Pencil aria-hidden="true" /> : <ScanEye aria-hidden="true" />}
-          {previewing ? "Edit" : "Preview"}
-        </Button>
-      </div>
-      {previewing ? (
-        <div className="prose min-h-64 flex-1 text-sm">
-          {value ? <MarkdownMessage>{value}</MarkdownMessage> : <p>No canvas notes yet.</p>}
+    <div className="flex min-h-full flex-col">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background px-3 py-1.5">
+        {/* biome-ignore lint/a11y/useSemanticElements: a group of two toggle buttons, not a form fieldset */}
+        <div
+          aria-label="Canvas view"
+          className="flex gap-0.5 rounded-full bg-muted p-1"
+          role="group"
+        >
+          <Toggle
+            className={segment}
+            onPressedChange={(pressed) => pressed && setPreviewing(true)}
+            pressed={previewing}
+            ref={previewToggle}
+            size="sm"
+          >
+            <ScanEye aria-hidden="true" />
+            Preview
+          </Toggle>
+          <Toggle
+            className={segment}
+            onPressedChange={(pressed) => pressed && setPreviewing(false)}
+            pressed={!previewing}
+            size="sm"
+          >
+            <Pencil aria-hidden="true" />
+            Edit
+          </Toggle>
         </div>
-      ) : (
-        <Textarea
-          aria-label="Local canvas"
-          className="min-h-64 flex-1 resize-none font-mono text-xs"
-          onChange={(event) => onChange(event.target.value)}
-          placeholder="# Notes"
-          value={value}
-        />
-      )}
+        <div className="flex items-center gap-1">
+          <Button
+            aria-label="Copy canvas"
+            className="size-7 text-muted-foreground"
+            disabled={!value}
+            onClick={() => void copyToClipboard(value, "Canvas")}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Copy aria-hidden="true" className="size-4" />
+          </Button>
+          {/* The canvas has no undo, so Clear asks first. */}
+          <AlertDialog onOpenChange={setConfirmingClear} open={confirmingClear}>
+            <AlertDialogTrigger asChild>
+              <Button
+                aria-label="Clear canvas"
+                className="size-7 text-muted-foreground"
+                disabled={!value}
+                ref={clearTrigger}
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <Eraser aria-hidden="true" className="size-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent
+              onCloseAutoFocus={(event) => {
+                // An emptied canvas disables Clear, and focus would fall to the page.
+                if (!clearTrigger.current?.disabled) return;
+                event.preventDefault();
+                (previewing ? previewToggle.current : field.current)?.focus();
+              }}
+            >
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear the canvas?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This deletes every note on the canvas in this browser. You can't undo it.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onChange("")}>Clear</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        {previewing ? (
+          <div className="min-h-64 flex-1 text-sm leading-relaxed">
+            {value ? (
+              <MarkdownMessage>{value}</MarkdownMessage>
+            ) : (
+              <p className="text-muted-foreground">No canvas notes yet.</p>
+            )}
+          </div>
+        ) : (
+          <>
+            <Textarea
+              aria-label="Local canvas"
+              className="min-h-64 flex-1 resize-none font-mono text-xs"
+              onChange={(event) => onChange(event.target.value)}
+              placeholder="# Notes"
+              ref={field}
+              value={value}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">Saved only in this browser.</p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -395,12 +505,12 @@ function PreviewCode({ error, value }: { error?: boolean; value: string }) {
 function FilePreview({ file }: { file: LocalFilePreview }) {
   return (
     <div className="flex min-h-full flex-col">
-      <p className="border-b bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
+      <p className="sticky top-0 z-10 border-b bg-background/95 px-4 py-1.5 text-xs text-muted-foreground backdrop-blur lg:px-6">
         {file.sent ? "Conversation image" : "Local preview"} ·{" "}
         {file.size ? formatBytes(file.size) : "remote source"}
         {!file.sent && " · not sent to Mecatl"}
       </p>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1">
         <FilePreviewContent file={file} />
       </div>
     </div>
@@ -409,7 +519,11 @@ function FilePreview({ file }: { file: LocalFilePreview }) {
 
 function FilePreviewContent({ file }: { file: LocalFilePreview }) {
   if (file.kind === "image" && file.dataUrl?.startsWith("data:image/")) {
-    return <img alt={file.name} className="max-w-full p-4" src={file.dataUrl} />;
+    return (
+      <div className="p-4 lg:p-6">
+        <img alt={file.name} className="max-w-full rounded-lg" src={file.dataUrl} />
+      </div>
+    );
   }
   if (file.kind === "image" && file.dataUrl && isWebUrl(file.dataUrl)) {
     return (
@@ -433,21 +547,24 @@ function FilePreviewContent({ file }: { file: LocalFilePreview }) {
   }
   if (file.kind === "markdown" && file.content !== undefined) {
     return (
-      <div className="p-5 text-sm">
+      <div className="px-4 py-4 text-sm leading-relaxed lg:px-6 lg:py-6 lg:text-[15px]">
         <MarkdownMessage>{file.content}</MarkdownMessage>
       </div>
     );
   }
   if (file.kind === "code" && file.content !== undefined) {
     return (
-      <pre className="overflow-auto whitespace-pre p-5 leading-5">
-        <HighlightedCode code={file.content} />
-      </pre>
+      <CodeBlock
+        code={file.content}
+        lang={langForClassName(`language-${file.name.split(".").at(-1) ?? ""}`)}
+      />
     );
   }
   if (file.content !== undefined) {
     return (
-      <pre className="whitespace-pre-wrap p-5 font-mono text-xs leading-5">{file.content}</pre>
+      <pre className="whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed lg:p-6">
+        {file.content}
+      </pre>
     );
   }
   return (
