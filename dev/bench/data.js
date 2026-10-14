@@ -335273,6 +335273,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791980858983,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "remi.rey@algolia.com",
+            "name": "Rémi REY",
+            "username": "rrey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42b933fb4ddcc37f168be15016a7ab88c6bbb21b",
+          "message": "fix(helm): add the global key unrestricted (#2289)",
+          "timestamp": "2026-10-14T14:45:34+02:00",
+          "tree_id": "72792f1615069ed625e813bbd59631bcb21054ae",
+          "url": "https://github.com/stacklok/mecatl/commit/42b933fb4ddcc37f168be15016a7ab88c6bbb21b"
+        },
+        "date": 1791982664041,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3278,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 78.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -438139,6 +438178,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791982660820,
+  "lastUpdate": 1791982665056,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
