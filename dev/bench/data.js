@@ -299324,6 +299324,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791963547247,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cee52d7a21591b59cae903ea4167b465a87ad351",
+          "message": "feat(studio): rebuild global search on cmdk and align the shell with the prototype (#2228)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T10:58:56+02:00",
+          "tree_id": "e7666cc44200b4ec181f25deeb3489383caa4ec8",
+          "url": "https://github.com/stacklok/mecatl/commit/cee52d7a21591b59cae903ea4167b465a87ad351"
+        },
+        "date": 1791969058463,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -433506,6 +433540,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791969054858,
+  "lastUpdate": 1791969059175,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
