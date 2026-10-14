@@ -4,6 +4,9 @@
 
 ## Definitions and executing instances
 
+For a visual overview of reuse, parent/child links, and continuity, see
+[definitions, instances, sessions, and runs](identity-relationships.md).
+
 An agent definition describes how an agent should perform work. Mecatl represents it with `AgentDef`, a value containing metadata and instructions, rather than an executing loop. This chapter uses the following vocabulary:
 
 | Term | Meaning |

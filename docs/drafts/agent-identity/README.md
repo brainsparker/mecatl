@@ -98,6 +98,7 @@ The proposed chapters develop each part of the architecture.
 | --- | --- |
 | [Audit](audit.md) | Define attribution, correlation, evidence, redaction, and durability requirements. |
 | [Agent definitions](agent-definitions.md) | Explain `AgentDef` and separate harness execution configuration from broker-enforced authority. |
+| [Definitions, instances, sessions, and runs](identity-relationships.md) | Show definition reuse, parent/child relationships, and what persists between runs. |
 | [MCP authorization](mcp-authorization.md) | Explain how user and agent permissions govern MCP calls and how the broker uses ToolHive. |
 | [MCP gateway modes](mcp-gateway-modes.md) | Chain the broker's grant issuer to the vMCP gateway's authorization server, so one protocol works with an embedded or an external gateway. |
 | [Credentials and lifecycle](credentials-and-lifecycle.md) | Follow one credential-to-outcome walkthrough with validation and audit evidence, then explain renewal and recovery. |
