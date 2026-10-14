@@ -432367,9 +432367,123 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791927056517,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "84558eb90ef8d31c83a0d262b3372dfde417ca6f",
+          "message": "feat(mecak8s): enable in-chat schedules for remote execution (#2286)\n\nEnable in-chat scheduled tasks that borrow a native Kubernetes session's exact remote workspace. Restore the remote Schedule/ScheduleQuery catalog and remove the implicit CLI scheduler disable; explicit --no-scheduler remains honored.\n\n- Reauthorize the exact owner, origin binding, environment ref/revision and placement scope on each fire, then reserve and publish a distinct successor reference for that fire session.\n- Complete run cleanup with FinishRun, defer attachment reservation closure until publication, release process-local resources after ambiguous Commit responses without deleting durable state, and best-effort abort the exact reservation after a lost ReserveSuccessor response.\n- Add factory, scheduler, authenticated controller-backed and real Kind regression coverage. Update the canonical scheduled-task documentation and native-execution/architecture pages.\n- Fix the Kind fixture's proven API-egress failure: discover and validate exact service/endpoint IPv4 /32s and API ports for both profiles; keep workload fixture egress production-only. Before/after TCP probes and a passing original-image baseline established the cause. No authorization, fencing or workload isolation is weakened.\n\nSupported scope and intentional limits:\n- Workspace-backed remote schedules must be created in chat and borrow the origin workspace. Independent remote workspace allocation is unsupported and fails before allocation; independent no-FS schedules remain supported.\n- A busy workspace fails the fire under the existing trigger policy; this does not introduce durable waiting or broaden retries.\n- The origin session must remain stored with the same binding. Schedule updates cannot retarget it. Retained fire sessions consume the existing shared 64-reference limit; deleting a schedule alone does not free those references.\n- Reservation abort remains best effort, not a distributed orphan-free cleanup guarantee. Ambiguous Commit retains the durable snapshot/reference and does not run the model.\n\nValidation at reviewed head b72e9f88a9f32994012556061f1f278db93c95dd:\n- Full non-draft CI run 38463976635 succeeded, including Test (race) job 115532416628.\n- The previously failed draft non-race test job was retried once in run 38463779721, attempt 2; job 115671545536 passed in 11m50s. All current PR checks passed or skipped before merge. The old draft aggregate retains historical cancellation/gate failures superseded by the full non-draft run; it is not claimed as a successful full run.\n- Final-source local lint, focused race regressions, docs and site build passed. The original single full local race gate timed out at 600 seconds and is not claimed as a pass. Additional tagged e2e lint findings were not claimed green.\n- Final-source TestKindExecutionBorrowedSchedule passed without skips in 341.03 seconds using a scripted mock LLM, not paid model calls. Two manual fires and a future durable timer after provider and agent restarts verified event replay, persisted snapshots, distinct fire references, environment/PVC continuity and remote files. This focused local validation is not a claim that the entire production-network/renewal suite ran locally.\n- Committed live reproduction coverage: e2e/k8s_execution/borrowed_schedule_test.go, build tag kind_execution_e2e. The e2e:k8s:execution:production Taskfile entry point provisions a new fixture; do not use it to mutate the retained validation cluster.\n- The existing native executor deployment and all 20 environment/Pod/PVC identities are retained, with no deletion or unfencing. Local receipts, fixture state, artifacts and credentials are not committed.\n\nAPI compatibility: backward-compatible, additive availability of the existing scheduling API in remote-execution deployments. No protobuf/HTTP schema, wire major, feature identifier, engine public Go API, or persisted schema changes. Existing conforming clients need no migration; deployment-specific availability is not protocol version skew. Explicit scheduler opt-out remains supported. Exact placement authorization stays fail-closed; persisted tool grants are not silently widened. Older sessions without Schedule authority require a new eligible session to expose it. No breaking change or major-bump approval is required.\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-14T07:06:35+03:00",
+          "tree_id": "f82da462e81f44b96f42d8838179aed71a5c1835",
+          "url": "https://github.com/stacklok/mecatl/commit/84558eb90ef8d31c83a0d262b3372dfde417ca6f"
+        },
+        "date": 1791951472980,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "background_subagents/allocs_per_op",
+            "value": 830.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "background_subagents/tokens_total",
+            "value": 0,
+            "unit": "tokens"
+          },
+          {
+            "name": "background_subagents/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          },
+          {
+            "name": "compaction_cycle/allocs_per_op",
+            "value": 3264,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "compaction_cycle/tokens_total",
+            "value": 40110,
+            "unit": "tokens"
+          },
+          {
+            "name": "compaction_cycle/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          },
+          {
+            "name": "single_session_long/allocs_per_op",
+            "value": 34187.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "single_session_long/tokens_total",
+            "value": 521040,
+            "unit": "tokens"
+          },
+          {
+            "name": "single_session_long/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          },
+          {
+            "name": "team_fanout/allocs_per_op",
+            "value": 2167,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "team_fanout/tokens_total",
+            "value": 12880,
+            "unit": "tokens"
+          },
+          {
+            "name": "team_fanout/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          },
+          {
+            "name": "tui_scrollback_view/tokens_total",
+            "value": 0,
+            "unit": "tokens"
+          },
+          {
+            "name": "tui_scrollback_view/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          },
+          {
+            "name": "tui_scrollback_view_steady/tokens_total",
+            "value": 0,
+            "unit": "tokens"
+          },
+          {
+            "name": "tui_scrollback_view_steady/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/tokens_total",
+            "value": 0,
+            "unit": "tokens"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/goroutine_delta",
+            "value": 0,
+            "unit": "goroutines"
+          }
+        ]
       }
     ]
   },
-  "lastUpdate": 1791951469901,
+  "lastUpdate": 1791951473752,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
