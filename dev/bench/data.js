@@ -300756,6 +300756,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791972264307,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fb50bb2c9ee7759d7cd5402e269bc4acc2c4028f",
+          "message": "feat(studio): align Settings sections and About with the prototype (#2252)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T12:02:17+02:00",
+          "tree_id": "257a6918c13c3d1c1a84c420e5ebb34b8ec18426",
+          "url": "https://github.com/stacklok/mecatl/commit/fb50bb2c9ee7759d7cd5402e269bc4acc2c4028f"
+        },
+        "date": 1791972949231,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -435550,6 +435584,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791972946320,
+  "lastUpdate": 1791972950024,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
