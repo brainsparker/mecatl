@@ -5,7 +5,11 @@ import type {
   GetRuntimeResponse,
   GetRuntimeSettingsResponse,
 } from "@mecatl-studio/contracts/generated";
-import { getRuntimeQueryKey, getRuntimeSettingsQueryKey } from "@mecatl-studio/contracts/query";
+import {
+  getAuthSessionQueryKey,
+  getRuntimeQueryKey,
+  getRuntimeSettingsQueryKey,
+} from "@mecatl-studio/contracts/query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterContextProvider } from "@tanstack/react-router";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -157,6 +161,32 @@ describe("settings responsive accessibility", () => {
     expect(control?.className).toContain("focus-visible:");
   });
 
+  it("gives About's Sign out a 44px touch area", () => {
+    const client = new QueryClient();
+    client.setQueryData(getRuntimeQueryKey(), {
+      capabilities: {},
+      connection: "online",
+      source: "local",
+    } as GetRuntimeResponse);
+    client.setQueryData(getRuntimeSettingsQueryKey(), settingsFixture);
+    client.setQueryData(getAuthSessionQueryKey(), {
+      account: "opaque-a",
+      mode: "oidc",
+      status: "authenticated",
+    });
+
+    const about = render(
+      "/workspace/settings/about",
+      <SettingsWorkspace section="about" />,
+      client,
+    );
+    const signOut = [...about.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+      button.textContent?.includes("Sign out"),
+    );
+    expect(signOut).toBeDefined();
+    expect(signOut?.classList.contains("min-h-11")).toBe(true);
+  });
+
   it("sizes personal preferences and Learning controls for touch", () => {
     const client = new QueryClient();
     client.setQueryData(getRuntimeQueryKey(), {
@@ -212,6 +242,24 @@ describe("settings responsive accessibility", () => {
         .querySelector('[role="combobox"][aria-label="Finished chat"]')
         ?.classList.contains("min-h-11"),
     ).toBe(true);
+  });
+
+  it("keeps each identity field's visible label inside its accessible name", () => {
+    // WCAG 2.5.3 (Label in Name): speech users say the words they see.
+    for (const section of ["profile", "agent"] as const) {
+      const page = render(
+        `/workspace/settings/${section}`,
+        <SettingsWorkspace section={section} />,
+      );
+      const inputs = page.querySelectorAll<HTMLInputElement>("input[type=text], input:not([type])");
+      expect(inputs.length, section).toBeGreaterThan(0);
+      for (const input of inputs) {
+        const visible = page.querySelector(`label[for="${input.id}"]`)?.textContent?.trim();
+        expect(visible, section).toBeTruthy();
+        const name = input.getAttribute("aria-label") ?? visible;
+        expect(name?.toLowerCase(), section).toContain(visible?.toLowerCase());
+      }
+    }
   });
 
   it("exposes a 44px picture removal target without hover on mobile", () => {
