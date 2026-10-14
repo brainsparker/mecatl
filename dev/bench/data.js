@@ -300398,6 +300398,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791971575186,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f93588902f0038944d30df0adcf4cf7a06a327ae",
+          "message": "feat(studio): port the prototype's chat approval card, detail panel, and shortcuts (#2251)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T11:48:14+02:00",
+          "tree_id": "703a8f0cb1b85542ad917aeaa32199f80dabe1ee",
+          "url": "https://github.com/stacklok/mecatl/commit/f93588902f0038944d30df0adcf4cf7a06a327ae"
+        },
+        "date": 1791972264307,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -435039,6 +435073,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791972261466,
+  "lastUpdate": 1791972265086,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
