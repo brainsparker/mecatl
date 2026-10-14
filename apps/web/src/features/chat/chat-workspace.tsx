@@ -129,7 +129,7 @@ import { useChatEscape } from "./chat-escape";
 import { groupSessions, useChatFolders } from "./chat-folders";
 import { takeNextQueuedMessage, useQueuedMessages } from "./chat-queue";
 import { consumeChatSeed } from "./chat-seed";
-import { ChatSessionControls } from "./chat-session-controls";
+import { SessionExecutionStatus, SessionUsageControls } from "./chat-session-controls";
 import {
   approvalKey,
   type ChatMessage,
@@ -181,9 +181,10 @@ import {
 } from "./local-file-preview";
 import { MarkdownMessage } from "./markdown-message";
 import { MessageMinimap } from "./message-minimap";
+import { PermissionModeBadge } from "./permission-mode-badge";
 import { exactPlanControlAvailability, followPlanContinuationFromBff } from "./plan-continuation";
 import { PlanReviewCard, type PlanVerdict } from "./plan-review-card";
-import { QueuedMessageList } from "./queued-message-list";
+import { QueuedMessageStrip } from "./queued-message-strip";
 import { ReasoningDisclosure } from "./reasoning-disclosure";
 import {
   abortsOnSessionSwitch,
@@ -423,6 +424,11 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
   const [draftConfiguration, setDraftConfiguration] = useState(defaultDraftConfiguration);
   const [composerDraftPresent, setComposerDraftPresent] = useState(false);
   const [clearDraftSignal, setClearDraftSignal] = useState(0);
+  const [steeringQueuedId, setSteeringQueuedId] = useState<string>();
+  /** The queued message a steer is delivering; the queue drain skips it. */
+  const steeringQueuedRef = useRef<string | undefined>(undefined);
+  /** The chat a draft's send created, which the composer carries the send's text into. */
+  const [draftCreatedSessionId, setDraftCreatedSessionId] = useState<string>();
   const [escapeClearHint, setEscapeClearHint] = useState(false);
   const workspaceRoot = useRef<HTMLDivElement>(null);
   const chatOptionsTrigger = useRef<HTMLButtonElement>(null);
@@ -826,6 +832,7 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
         image: model.image,
         label: model.displayName,
         providerId: model.providerId,
+        reasoning: model.reasoning,
       })) ?? [];
   const watchable =
     Boolean(selectedSession && isProvenChatSession(selectedSession)) &&
@@ -869,6 +876,14 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
       }
     : undefined;
   const usageLines = displayedDetail ? usageMenuLines(displayedDetail.usage) : [];
+  // The live chat's Mode, Model, and Compact controls are blocked while a run
+  // is live or the chat is not a public chat, and while any of them is in flight.
+  const sessionControlsDisabled = isRunning || !selectedSession?.capabilities.publicChat;
+  const liveControlsDisabled =
+    sessionControlsDisabled ||
+    compactSession.isPending ||
+    forkSession.isPending ||
+    setMode.isPending;
   const seedModel = sessionId ? displayedDetail?.model : draftConfiguration.model;
   const seedModelId = seedModel?.id || (sessionId ? selectedSession?.modelId : undefined);
   const seedModelLabel = seedModelId
@@ -1176,6 +1191,7 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
     if (owner.controller.signal.aborted || activeRun.current !== owner) return undefined;
     owner.sessionId = created.id;
     viewedSessionId.current = created.id;
+    setDraftCreatedSessionId(created.id);
     await selectSession(created.id);
     return created.id;
   }
@@ -1562,10 +1578,43 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
     return true;
   }
 
+  /** Steers one queued message into the live run. It leaves the queue only once the steer is accepted. */
+  async function steerQueuedMessage(id: string) {
+    const item = queuedMessages.items.find((candidate) => candidate.id === id);
+    const target = controlTarget(runTarget, sessionId);
+    if (!item || !target || steeringQueuedId) return;
+    steeringQueuedRef.current = id;
+    setSteeringQueuedId(id);
+    setError(undefined);
+    setNotice(undefined);
+    let steered = false;
+    try {
+      await steerRun({
+        body: { text: item.text },
+        path: { runId: target.runId, sessionId: target.sessionId },
+        throwOnError: true,
+      });
+      queuedMessages.remove(id);
+      steered = true;
+      setNotice("Sent — steering the active run.");
+    } catch (caught) {
+      if (isStaleRunControl(caught))
+        setNotice("The run ended before steering. The message stays queued.");
+      else setError(errorMessage(caught));
+    } finally {
+      steeringQueuedRef.current = undefined;
+      setSteeringQueuedId(undefined);
+    }
+    // A run that ended during the steer skipped this message in its drain, and
+    // nothing else drains the queue until another run ends.
+    if (!steered && !activeRun.current) drainNextQueuedMessage(target.sessionId);
+  }
+
   function drainNextQueuedMessage(activeSessionId: string) {
     if (protectedRequestsPaused()) return;
     if (viewedSessionId.current !== activeSessionId) return;
-    const next = takeNextQueuedMessage(activeSessionId);
+    // A message being steered is already on its way; draining it too would deliver it twice.
+    const next = takeNextQueuedMessage(activeSessionId, steeringQueuedRef.current);
     if (next) void sendPrompt(next.text, [], activeSessionId);
   }
 
@@ -2765,6 +2814,7 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
               <h1 className="truncate text-sm font-semibold">
                 {selectedSession?.title ?? "New chat"}
               </h1>
+              {sessionId && <PermissionModeBadge mode={displayedDetail?.mode} />}
               {selectedSession?.debugTargetSessionId && (
                 <Badge
                   title="A read-only diagnostic chat; it never modifies its target."
@@ -3227,26 +3277,37 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
               retrying={isRunning}
             />
           )}
-          {sessionId && displayedDetail && (
-            <ChatSessionControls
-              compacting={compactSession.isPending}
-              detail={displayedDetail}
-              disabled={isRunning || !selectedSession?.capabilities.publicChat}
-              forking={forkSession.isPending}
-              modePending={setMode.isPending}
-              models={models}
-              onCompact={() => void compactConversation()}
-              onFork={(model, effort) => void forkConversation(model, effort)}
-              onModeChange={(mode) => void changeMode(mode)}
-              safetyLevel={runtime.data?.capabilities.posture}
-            />
-          )}
-          <QueuedMessageList
+          <QueuedMessageStrip
             items={queuedMessages.items}
             onDelete={queuedMessages.remove}
             onEdit={queuedMessages.update}
+            onSteer={
+              isRunning && controlTarget(runTarget, sessionId)
+                ? (id) => void steerQueuedMessage(id)
+                : undefined
+            }
+            steeringId={steeringQueuedId}
           />
+          {!escapeAsk &&
+            !contentPreview &&
+            !sidebarOpen &&
+            !isRunning &&
+            composerDraftPresent &&
+            !escapeClearHint && (
+              <p className="mx-auto mb-1.5 w-full max-w-3xl px-5 text-xs text-muted-foreground min-[500px]:px-7">
+                Esc twice to clear draft
+              </p>
+            )}
+          {escapeClearHint && (
+            <p
+              className="mx-auto mb-1.5 w-full max-w-3xl px-5 text-xs text-muted-foreground min-[500px]:px-7"
+              role="status"
+            >
+              Press Escape again to clear the unsent draft.
+            </p>
+          )}
           <ChatComposer
+            canForkModel={displayedDetail?.capabilities.modelSelection === true}
             clearDraftSignal={clearDraftSignal}
             executionInventory={templates.data}
             executionStatus={
@@ -3264,14 +3325,22 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
               void templates.refetch();
             }}
             configuration={sessionId ? undefined : draftConfiguration}
+            createdChatKey={draftCreatedSessionId}
             disabled={
               createSession.isPending ||
               Boolean(sessionId && !selectedSession?.capabilities.publicChat)
             }
+            draftKey={sessionId ?? "new"}
             imageAttachmentsSupported={imageAttachmentsSupported}
+            liveControlsDisabled={liveControlsDisabled}
+            liveMode={sessionId ? displayedDetail?.mode : undefined}
+            liveModel={sessionId ? displayedDetail?.model : undefined}
             models={models}
             onConfigurationChange={setDraftConfiguration}
             onDraftChange={setComposerDraftPresent}
+            onForkModel={(model, effort) => void forkConversation(model, effort)}
+            onLiveModeChange={(mode) => void changeMode(mode)}
+            onPreviewFile={(file) => setContentPreview({ file, kind: "file" })}
             onPreviewImage={(image) =>
               setContentPreview({ file: imagePreview(image, false), kind: "file" })
             }
@@ -3280,7 +3349,24 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
               setSeedRequiresConfirmation(false);
             }}
             onSend={handleComposerSend}
-            safetyLevel={runtime.data?.capabilities.posture}
+            pillRowDetail={
+              sessionId && displayedDetail ? (
+                <SessionExecutionStatus detail={displayedDetail} variant="pills" />
+              ) : undefined
+            }
+            pillRowEnd={
+              sessionId && displayedDetail ? (
+                <SessionUsageControls
+                  compacting={compactSession.isPending}
+                  detail={displayedDetail}
+                  disabled={sessionControlsDisabled}
+                  forking={forkSession.isPending}
+                  modePending={setMode.isPending}
+                  onCompact={() => void compactConversation()}
+                  variant="pills"
+                />
+              ) : undefined
+            }
             seedCanConfirm={
               runtime.data?.connection === "online" &&
               !isRunning &&
@@ -3293,27 +3379,25 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
             seedContext={seedContext}
             seedRequiresConfirmation={seedRequiresConfirmation}
             seedText={seedText}
+            sheetFooter={
+              sessionId && displayedDetail ? (
+                <SessionUsageControls
+                  compacting={compactSession.isPending}
+                  detail={displayedDetail}
+                  disabled={sessionControlsDisabled}
+                  forking={forkSession.isPending}
+                  modePending={setMode.isPending}
+                  onCompact={() => void compactConversation()}
+                  variant="sheet"
+                />
+              ) : undefined
+            }
             working={
               isRunning ||
               (statusFacts.phase === "closed" && Boolean(controlTarget(runTarget, sessionId)))
             }
             workingBehavior={enterSendBehavior}
           />
-          {!escapeAsk &&
-            !contentPreview &&
-            !sidebarOpen &&
-            !isRunning &&
-            composerDraftPresent &&
-            !escapeClearHint && (
-              <p className="mx-auto mb-2 max-w-3xl px-4 text-xs text-muted-foreground">
-                Esc twice to clear draft
-              </p>
-            )}
-          {escapeClearHint && (
-            <p className="mx-auto mb-2 max-w-3xl px-4 text-xs text-muted-foreground" role="status">
-              Press Escape again to clear the unsent draft.
-            </p>
-          )}
         </section>
       )}
       {selectedSession && inspectionOpen && (
