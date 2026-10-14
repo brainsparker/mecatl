@@ -215,9 +215,9 @@ describe("learning queue paging", () => {
       { cursor: "p2", limit: "50", status: "staged" },
     ]);
 
-    await user.click(screen.getByRole("button", { name: "Deferred" }));
+    await user.click(screen.getByRole("radio", { name: "Deferred" }));
     await row("Title of d1");
-    expect(screen.getByRole("button", { name: "Deferred" }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("radio", { name: "Deferred" }).getAttribute("aria-checked")).toBe(
       "true",
     );
     expect(calls().at(-1)).toEqual({ cursor: "", limit: "50", status: "deferred_unsupported" });
@@ -267,7 +267,7 @@ describe("learning queue rows", () => {
       },
     };
     renderPage();
-    await user.click(await screen.findByRole("button", { name: "Deferred" }));
+    await user.click(await screen.findByRole("radio", { name: "Deferred" }));
     const skill = await row("Title of skill");
     expect(skill.queryByRole("button", { name: "Reject" })).toBeNull();
     expect(skill.getByText("Deferred")).toBeTruthy();
@@ -411,9 +411,9 @@ describe("learning queue rows", () => {
     });
     await user().click(screen.getByRole("button", { name: "Refresh suggestions" }));
     await waitFor(() => expect(calls()).toHaveLength(2));
-    await user().click(screen.getByRole("button", { name: "Deferred" }));
+    await user().click(screen.getByRole("radio", { name: "Deferred" }));
     await screen.findByText("No deferred suggestions.");
-    await user().click(screen.getByRole("button", { name: "Pending" }));
+    await user().click(screen.getByRole("radio", { name: "Pending" }));
     item = await row("Title of p1");
     expect(item.getByRole("button", { name: "Details" }).getAttribute("aria-expanded")).toBe(
       "false",
@@ -459,9 +459,9 @@ describe("learning queue rows", () => {
     await waitFor(() => expect(state.detailCalls).toEqual(["p1"]));
 
     // A filter round trip unmounts the row, and Refresh then loads v3.
-    await user().click(screen.getByRole("button", { name: "Deferred" }));
+    await user().click(screen.getByRole("radio", { name: "Deferred" }));
     await screen.findByText("No deferred suggestions.");
-    await user().click(screen.getByRole("button", { name: "Pending" }));
+    await user().click(screen.getByRole("radio", { name: "Pending" }));
     await row("Title of p1");
     state.pages = { "staged|": { items: [proposal("p1", { version: "v3" })] } };
     await user().click(screen.getByRole("button", { name: "Refresh suggestions" }));
@@ -482,9 +482,9 @@ describe("learning queue rows", () => {
 
     // A filter round trip remounts the row while its read is still in flight,
     // and Refresh then lists v3.
-    await user().click(screen.getByRole("button", { name: "Deferred" }));
+    await user().click(screen.getByRole("radio", { name: "Deferred" }));
     await screen.findByText("No deferred suggestions.");
-    await user().click(screen.getByRole("button", { name: "Pending" }));
+    await user().click(screen.getByRole("radio", { name: "Pending" }));
     await row("Title of p1");
     state.pages = { "staged|": { items: [proposal("p1", { version: "v3" })] } };
     await user().click(screen.getByRole("button", { name: "Refresh suggestions" }));
@@ -607,7 +607,7 @@ describe("learning capabilities", () => {
     state.capabilities = { learningProposals: false, reflection: false };
     renderPage();
     expect(await screen.findByText("Learning is off for this agent.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Pending" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Pending" })).toBeNull();
     expect(state.listCalls).toEqual([]);
   });
 
