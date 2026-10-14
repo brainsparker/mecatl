@@ -302188,6 +302188,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791975590664,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d6e0c96a274e1ffbb3567878d9e7b44cf834589",
+          "message": "fix(studio): apply the tiny follow-up fixes from #2303 (#2309)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T14:16:03+02:00",
+          "tree_id": "526a69b547b9bd9429de0494c670d734c531227b",
+          "url": "https://github.com/stacklok/mecatl/commit/8d6e0c96a274e1ffbb3567878d9e7b44cf834589"
+        },
+        "date": 1791980854499,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -437594,6 +437628,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791980851190,
+  "lastUpdate": 1791980855638,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
