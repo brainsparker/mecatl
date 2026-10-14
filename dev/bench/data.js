@@ -334479,6 +334479,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791974883705,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab30305e7bb013f25458b75a79425cfbefa84374",
+          "message": "fix(studio): sweep Studio's accessibility, 500px breakpoints, and phone overflow (#2256)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-14T12:47:09+02:00",
+          "tree_id": "768273186d17a51239bd1618fdad139f515b79b4",
+          "url": "https://github.com/stacklok/mecatl/commit/ab30305e7bb013f25458b75a79425cfbefa84374"
+        },
+        "date": 1791975594638,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3281,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 81.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -437117,6 +437156,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1791975591589,
+  "lastUpdate": 1791975595525,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
