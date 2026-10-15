@@ -336464,6 +336464,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792053739871,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f07d4b45af8c718eaf60fc7e21b36a4578ca60ef",
+          "message": "fix(app): eliminate recovery startup Config race and order worker lifecycle (#2310)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T11:39:13+03:00",
+          "tree_id": "9581bcf626e66ddb679b7dbf8cbd4beb1b1024d4",
+          "url": "https://github.com/stacklok/mecatl/commit/f07d4b45af8c718eaf60fc7e21b36a4578ca60ef"
+        },
+        "date": 1792054454711,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3270.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 71.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -439672,6 +439711,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792054451508,
+  "lastUpdate": 1792054455547,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
