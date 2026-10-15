@@ -339243,6 +339243,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792066524169,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "837471544ba47ebea6ba7f3f1be6bcf83e005cdf",
+          "message": "ci(test): raise the per-package go test timeout to 20m (#2349)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T15:06:19+03:00",
+          "tree_id": "0314ca72fa91eff097c57ac82dd71dae4dfd11e9",
+          "url": "https://github.com/stacklok/mecatl/commit/837471544ba47ebea6ba7f3f1be6bcf83e005cdf"
+        },
+        "date": 1792067256504,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3253,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 53,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -443249,6 +443288,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792067252976,
+  "lastUpdate": 1792067257412,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
