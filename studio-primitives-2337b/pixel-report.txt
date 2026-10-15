@@ -1,0 +1,9 @@
+Before 8cc7c2347 (origin/main), After e83afc10a (this branch). Amber boxes mark the reviewed animate-pulse status indicators (activity roster dots, the Reasoning… label), located by hiding only those in a separate pass. Red boxes would mark real changes; there are none.
+reasoning-running-desktop-light	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(71), np.int64(13))]
+reasoning-running-desktop-dark	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(71), np.int64(13))]
+reasoning-running-mobile-light	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(79), np.int64(14))]
+reasoning-running-mobile-dark	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(79), np.int64(14))]
+delegation-running-desktop-light	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(8), np.int64(8))]
+delegation-running-desktop-dark	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(8), np.int64(8))]
+delegation-running-mobile-light	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(9), np.int64(9))]
+delegation-running-mobile-dark	noise(before vs before2)=0	change(before vs after)=0	mask regions=1 boxed=1 [(np.int64(9), np.int64(9))]
