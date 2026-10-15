@@ -344404,6 +344404,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792094870517,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d5feb5e82ce75e3c28309643c9297ff4cb770e3",
+          "message": "test(studio): wait for the composer's stored draft to clear after an accepted send (#2363)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T21:55:45+02:00",
+          "tree_id": "d2a6a1676271c2876b248d8a14c0520671446685",
+          "url": "https://github.com/stacklok/mecatl/commit/5d5feb5e82ce75e3c28309643c9297ff4cb770e3"
+        },
+        "date": 1792095574097,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3281,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 81,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -449892,6 +449931,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792095570831,
+  "lastUpdate": 1792095575147,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
