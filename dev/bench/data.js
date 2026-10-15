@@ -338449,6 +338449,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792058619133,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0d9821c329b423e7769858244b7d5b2c8262a974",
+          "message": "test(acp): give the over-limit frame test a hang-detector timeout (#2345)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T13:25:13+02:00",
+          "tree_id": "c158434527342a1cf7818bd03158f275a2e6b364",
+          "url": "https://github.com/stacklok/mecatl/commit/0d9821c329b423e7769858244b7d5b2c8262a974"
+        },
+        "date": 1792064186375,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3265,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 65,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -442227,6 +442266,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792064183568,
+  "lastUpdate": 1792064186957,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
