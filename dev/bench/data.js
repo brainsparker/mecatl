@@ -302904,6 +302904,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791982659797,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6bbbcedab9a19d667c684c715f638b3966737af7",
+          "message": "test(mecated): fire the MCP login callback after the state is recorded (#2346)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T10:05:15+02:00",
+          "tree_id": "f1c488c4c3be5fe5eee6b6d2e8d68ede2cb4ac6f",
+          "url": "https://github.com/stacklok/mecatl/commit/6bbbcedab9a19d667c684c715f638b3966737af7"
+        },
+        "date": 1792052290220,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -438616,6 +438650,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792052286985,
+  "lastUpdate": 1792052291032,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
