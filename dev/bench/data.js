@@ -305410,6 +305410,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792058614974,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0d9821c329b423e7769858244b7d5b2c8262a974",
+          "message": "test(acp): give the over-limit frame test a hang-detector timeout (#2345)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T13:25:13+02:00",
+          "tree_id": "c158434527342a1cf7818bd03158f275a2e6b364",
+          "url": "https://github.com/stacklok/mecatl/commit/0d9821c329b423e7769858244b7d5b2c8262a974"
+        },
+        "date": 1792064182929,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -442193,6 +442227,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792064180008,
+  "lastUpdate": 1792064183568,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
