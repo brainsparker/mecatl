@@ -306126,6 +306126,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792066519065,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "837471544ba47ebea6ba7f3f1be6bcf83e005cdf",
+          "message": "ci(test): raise the per-package go test timeout to 20m (#2349)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T15:06:19+03:00",
+          "tree_id": "0314ca72fa91eff097c57ac82dd71dae4dfd11e9",
+          "url": "https://github.com/stacklok/mecatl/commit/837471544ba47ebea6ba7f3f1be6bcf83e005cdf"
+        },
+        "date": 1792067252081,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -443215,6 +443249,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792067248658,
+  "lastUpdate": 1792067252976,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
