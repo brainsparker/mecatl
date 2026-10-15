@@ -217,6 +217,7 @@ import {
   type RunTarget,
   runStreamEnd,
 } from "./run-stream";
+import { selectedTranscriptText } from "./selected-transcript-text";
 import { CopyDebugTargetMenuItem, CopySessionIdMenuItem } from "./session-copy-menu-items";
 import {
   type InspectionView,
@@ -550,6 +551,21 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
   const threadCreation = useRef(false);
   const [atTranscriptBottom, setAtTranscriptBottom] = useState(true);
   followTranscriptBottom.current = atTranscriptBottom;
+  const expansionRecheck = useRef(0);
+  // An expansion suspends follow for the resize it causes; the 80 px rule then decides
+  // again, so a small one keeps following and a tall one leaves the reader in place.
+  // Two frames: the first runs before the expansion's layout and observer callback, the
+  // second after them. Waiting on the frame rather than on a resize also covers a click
+  // that grows nothing (a menu trigger), which would otherwise leave follow stuck off.
+  const recheckFollowAfterExpansion = useCallback(() => {
+    cancelAnimationFrame(expansionRecheck.current);
+    expansionRecheck.current = requestAnimationFrame(() => {
+      expansionRecheck.current = requestAnimationFrame(() => {
+        const element = transcriptScroll.current;
+        if (element) setAtTranscriptBottom(isNearTranscriptBottom(element));
+      });
+    });
+  }, []);
   const visibleDelegationFleet =
     delegationFleet.sessionId === (sessionId ?? "")
       ? delegationFleet
@@ -2719,8 +2735,13 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
 
   function captureTranscriptSelection(event: ReactPointerEvent<HTMLDivElement>) {
     const selection = window.getSelection();
-    const text = selection?.toString().trim() ?? "";
-    if (!selection || !text || selection.rangeCount === 0) {
+    // A plain click selects nothing: skip the layout work of reading the text.
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setSelectionAction(undefined);
+      return;
+    }
+    const text = selectedTranscriptText(selection, event.currentTarget);
+    if (!text) {
       setSelectionAction(undefined);
       return;
     }
@@ -3303,6 +3324,19 @@ export function ChatWorkspace({ sessionId }: { sessionId?: string }) {
                   )
                 ) {
                   minimapNavigation.current = false;
+                }
+              }}
+              onClickCapture={(event) => {
+                // Expanding a disclosure grows the content in place: let it, rather than
+                // letting the observer drag the reader (and the toggle) down. The ref is
+                // cleared synchronously because the observer fires before the next render.
+                if (
+                  event.target instanceof Element &&
+                  event.target.closest('[aria-expanded="false"]')
+                ) {
+                  followTranscriptBottom.current = false;
+                  setAtTranscriptBottom(false);
+                  recheckFollowAfterExpansion();
                 }
               }}
               onPointerDown={() => {
