@@ -8,15 +8,18 @@ import {
   actOnScheduleMutation,
   deleteScheduleMutation,
   listScheduleFiresOptions,
+  listScheduleFiresQueryKey,
   listSchedulesOptions,
   listSchedulesQueryKey,
   updateScheduleMutation,
 } from "@mecatl-studio/contracts/query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ChevronDown, ChevronUp, Clock3, Pause, Play, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CalendarClock, Ellipsis } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { SortableHead, type SortDir } from "@/components/sortable-head";
 import { PageShell } from "../../components/shell/page-shell";
+import { Alert, AlertDescription } from "../../components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,26 +31,87 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
+import { Button, buttonVariants } from "../../components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "../../components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
 import { errorMessage } from "../../lib/error-message";
-import { formatDate } from "../../lib/formatters";
+import { formatDate, formatRelativeTime, formatUntilTime } from "../../lib/formatters";
 import { pageTitleClass } from "../../lib/typography";
-import { ScheduleForm } from "./schedule-form";
+import { describeCron } from "./describe-cron";
+import { canEditSchedule, ScheduleForm } from "./schedule-form";
+import { ScheduleStatusBadge } from "./schedule-status";
 
 type Schedule = ListSchedulesResponse["items"][number];
+/**
+ * TERM: A schedule fire is one claimed or started execution attempt and its
+ * resulting session, when one exists. Avoid: run, which is also used for an
+ * agent run inside a session.
+ */
 type ScheduleFire = ListScheduleFiresResponse["items"][number];
-export type FireSortKey = "duration" | "fired" | "outcome";
-type SortDirection = "asc" | "desc";
+export type FireSortKey = "fired" | "outcome";
 
+export const scheduleDetailPolling = { refetchIntervalInBackground: false } as const;
+
+export function scheduleDetailPollInterval(
+  schedules: readonly Pick<Schedule, "name" | "status">[] | undefined,
+  scheduleName: string,
+) {
+  const status = schedules?.find((item) => item.name === scheduleName)?.status;
+  return status === "running" || status === "claimed" ? 5_000 : false;
+}
+
+export function scheduleFirePollInterval(
+  status: Schedule["status"] | undefined,
+  fires: readonly Pick<ScheduleFire, "inFlight">[] | undefined,
+) {
+  return status === "running" || status === "claimed" || fires?.some((fire) => fire.inFlight)
+    ? 5_000
+    : false;
+}
+
+/**
+ * DECISION: Detail reads caller-filtered schedules and fires through the
+ * authenticated BFF. Direct browser access to the daemon or SDK was rejected
+ * because the BFF owns capability negotiation and caller identity.
+ *
+ * DECISION: Match the prototype's navigation contract by linking a fire's
+ * session into the chat workspace. Transcript presentation belongs to chat;
+ * a schedule-specific dialog was rejected as a duplicate transcript surface.
+ */
 export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const schedules = useQuery(listSchedulesOptions());
+  const schedules = useQuery({
+    ...listSchedulesOptions(),
+    ...scheduleDetailPolling,
+    refetchInterval: (query) => scheduleDetailPollInterval(query.state.data?.items, scheduleName),
+  });
+  const schedule = schedules.data?.items.find((item) => item.name === scheduleName);
   const fires = useQuery({
     ...listScheduleFiresOptions({ path: { scheduleName } }),
+    ...scheduleDetailPolling,
     enabled: schedules.data?.supported === true,
-    refetchInterval: (query) =>
-      query.state.data?.items.some((fire) => fire.inFlight) ? 5_000 : false,
+    refetchInterval: (query) => scheduleFirePollInterval(schedule?.status, query.state.data?.items),
   });
   const update = useMutation(updateScheduleMutation());
   const remove = useMutation(deleteScheduleMutation());
@@ -55,7 +119,12 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string>();
-  const schedule = schedules.data?.items.find((item) => item.name === scheduleName);
+  const actionMenuRef = useRef<HTMLButtonElement | null>(null);
+
+  function closeDelete() {
+    setConfirmDelete(false);
+    queueMicrotask(() => actionMenuRef.current?.focus());
+  }
 
   async function refresh() {
     await Promise.all([
@@ -68,9 +137,11 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
     setError(undefined);
     try {
       await action.mutateAsync({ body: { action: name }, path: { scheduleName } });
-      await refresh();
     } catch (caught) {
       setError(errorMessage(caught));
+    } finally {
+      // A failed fire still records a fire row, so history is stale either way.
+      await refresh();
     }
   }
 
@@ -78,15 +149,30 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
     setError(undefined);
     try {
       await remove.mutateAsync({ path: { scheduleName } });
-      await queryClient.invalidateQueries({ queryKey: listSchedulesQueryKey() });
-      await navigate({ search: { schedule: undefined }, to: "/workspace/schedules" });
     } catch (caught) {
       setError(errorMessage(caught));
-      setConfirmDelete(false);
+      closeDelete();
+      return;
     }
+    // Leave first: while this page is mounted, dropping the item from the list
+    // would re-render it into "not found", and clearing the fires key would let
+    // its observer rebuild the query and fetch fires for the deleted schedule.
+    await navigate({ to: "/workspace/schedules" });
+    queryClient.setQueryData<ListSchedulesResponse>(
+      listSchedulesQueryKey(),
+      (current) =>
+        current && {
+          ...current,
+          items: current.items.filter((item) => item.name !== scheduleName),
+        },
+    );
+    queryClient.removeQueries({
+      queryKey: listScheduleFiresQueryKey({ path: { scheduleName } }),
+    });
+    void queryClient.invalidateQueries({ queryKey: listSchedulesQueryKey() });
   }
 
-  if (schedules.isPending) return <DetailState text="Loading scheduled task…" />;
+  if (schedules.isPending) return <DetailState loading text="Loading scheduled task…" />;
   if (schedules.isError) return <DetailState text={errorMessage(schedules.error)} />;
   if (!schedules.data.supported)
     return <DetailState text={schedules.data.reason} title="Scheduling unavailable" />;
@@ -101,65 +187,75 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
   const busy = action.isPending || remove.isPending || update.isPending;
   return (
     <PageShell className="max-w-5xl">
-      <Button asChild size="sm" variant="outline">
-        <Link search={{ schedule: undefined }} to="/workspace/schedules">
-          <ArrowLeft />
+      <Button asChild className="rounded-full" size="sm" variant="outline">
+        <Link to="/workspace/schedules">
+          <span aria-hidden="true">‹</span>
           Back to scheduled
         </Link>
       </Button>
 
-      <div className="mt-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className={pageTitleClass("break-words")}>{schedule.name}</h1>
-            <StatusBadge status={schedule.status} />
-            <Badge variant="outline">{modeLabel(schedule.mode)}</Badge>
-            {schedule.mutating && <Badge variant="warning">writes enabled</Badge>}
-          </div>
-          <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-            {schedule.prompt}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button
-            disabled={busy || !canRunNow(schedule)}
-            onClick={() => void runAction("fire")}
-            size="sm"
-            variant="outline"
-          >
-            <Play />
-            Run now
-          </Button>
-          <Button
-            disabled={busy || !canTogglePause(schedule)}
-            onClick={() => void runAction(schedule.enabled ? "pause" : "resume")}
-            size="sm"
-            variant="outline"
-          >
-            {schedule.enabled ? <Pause /> : <Play />}
-            {schedule.enabled ? "Pause" : "Resume"}
-          </Button>
-          <Button disabled={busy} onClick={() => setEditing(true)} size="sm" variant="ghost">
-            Edit
-          </Button>
-          <Button
-            aria-label={`Delete ${schedule.name}`}
-            disabled={busy}
-            onClick={() => setConfirmDelete(true)}
-            size="icon"
-            variant="ghost"
-          >
-            <Trash2 />
-          </Button>
-        </div>
+      <div className="mt-7 flex items-start justify-between gap-4">
+        <h1 className={pageTitleClass("min-w-0 break-words")}>{schedule.name}</h1>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={`Actions for ${schedule.name}`}
+              className="shrink-0 rounded-full"
+              ref={actionMenuRef}
+              size="icon"
+              variant="outline"
+            >
+              <Ellipsis />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              disabled={busy || !canRunNow(schedule)}
+              onSelect={() => void runAction("fire")}
+            >
+              Run now
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={busy || !canTogglePause(schedule)}
+              onSelect={() => void runAction(schedule.enabled ? "pause" : "resume")}
+            >
+              {schedule.enabled ? "Pause" : "Resume"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={busy || !canEditSchedule(schedule)}
+              onSelect={() => setEditing(true)}
+            >
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={busy}
+              onSelect={() => setConfirmDelete(true)}
+              variant="destructive"
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <ScheduleStatusBadge status={schedule.status} />
+        <Badge variant="outline">{modeLabel(schedule.mode)}</Badge>
+        {schedule.mutating && <Badge variant="warning">writes enabled</Badge>}
+        {schedule.profile === "noFilesystem" && <Badge variant="outline">no filesystem</Badge>}
       </div>
 
       {error && (
-        <p className="mt-5 rounded-lg bg-destructive/10 p-3 text-sm text-foreground">{error}</p>
+        <Alert className="mt-5" variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
+      <p className="mt-8 max-w-3xl whitespace-pre-wrap rounded-xl border bg-card p-5 text-sm leading-6">
+        {schedule.prompt}
+      </p>
+
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
-        <FactGroup title="Execution">
+        <FactGroup title="Details">
           <Fact label="Mode" value={modeLabel(schedule.mode)} />
           <Fact label="Write access" value={schedule.mutating ? "Writes allowed" : "Read-only"} />
           <Fact label="Owner" value={schedule.owner || "Deployment default"} />
@@ -175,49 +271,51 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
             }
           />
         </FactGroup>
-        <FactGroup title="Trigger">
-          <Fact label="Type" value={schedule.trigger.kind === "cron" ? "Recurring" : "One time"} />
-          {schedule.trigger.kind === "cron" ? (
-            <>
-              <Fact label="Cron expression" value={schedule.trigger.expression} />
-              <Fact label="Timezone" value={timezoneLabel(schedule.trigger.timezone)} />
-              <Fact
-                label="Maximum runs"
-                value={schedule.maxFires ? String(schedule.maxFires) : "Unlimited"}
-              />
-            </>
-          ) : (
-            <>
-              <Fact label="Runs at" value={formatDate(schedule.trigger.at)} />
-              <Fact
-                label="Retry"
-                value={
-                  schedule.oneShotRetry
-                    ? schedule.oneShotMaxRetries
-                      ? `Up to ${schedule.oneShotMaxRetries} times`
-                      : "Enabled without a fixed limit"
-                    : "Disabled"
-                }
-              />
-            </>
+        <FactGroup title="Frequency">
+          <Fact
+            label="Repeat"
+            title={
+              schedule.trigger.kind === "cron"
+                ? `${schedule.trigger.expression} (${timezoneLabel(schedule.trigger.timezone)})`
+                : undefined
+            }
+            value={
+              schedule.trigger.kind === "cron"
+                ? describeCron(schedule.trigger.expression)
+                : `Once at ${formatDate(schedule.trigger.at)}`
+            }
+          />
+          {schedule.trigger.kind === "cron" && (
+            <Fact label="Timezone" value={timezoneLabel(schedule.trigger.timezone)} />
           )}
           <Fact
             label="Next run"
-            value={schedule.nextFireAt ? formatDate(schedule.nextFireAt) : "None"}
+            title={schedule.nextFireAt ? formatDate(schedule.nextFireAt) : undefined}
+            value={describeNextRun(schedule)}
           />
           <Fact
             label="Last run"
-            value={schedule.lastFireAt ? formatDate(schedule.lastFireAt) : "Never"}
+            title={schedule.lastFireAt ? formatDate(schedule.lastFireAt) : undefined}
+            value={describeLastRun(schedule)}
           />
-          <Fact label="Runs" value={String(schedule.fireCount)} />
+          <Fact label="Runs" value={describeRuns(schedule)} />
+          {schedule.trigger.kind === "once" && (
+            <Fact
+              label="Retry"
+              value={
+                schedule.oneShotRetry
+                  ? schedule.oneShotMaxRetries
+                    ? `Up to ${schedule.oneShotMaxRetries} times`
+                    : "Enabled without a fixed limit"
+                  : "Disabled"
+              }
+            />
+          )}
         </FactGroup>
       </div>
 
       <section className="mt-8">
-        <div className="flex items-center gap-2">
-          <Clock3 className="size-4 text-muted-foreground" />
-          <h2 className="font-semibold">Run history</h2>
-        </div>
+        <h2 className="font-semibold">Run history</h2>
         <ScheduleFireHistory
           error={fires.isError ? errorMessage(fires.error) : undefined}
           fires={fires.data?.items}
@@ -238,7 +336,7 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
         />
       )}
 
-      <AlertDialog onOpenChange={setConfirmDelete} open={confirmDelete}>
+      <AlertDialog onOpenChange={(open) => !open && closeDelete()} open={confirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{schedule.name}”?</AlertDialogTitle>
@@ -248,7 +346,11 @@ export function ScheduleDetail({ scheduleName }: { scheduleName: string }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={remove.isPending} onClick={() => void deleteItem()}>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={remove.isPending}
+              onClick={() => void deleteItem()}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -268,7 +370,7 @@ function ScheduleFireHistory({
   loading: boolean;
 }) {
   const [sortKey, setSortKey] = useState<FireSortKey>("fired");
-  const [direction, setDirection] = useState<SortDirection>("desc");
+  const [direction, setDirection] = useState<SortDir>("desc");
   const sorted = useMemo(
     () => sortScheduleFires(fires ?? [], sortKey, direction),
     [direction, fires, sortKey],
@@ -287,102 +389,100 @@ function ScheduleFireHistory({
   if (sorted.length === 0) return <HistoryState text="This task has not run yet." />;
 
   return (
-    <div className="mt-3 overflow-x-auto rounded-xl border bg-card">
-      <table className="w-full min-w-[42rem] text-left text-sm">
-        <thead className="bg-muted/50 text-xs text-muted-foreground">
-          <tr>
-            <SortHeader
-              direction={direction}
-              label="Ran"
-              name="fired"
-              onSort={changeSort}
-              selected={sortKey === "fired"}
-            />
-            <SortHeader
-              direction={direction}
-              label="Duration"
-              name="duration"
-              onSort={changeSort}
-              selected={sortKey === "duration"}
-            />
-            <SortHeader
-              direction={direction}
-              label="Outcome"
-              name="outcome"
-              onSort={changeSort}
-              selected={sortKey === "outcome"}
-            />
-            <th className="px-4 py-3 text-right font-medium">Session</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {sorted.map((fire) => (
-            <tr key={fire.id}>
-              <td className="px-4 py-3 whitespace-nowrap">
-                {fire.firedAt ? formatDate(fire.firedAt) : "—"}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                {formatDuration(fireDurationMs(fire))}
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex max-w-md flex-col items-start gap-1">
-                  <Badge variant={fire.inFlight ? "success" : fire.error ? "warning" : "muted"}>
-                    {fireOutcome(fire)}
-                  </Badge>
-                  {fire.error && <span className="text-xs text-destructive">{fire.error}</span>}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-right">
-                {fire.sessionId ? (
-                  <Button asChild size="sm" variant="ghost">
-                    <Link search={{ sessionId: fire.sessionId }} to="/workspace/chat">
-                      View transcript
-                    </Link>
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="mt-3 overflow-hidden rounded-xl border bg-card max-[500px]:hidden">
+        <Table className="min-w-[42rem]">
+          <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
+            <TableRow className="hover:bg-transparent">
+              {(
+                [
+                  ["fired", "Ran"],
+                  ["outcome", "Outcome"],
+                ] as const
+              ).map(([key, label]) => (
+                <SortableHead
+                  key={key}
+                  label={label}
+                  sort={{ dir: direction, key: sortKey, toggle: changeSort }}
+                  sortKey={key}
+                />
+              ))}
+              <TableHead className="text-right">Session</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((fire) => (
+              <TableRow key={fire.id}>
+                <TableCell className="whitespace-nowrap">
+                  {fire.firedAt ? formatDate(fire.firedAt) : "—"}
+                </TableCell>
+                <TableCell className="whitespace-normal">
+                  <FireOutcome fire={fire} />
+                </TableCell>
+                <TableCell className="text-right">
+                  {fire.sessionId ? (
+                    <Button asChild size="sm" variant="ghost">
+                      <Link search={{ sessionId: fire.sessionId }} to="/workspace/chat">
+                        View transcript
+                      </Link>
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div
+        className="mt-3 divide-y overflow-hidden rounded-xl border bg-card min-[500px]:hidden"
+        data-schedule-fire-mobile-list
+      >
+        {sorted.map((fire) => (
+          <article className="space-y-3 p-4" key={fire.id}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">
+                  {fire.firedAt ? formatDate(fire.firedAt) : "Time unavailable"}
+                </p>
+              </div>
+              <FireOutcome fire={fire} compact />
+            </div>
+            {fire.sessionId && (
+              <Button asChild size="sm" variant="outline">
+                <Link search={{ sessionId: fire.sessionId }} to="/workspace/chat">
+                  View transcript
+                </Link>
+              </Button>
+            )}
+          </article>
+        ))}
+      </div>
+    </>
   );
 }
 
-function SortHeader({
-  direction,
-  label,
-  name,
-  onSort,
-  selected,
-}: {
-  direction: SortDirection;
-  label: string;
-  name: FireSortKey;
-  onSort: (key: FireSortKey) => void;
-  selected: boolean;
-}) {
+function FireOutcome({ compact, fire }: { compact?: boolean; fire: ScheduleFire }) {
+  const outcome = fireOutcome(fire);
+  const variant =
+    outcome === "In flight" || outcome === "Claimed"
+      ? "success"
+      : outcome === "Failed"
+        ? "destructive"
+        : outcome === "Timed out" || outcome === "Limit reached"
+          ? "warning"
+          : "muted";
+  const rawStop = fire.stop.trim();
   return (
-    <th
-      aria-sort={selected ? (direction === "asc" ? "ascending" : "descending") : "none"}
-      className="px-4 py-3 font-medium"
-    >
-      <button
-        className="inline-flex items-center gap-1 hover:text-foreground"
-        onClick={() => onSort(name)}
-        type="button"
-      >
-        {label}
-        {selected &&
-          (direction === "asc" ? (
-            <ChevronUp className="size-3" />
-          ) : (
-            <ChevronDown className="size-3" />
-          ))}
-      </button>
-    </th>
+    <div className={`flex flex-col gap-1 ${compact ? "items-end text-right" : "items-start"}`}>
+      <Badge variant={variant}>{outcome}</Badge>
+      {!fire.inFlight && rawStop && rawStop.toLocaleLowerCase() !== outcome.toLocaleLowerCase() && (
+        <span className="text-xs text-muted-foreground">Stop: {rawStop}</span>
+      )}
+      {fire.error && <span className="max-w-md text-xs text-destructive">{fire.error}</span>}
+    </div>
   );
 }
 
@@ -409,49 +509,73 @@ export function timezoneLabel(timezone: string) {
   return timezone || "UTC";
 }
 
+/** A paused or completed schedule will not fire, so it has no next run to promise. */
+export function describeNextRun(schedule: Pick<Schedule, "enabled" | "nextFireAt">) {
+  const at = Date.parse(schedule.nextFireAt);
+  if (!schedule.enabled || Number.isNaN(at)) return "—";
+  return `in ${formatUntilTime(at)}`;
+}
+
+export function describeLastRun(schedule: Pick<Schedule, "lastFireAt">) {
+  const at = Date.parse(schedule.lastFireAt);
+  if (Number.isNaN(at)) return "Never";
+  return `${formatRelativeTime(at)} ago`;
+}
+
+export function describeRuns(schedule: Pick<Schedule, "fireCount" | "maxFires">) {
+  if (schedule.fireCount === 0) {
+    return schedule.maxFires > 0 ? `None yet · up to ${schedule.maxFires}` : "None yet";
+  }
+  if (schedule.maxFires <= 0) return String(schedule.fireCount);
+  const base = `${schedule.fireCount} of ${schedule.maxFires}`;
+  return schedule.fireCount >= schedule.maxFires ? `${base} — limit reached` : base;
+}
+
 export function sortScheduleFires(
   fires: readonly ScheduleFire[],
   key: FireSortKey,
-  direction: SortDirection,
-  now = Date.now(),
+  direction: SortDir,
 ) {
   const multiplier = direction === "asc" ? 1 : -1;
   return [...fires].sort((left, right) => {
     let comparison: number;
-    if (key === "duration")
-      comparison = (fireDurationMs(left, now) ?? -1) - (fireDurationMs(right, now) ?? -1);
-    else if (key === "outcome") comparison = fireOutcome(left).localeCompare(fireOutcome(right));
+    if (key === "outcome") comparison = fireOutcome(left).localeCompare(fireOutcome(right));
     else comparison = dateValue(left.firedAt) - dateValue(right.firedAt);
     return comparison * multiplier || dateValue(right.firedAt) - dateValue(left.firedAt);
   });
 }
 
-export function fireDurationMs(fire: ScheduleFire, now = Date.now()) {
-  const started = dateValue(fire.startedAt);
-  if (!started) return null;
-  const end = fire.inFlight
-    ? now
-    : dateValue(fire.progressAt) || dateValue(fire.deadline) || started;
-  return Math.max(0, end - started);
-}
+/**
+ * DECISION: The outcome is read from the recorded `session.StopReason`, not by
+ * matching substrings. A timeout is recorded with both `timeout` and an error
+ * (`scheduler_fire.go`), so the stop reason is checked before the error. A
+ * limit stop is neither a success nor a failure, and an unknown future reason
+ * reads "Stopped" rather than claiming completion.
+ */
+const COMPLETED_STOPS = new Set([
+  "",
+  "end_turn",
+  "structured_output",
+  "plan_approved",
+  "plan_iterate",
+]);
+const LIMIT_STOPS = new Set(["max_turns", "max_tool_calls", "budget"]);
+const FAILED_STOPS = new Set(["error", "max_consecutive_failures"]);
 
-function fireOutcome(fire: ScheduleFire) {
+export function fireOutcome(fire: ScheduleFire) {
   if (fire.inFlight) return fire.startedAt ? "In flight" : "Claimed";
-  return fire.error ? "Failed" : fire.stop || "Completed";
+  const stop = fire.stop.trim().toLocaleLowerCase();
+  if (stop === "timeout") return "Timed out";
+  if (stop === "cancelled") return "Cancelled";
+  if (fire.error || FAILED_STOPS.has(stop)) return "Failed";
+  if (LIMIT_STOPS.has(stop)) return "Limit reached";
+  return COMPLETED_STOPS.has(stop) ? "Completed" : "Stopped";
 }
 
 function dateValue(value: string | null) {
   if (!value) return 0;
   const result = Date.parse(value);
   return Number.isNaN(result) ? 0 : result;
-}
-
-function formatDuration(milliseconds: number | null) {
-  if (milliseconds === null) return "—";
-  const seconds = milliseconds / 1_000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ${Math.round(seconds - minutes * 60)}s`;
 }
 
 function FactGroup({ children, title }: { children: React.ReactNode; title: string }) {
@@ -465,50 +589,62 @@ function FactGroup({ children, title }: { children: React.ReactNode; title: stri
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, title, value }: { label: string; title?: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 px-4 py-3">
       <dt className="text-sm">{label}</dt>
-      <dd className="min-w-0 text-right text-sm text-muted-foreground">{value}</dd>
+      <dd className="min-w-0 text-right text-sm text-muted-foreground" title={title}>
+        {value}
+      </dd>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: Schedule["status"] }) {
-  const variant =
-    status === "running"
-      ? "success"
-      : status === "paused"
-        ? "muted"
-        : status === "claimed"
-          ? "warning"
-          : "info";
-  return <Badge variant={variant}>{status}</Badge>;
-}
-
-function DetailState({ text, title }: { text: string; title?: string }) {
+function DetailState({
+  loading,
+  text,
+  title,
+}: {
+  loading?: boolean;
+  text: string;
+  title?: string;
+}) {
   return (
-    <div className="flex h-full items-center justify-center p-6 text-center">
-      <div className="max-w-md rounded-xl border border-dashed p-8">
-        {title && <h1 className="font-semibold">{title}</h1>}
-        <p className="mt-2 text-sm text-muted-foreground">{text}</p>
-        <Button asChild className="mt-5" size="sm" variant="outline">
-          <Link search={{ schedule: undefined }} to="/workspace/schedules">
-            Back to scheduled
-          </Link>
-        </Button>
-      </div>
+    <div className="flex h-full items-center justify-center p-6">
+      <Empty className="max-w-md flex-none border" role={loading ? "status" : "alert"}>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CalendarClock />
+          </EmptyMedia>
+          {title && <EmptyTitle>{title}</EmptyTitle>}
+          <EmptyDescription>{text}</EmptyDescription>
+        </EmptyHeader>
+        {!loading && (
+          <EmptyContent>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/workspace/schedules">Back to scheduled</Link>
+            </Button>
+          </EmptyContent>
+        )}
+      </Empty>
     </div>
   );
 }
 
 function HistoryState({ destructive, text }: { destructive?: boolean; text: string }) {
+  if (destructive) {
+    return (
+      <Alert className="mt-3" variant="destructive">
+        <AlertDescription>{text}</AlertDescription>
+      </Alert>
+    );
+  }
   return (
-    <p
-      className={`mt-3 rounded-xl border border-dashed p-6 text-sm ${destructive ? "text-destructive" : "text-muted-foreground"}`}
-    >
-      {text}
-    </p>
+    <Empty className="mt-3 border" role="status">
+      <EmptyHeader>
+        <EmptyDescription>{text}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 

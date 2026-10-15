@@ -398,6 +398,18 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
 
 ### Fixed
 
+- **System temp-scope approval shows the full command** — a Shell call with
+  `temp_scope: "system"` previously surfaced an approval whose args held only
+  the first two words of the command (`command_summary`). The ask now carries
+  `{"command", "timeout_ms", "background", "temp_scope"}` re-encoded from the
+  decoded call, so duplicate or case-variant keys show the value that runs.
+  The `command_summary` field is removed; no in-repo client read it.
+  Runner-owned temporary paths and environment values still never appear.
+  Subagent asks follow suit: the isolation auto-approve no longer clears a
+  system temp-scope ask, a surfaced child ask's preview names the scope, and the
+  headless ask reviewer is told the command requests host-shared temporary
+  storage. Fixed (patch); no exported signatures changed.
+
 - **Built-in file operand decoding (issue #2094)** — `tool.LocalFileOperands`
   now matches built-in JSON decoding for case variants, duplicate keys, and
   null values. Operand decoding errors yield no paths; Copy/Move require both
@@ -416,6 +428,22 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
   supported. Hosts constructing agent-bound sessions must bind consistent authority
   before persisting them. Changed (breaking pre-v1 minor); existing ordinary-session
   wire clients are unaffected.
+
+- **Atomic one-shot retry eligibility (issue #2273)** —
+  `port.ScheduleOneShotReArmer.ReArmOneShot` now requires store-side atomic
+  validation of current disabled/settled-failure state, one-shot retry policy,
+  and remaining budget. Ineligible records wrap `ErrScheduleNotFound` unchanged;
+  concurrent rearms have one winner. Signatures and wire fields are unchanged,
+  but external re-arm implementations must adopt the stronger contract.
+  Changed (breaking; pre-v1 minor).
+
+- **Schedule predecessor ownership (issue #2273)** — `port.ScheduleStore.Claim`
+  and `ClaimNow` must atomically reject pending or started, nonterminal
+  predecessors even at different claim instants. `RecordFire` settles schedule
+  state only for its own claim instant (or legacy zero `LastFireAt`), retaining
+  late outcomes without clearing a successor. This replaces timestamp-only
+  pending recovery with explicit settlement. Changed (breaking behavioral
+  contract, pre-v1 minor); exported signatures and API snapshots are unchanged.
 
 - **Target-scoped project guidance and ephemeral snapshot** — `prompt.InstructionAssembler`
   now requires `Assemble(context.Context, []string, *session.InstructionSnapshot, int)`

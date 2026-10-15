@@ -242,6 +242,7 @@ describe("Mecatl schedule spec mapping", () => {
     const rows = [
       { name: "paused", state: { enabled: false } },
       { name: "running", state: { enabled: true, lastFireStartedAt: ts(1_700_000_000) } },
+      { name: "running-paused", state: { enabled: false, lastFireStartedAt: ts(1_700_000_000) } },
       { name: "claimed", state: { enabled: true, lastFireSessionId: "pending" } },
       {
         name: "scheduled",
@@ -258,6 +259,7 @@ describe("Mecatl schedule spec mapping", () => {
       ["claimed", "claimed"],
       ["paused", "paused"],
       ["running", "running"],
+      ["running-paused", "running"],
       ["scheduled", "scheduled"],
     ]);
     expect(response.items.find((item) => item.name === "claimed")?.lastFireSessionId).toBe("");
@@ -355,6 +357,38 @@ describe("Mecatl schedule terminal state and numeric bounds", () => {
     // disabled flag as it is.
     const done = response.items.find((item) => item.name === "one-shot-done");
     expect(done).toMatchObject({ enabled: false, fireCount: 1, nextFireAt: null });
+  });
+
+  it("lets an in-flight or claimed fire outrank paused and completed", async () => {
+    const list = vi.fn().mockResolvedValue({
+      schedules: [
+        // The claim disables the schedule before the session id is known.
+        row("claimed-paused", { enabled: false, lastFireSessionId: "pending" }),
+        // A claimed final fire has no next fire and has fired before, which
+        // would otherwise read as completed.
+        row("claimed-final", {
+          enabled: false,
+          fireCount: 2,
+          lastFireSessionId: "pending",
+        }),
+        // Same shape once the fire has started: running, not completed.
+        row("running-final", {
+          enabled: false,
+          fireCount: 2,
+          lastFireSessionId: "session-1",
+          lastFireStartedAt: ts(1_700_000_000),
+        }),
+      ],
+    });
+    const service = createMecatlScheduleService({ schedules: { list } } as unknown as Client, true);
+
+    const response = await service.list();
+
+    expect(response.items.map((item) => [item.name, item.status])).toEqual([
+      ["claimed-final", "claimed"],
+      ["claimed-paused", "claimed"],
+      ["running-final", "running"],
+    ]);
   });
 
   it("refuses counts a signed 32-bit daemon field cannot represent", () => {
