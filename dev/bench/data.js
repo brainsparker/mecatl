@@ -306484,6 +306484,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792067252081,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce0f816e076654146d0bb27c59ecc8bf3f32e57f",
+          "message": "fix(studio): refresh schedule history after actions and tidy the detail page (#2315)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T14:25:38+02:00",
+          "tree_id": "3f78855a66e1ef1902feba80c50ee7f0cfadf9c8",
+          "url": "https://github.com/stacklok/mecatl/commit/ce0f816e076654146d0bb27c59ecc8bf3f32e57f"
+        },
+        "date": 1792067983614,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -443726,6 +443760,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792067980446,
+  "lastUpdate": 1792067984353,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
