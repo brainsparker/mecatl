@@ -340831,6 +340831,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792071163478,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f86205f55bc2fc52ae2ae1e5cac694d441b5869",
+          "message": "fix(studio): declare 400 and 429 on the skill files route, and stop hard-coding the route count (#2355)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T15:21:05+02:00",
+          "tree_id": "9c6a9dcbc0960eab9668c230b4eec61aa886f9fc",
+          "url": "https://github.com/stacklok/mecatl/commit/4f86205f55bc2fc52ae2ae1e5cac694d441b5869"
+        },
+        "date": 1792071948681,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3273,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 73.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -445293,6 +445332,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792071945343,
+  "lastUpdate": 1792071949838,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
