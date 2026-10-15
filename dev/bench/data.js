@@ -304336,6 +304336,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792055337205,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e1ce3cb2a6a5c9bfb1216efb8c9149515abb56b",
+          "message": "fix(studio): give a stale plan ask its own error code (#2311)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T11:25:03+02:00",
+          "tree_id": "dd064e761d0d4020f8a6324c282102cb9d03db88",
+          "url": "https://github.com/stacklok/mecatl/commit/0e1ce3cb2a6a5c9bfb1216efb8c9149515abb56b"
+        },
+        "date": 1792057026974,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -440660,6 +440694,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792057023874,
+  "lastUpdate": 1792057027780,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
