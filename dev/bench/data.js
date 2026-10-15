@@ -303620,6 +303620,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792053735907,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f07d4b45af8c718eaf60fc7e21b36a4578ca60ef",
+          "message": "fix(app): eliminate recovery startup Config race and order worker lifecycle (#2310)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T11:39:13+03:00",
+          "tree_id": "9581bcf626e66ddb679b7dbf8cbd4beb1b1024d4",
+          "url": "https://github.com/stacklok/mecatl/commit/f07d4b45af8c718eaf60fc7e21b36a4578ca60ef"
+        },
+        "date": 1792054450665,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -439638,6 +439672,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792054447776,
+  "lastUpdate": 1792054451508,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
