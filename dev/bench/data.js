@@ -342022,6 +342022,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792073579368,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "550c67feef92a170c302a441b994ce4af2618b4b",
+          "message": "refactor(studio): share one plan verdict flow via usePlanVerdictControl (#2324)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T16:07:36+02:00",
+          "tree_id": "ff06b2aa534e021aec2c8a976581b5c18e2c38a8",
+          "url": "https://github.com/stacklok/mecatl/commit/550c67feef92a170c302a441b994ce4af2618b4b"
+        },
+        "date": 1792074331285,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -446826,6 +446865,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792074326789,
+  "lastUpdate": 1792074332717,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
