@@ -17,8 +17,17 @@ const knowledge: KnowledgeService = {
       user_model: { decide: true, generate: true, unavailableReason: "" },
     },
     reflection: true,
+    skillFiles: true,
     skills: true,
     userModel: true,
+  },
+  async listSkillFiles() {
+    return {
+      files: [
+        { content: "# Review", instructions: true, name: "SKILL.md", size: 8, unavailable: "" },
+      ],
+      omitted: 0,
+    };
   },
   async actOnLearnedSkill() {
     return {
@@ -601,6 +610,7 @@ describe("knowledge routes", () => {
             user_model: { decide: false, generate: false, unavailableReason: "Dreaming is off" },
           },
           reflection: false,
+          skillFiles: false,
           skills: false,
           userModel: false,
         },
@@ -680,6 +690,7 @@ describe("knowledge routes", () => {
     const json = { "Content-Type": "application/json" };
     for (const [path, init] of [
       ["/api/v1/skills", undefined],
+      ["/api/v1/skills/review/files", undefined],
       ["/api/v1/learned-skills", undefined],
       ["/api/v1/learned-skills/changes", undefined],
       ["/api/v1/learned-skills/review?ownerAgent=mecatl&version=v2", undefined],
@@ -797,5 +808,26 @@ describe("knowledge routes", () => {
     });
     expect(response.status).toBe(400);
     expect(called).toBe(false);
+  });
+});
+
+describe("skill files route", () => {
+  it("returns a skill's files with their text", async () => {
+    const response = await csrfApp({ knowledge }).request("/api/v1/skills/review/files");
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      files: [
+        { content: "# Review", instructions: true, name: "SKILL.md", size: 8, unavailable: "" },
+      ],
+      omitted: 0,
+    });
+  });
+
+  it("explains an unsupported deployment instead of answering empty", async () => {
+    // A daemon without the skill_files feature answers 501, whatever its skills capability says.
+    const off = { ...knowledge, capabilities: { ...knowledge.capabilities, skillFiles: false } };
+    const response = await csrfApp({ knowledge: off }).request("/api/v1/skills/review/files");
+    expect(response.status).toBe(501);
+    await expect(response.json()).resolves.toMatchObject({ code: "skill_files_unsupported" });
   });
 });
