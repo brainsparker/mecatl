@@ -1,0 +1,9 @@
+Before 4aa238f3c (origin/main), After d49cc4714 (this branch). Amber boxes mark the animate-pulse status dots of delegation-card, fleet-status-chip and session-details-dialog, located by hiding only those dots in a separate pass. No pixel changed.
+delegation-running-desktop-light	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=3
+delegation-running-desktop-dark	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=3
+delegation-running-mobile-light	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=3
+delegation-running-mobile-dark	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=3
+details-running-desktop-light	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=4
+details-running-desktop-dark	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=4
+details-running-mobile-light	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=1
+details-running-mobile-dark	noise(before vs before2)=0	change(before vs after)=0	boxed status-pulse regions=1
