@@ -309348,6 +309348,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792076628476,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ad7d940926301dfdded05ad5f219a58333309a9",
+          "message": "fix(enrollment): preserve workspace enrollment authority (#1809)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T17:03:28+02:00",
+          "tree_id": "a880290221f3f580a25b167c68f407a12eb90294",
+          "url": "https://github.com/stacklok/mecatl/commit/2ad7d940926301dfdded05ad5f219a58333309a9"
+        },
+        "date": 1792077360020,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -447814,6 +447848,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792077357279,
+  "lastUpdate": 1792077360905,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
