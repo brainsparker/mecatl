@@ -310064,6 +310064,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792084444793,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8cc7c2347e82b41f4fbbb51af7a2599f9095d3ae",
+          "message": "refactor(studio): move the learning refresh tooltip to the Tooltip primitive (#2357)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T19:11:41+02:00",
+          "tree_id": "0ef0b6b3e6a4aff3f2c0d199bec31158f5a726eb",
+          "url": "https://github.com/stacklok/mecatl/commit/8cc7c2347e82b41f4fbbb51af7a2599f9095d3ae"
+        },
+        "date": 1792085153636,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -448836,6 +448870,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792085150403,
+  "lastUpdate": 1792085154447,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
