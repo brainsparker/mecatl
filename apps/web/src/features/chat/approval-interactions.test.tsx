@@ -1157,9 +1157,10 @@ describe("approval focus scope", () => {
     fixture: Fixture,
     runId: string,
     asks: Array<{ askId: string; reason: string }>,
+    sessionId = "chat-a",
   ) {
     await act(async () => {
-      fixture.stream.send({ runId, sessionId: "chat-a", type: "run.started" });
+      fixture.stream.send({ runId, sessionId, type: "run.started" });
       for (const [index, { askId, reason }] of asks.entries()) {
         fixture.stream.send(
           event("permission.ask", String(index + 1), runId, {
@@ -1325,5 +1326,143 @@ describe("approval focus scope", () => {
       method: "POST",
       pathname: "/api/v1/sessions/chat-a/runs/run-a/permissions/ask-1",
     });
+  });
+
+  it("denies the active ask on Escape from its own card or from outside every card", async () => {
+    for (const side of [false, true]) {
+      const fixture = new Fixture();
+      await mount(fixture, side);
+      const sessionId = side ? "thread-a" : "chat-a";
+      const [first, second] = (await sendAsks(fixture, "run-a", pair, sessionId)) as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      const user = userEvent.setup();
+      const deny = (askId: string) => ({
+        body: { verdict: "deny" },
+        method: "POST",
+        pathname: `/api/v1/sessions/${sessionId}/runs/run-a/permissions/${askId}`,
+      });
+
+      // From inside the active ask's own card: a held key denies nothing, a press denies it.
+      expect(within(first).getByText("Esc to Deny")).toBeTruthy();
+      const denyButton = within(first).getByRole("button", { name: "Deny" });
+      denyButton.focus();
+      fireEvent.keyDown(denyButton, { key: "Escape", repeat: true });
+      fireEvent.keyUp(denyButton, { key: "Escape" });
+      expect(fixture.posts()).toEqual([]);
+      fixture.verdicts.push(Promise.resolve(new Response(null, { status: 204 })));
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByText("First ask")).toBeNull());
+      expect(fixture.posts()).toEqual([deny("ask-1")]);
+
+      // From outside every card, now that the second ask is the active one: the
+      // workspace's composer, or a thread control (the thread's composer is
+      // disabled while its run waits).
+      expect(within(second).getByText("Esc to Deny")).toBeTruthy();
+      screen
+        .getByRole(side ? "button" : "textbox", {
+          name: side ? "Thread options" : "Message Mecatl",
+        })
+        .focus();
+      fixture.verdicts.push(Promise.resolve(new Response(null, { status: 204 })));
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByText("Second ask")).toBeNull());
+      expect(fixture.posts()).toEqual([deny("ask-1"), deny("ask-2")]);
+      cleanup();
+    }
+  });
+
+  it("answers no ask on Escape from another ask's card", async () => {
+    for (const side of [false, true]) {
+      const fixture = new Fixture();
+      await mount(fixture, side);
+      const sessionId = side ? "thread-a" : "chat-a";
+      const [first, second] = (await sendAsks(fixture, "run-a", pair, sessionId)) as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      const user = userEvent.setup();
+      // The first ask is the active one; focus sits in the second ask's card.
+      expect(within(first).getByText("Esc to Deny")).toBeTruthy();
+      expect(within(second).queryByText("Esc to Deny")).toBeNull();
+      for (const name of ["Raw arguments", "Allow once", "Deny"]) {
+        within(second).getByRole("button", { name }).focus();
+        await user.keyboard("{Escape}");
+      }
+      // No verdict for either ask, and no stop: nothing is posted at all.
+      expect(fixture.requests.filter((request) => request.method === "POST")).toEqual([]);
+      for (const card of [first, second])
+        expect(
+          ["Allow once", "Always allow", "Deny"].map(
+            (name) => (within(card).getByRole("button", { name }) as HTMLButtonElement).disabled,
+          ),
+        ).toEqual([false, false, false]);
+
+      // Escape from the active ask's own card still denies it, and only it.
+      within(first).getByRole("button", { name: "Raw arguments" }).focus();
+      fixture.verdicts.push(Promise.resolve(new Response(null, { status: 204 })));
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByText("First ask")).toBeNull());
+      expect(fixture.posts()).toEqual([
+        {
+          body: { verdict: "deny" },
+          method: "POST",
+          pathname: `/api/v1/sessions/${sessionId}/runs/run-a/permissions/ask-1`,
+        },
+      ]);
+      expect(screen.getByText("Second ask")).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("answers no ask on Escape from a plan card that isn't the active ask's", async () => {
+    const fixture = new Fixture();
+    fixture.runtimeFeatures = ["exact_plan_ask_control"];
+    await mount(fixture);
+    await act(async () => {
+      fixture.stream.send({ runId: "run-a", sessionId: "chat-a", type: "run.started" });
+      fixture.stream.send(
+        event("permission.ask", "1", "run-a", {
+          args: editArgs,
+          askId: "ask-1",
+          reason: "First ask",
+          tool: "Edit",
+        }),
+      );
+      fixture.stream.send(
+        event("permission.ask", "2", "run-a", {
+          args: '{"plan":"Ship it"}',
+          askId: "ask-plan",
+          reason: "Plan ask",
+          tool: "PresentPlan",
+        }),
+      );
+    });
+    const first = (await screen.findByText("First ask")).closest("section") as HTMLElement;
+    const plan = await screen.findByRole("region", { name: "Plan review" });
+    const user = userEvent.setup();
+    expect(within(first).getByText("Esc to Deny")).toBeTruthy();
+    expect(within(plan).queryByText("Esc to Iterate")).toBeNull();
+    for (const name of ["Raw arguments", "Iterate"]) {
+      within(plan).getByRole("button", { name }).focus();
+      await user.keyboard("{Escape}");
+    }
+    expect(fixture.requests.filter((request) => request.method === "POST")).toEqual([]);
+
+    // From the active ask's own card, Escape denies that ask, never the plan.
+    within(first).getByRole("button", { name: "Raw arguments" }).focus();
+    fixture.verdicts.push(Promise.resolve(new Response(null, { status: 204 })));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByText("First ask")).toBeNull());
+    expect(fixture.requests.filter((request) => request.method === "POST")).toEqual([
+      {
+        body: { verdict: "deny" },
+        method: "POST",
+        pathname: "/api/v1/sessions/chat-a/runs/run-a/permissions/ask-1",
+      },
+    ]);
+    // The plan is now the active ask, and its card says Escape iterates it.
+    expect(within(plan).getByText("Esc to Iterate")).toBeTruthy();
   });
 });
