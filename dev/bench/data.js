@@ -309706,6 +309706,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792077360020,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "acb4c4d634733ac48fdc5f0d9abf7c4b98d371b4",
+          "message": "refactor(studio): render message avatars with the Avatar primitive (#2351)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T19:01:05+02:00",
+          "tree_id": "075ef26e39cfbecf06b2ec1b5d534230086d09ba",
+          "url": "https://github.com/stacklok/mecatl/commit/acb4c4d634733ac48fdc5f0d9abf7c4b98d371b4"
+        },
+        "date": 1792084444793,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -448325,6 +448359,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792084441179,
+  "lastUpdate": 1792084445876,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
