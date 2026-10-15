@@ -344007,6 +344007,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792085157827,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a75e131915030f59bf3fa1307bc0a4181d014b41",
+          "message": "test(mecatequi): surface realMain stderr when the recovery-host child exits non-zero (#2364)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T21:55:38+02:00",
+          "tree_id": "c95c6af86415f5373b653f2a31a930b8dd935509",
+          "url": "https://github.com/stacklok/mecatl/commit/a75e131915030f59bf3fa1307bc0a4181d014b41"
+        },
+        "date": 1792094870517,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3276.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -449381,6 +449420,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792094867170,
+  "lastUpdate": 1792094871455,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
