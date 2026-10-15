@@ -1961,11 +1961,9 @@ type createSessionOpts struct {
 	// publication even when the provider has no detachable attachment. ACP editor
 	// buffers are the only such create-time override.
 	placementEnvironmentOverride bool
-	// agentDefinitionName optionally binds this session's root to a named
-	// AgentDef (ADR 0353). Empty is the byte-identical default-explorer session.
-	// Plumbing only here: it is stamped onto the aggregate and echoed back: NO
-	// catalog restriction, provider/model/limits/permission-mode resolution, or
-	// validation is wired from this field yet (a later task's scope).
+	// agentDefinitionName persists the root's AgentDef binding and selects the
+	// dedicated factory's catalog, limits, and permission-mode restrictions.
+	// Empty uses the ordinary session path.
 	agentDefinitionName string
 }
 
@@ -2015,12 +2013,9 @@ func WithDebugMCP(names []string) CreateSessionOption {
 	return func(o *createSessionOpts) { o.debugMCPServers = append([]string(nil), names...) }
 }
 
-// WithAgentDefinitionName binds this session's root to a named AgentDef (ADR
-// 0353). Empty (the default, zero-value opts) is byte-identical to today's
-// behavior. This option ONLY stamps the durable label onto the created
-// session's aggregate for persistence/echo; it does not yet build the
-// session's engine from the definition, restrict its catalog, or validate the
-// name against any def source — that is a later task's scope.
+// WithAgentDefinitionName persists a root's named AgentDef binding (ADR 0353).
+// The dedicated factory resolves the name and provider/model, builds the restricted
+// catalog, and clamps limits and permission mode. Empty uses the ordinary path.
 func WithAgentDefinitionName(name string) CreateSessionOption {
 	return func(o *createSessionOpts) { o.agentDefinitionName = name }
 }
@@ -2201,18 +2196,15 @@ func (s *Service) CreateSessionWithProvider(ctx context.Context, mode session.Pe
 	return s.CreateSessionWithProfile(ctx, mode, limits, sel, ProfileDefault)
 }
 
-// CreateSessionWithProfile creates a session bound to an optional non-default
-// provider/model selector AND a tool-surface profile (issue #55), with no client
-// MCP. It is the gRPC/HTTP entry for a CreateSession request. The zero selector
-// + default profile uses the shared engine unless Config.MCPBroker or
-// Config.LearnedSkills forces a per-session engine; a non-zero selector OR the
-// no-fs profile always needs one. A per-session engine REQUIRES
-// Config.SessionEngine or Config.SessionEngineWithTools (else
-// ErrInvalidArgument) and resolves through the factory (an unknown/unavailable
-// provider id surfaces as ErrInvalidArgument). Setting ModelID with an empty
-// ProviderID is rejected (a bare model on the env-derived default provider is
-// ambiguous). Placement is bound exclusively from the server-owned default or
-// explicit no-FS profile.
+// CreateSessionWithProfile creates a session with an optional provider/model
+// selector and tool-surface profile. It is the gRPC/HTTP create entrypoint.
+// Ordinary sessions use the shared engine unless the selector, profile, broker,
+// or learned skills require Config.SessionEngine or Config.SessionEngineWithTools.
+// Agent-bound sessions always require Config.AgentDefSessionEngine instead.
+// Unknown/unavailable providers surface as ErrInvalidArgument. ModelID without
+// ProviderID is rejected for ordinary sessions; agent-bound sessions resolve it
+// through the dedicated factory. Placement is server-owned, including authorized
+// execution-template selections, no-FS profiles, and trusted supplied bindings.
 //
 // opts is the variadic options pattern (CreateSessionOption): WithSessionID
 // overrides the minted id (the scheduler fire
@@ -2222,12 +2214,8 @@ func (s *Service) CreateSessionWithProfile(ctx context.Context, mode session.Per
 	for _, opt := range opts {
 		opt(&o)
 	}
-	// model_id requires provider_id on an ORDINARY session (a bare model on the
-	// default provider is ambiguous) — but an agent_definition_name-bound
-	// session resolves its provider from the def itself (ADR 0353), so once a
-	// later task wires that resolution on top of this factory the combination
-	// is no longer ambiguous. Opts must be parsed BEFORE this guard so it can
-	// see agentDefinitionName.
+	// A model-only selector is valid for agent-bound sessions: their dedicated
+	// factory resolves the provider from the definition.
 	if sel.ProviderID == "" && sel.ModelID != "" && o.agentDefinitionName == "" {
 		return nil, fmt.Errorf("%w: model_id requires provider_id (a bare model on the default provider is ambiguous)", ErrInvalidArgument)
 	}

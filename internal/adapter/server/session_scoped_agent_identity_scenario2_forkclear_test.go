@@ -106,12 +106,7 @@ func TestSessionScopedAgentIdentity_Scenario2_ForkClearPreserveBindingAndCatalog
 	}
 }
 
-// TestSessionScopedAgentIdentity_Scenario2_ForkClearSkipMCPBrokerAttachment
-// pins AC2.4: a forked/cleared agent-bound successor's engine build also skips
-// Config.MCPBroker attachment entirely, mirroring AC1.10's create-time skip
-// (TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped) for
-// the DISTINCT construction path placement_successor.go uses (a new engine
-// built directly, never routed through the create-time path AC1.10 covers).
+// Successor engines use a distinct construction path from session creation.
 func TestSessionScopedAgentIdentity_Scenario2_ForkClearSkipMCPBrokerAttachment(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -121,30 +116,14 @@ func TestSessionScopedAgentIdentity_Scenario2_ForkClearSkipMCPBrokerAttachment(t
 		{name: "clear", clear: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runtime := testBrokerRuntime(t)
-			defer runtime.Close()
-			var attachCalled int32
-
-			svc, err := NewService(Config{
-				Engine:            brokerEngineResult().Engine,
-				Store:             memstore.New(),
-				PlacementProvider: brokerPlacementProvider{}, PlacementScope: "test",
-				MCPBroker: countingBrokerService{inner: runtime, attachCalled: &attachCalled},
-				AgentDefSessionEngine: func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
-					return agentDefinitionEngineResult("release-reviewer"), nil
-				},
-			})
-			if err != nil {
-				t.Fatalf("NewService: %v", err)
-			}
-			defer svc.Close()
+			svc, attachCalled := newAgentDefBrokerService(t)
 
 			source, err := svc.CreateSessionWithProfile(context.Background(), session.ModeDefault, session.Limits{},
 				ProviderSelector{}, ProfileDefault, WithAgentDefinitionName("release-reviewer"))
 			if err != nil {
 				t.Fatalf("CreateSession: %v", err)
 			}
-			if got := atomic.LoadInt32(&attachCalled); got != 0 {
+			if got := atomic.LoadInt32(attachCalled); got != 0 {
 				t.Fatalf("MCPBroker.AttachSession was called %d time(s) at CREATE — precondition for this test is broken (AC1.10)", got)
 			}
 
@@ -157,7 +136,7 @@ func TestSessionScopedAgentIdentity_Scenario2_ForkClearSkipMCPBrokerAttachment(t
 				t.Fatalf("successor: %v", err)
 			}
 
-			if got := atomic.LoadInt32(&attachCalled); got != 0 {
+			if got := atomic.LoadInt32(attachCalled); got != 0 {
 				t.Fatalf("MCPBroker.AttachSession was called %d time(s) for an agent-bound fork/clear successor — it must be skipped entirely (AC2.4)", got)
 			}
 		})
