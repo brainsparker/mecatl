@@ -340037,6 +340037,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792067987577,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4aa238f3cadb59bf98179d16b75bb5b52f00aa5c",
+          "message": "fix(studio): make the Escape double-press window strictly under 500 ms (#2318)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T15:00:20+02:00",
+          "tree_id": "b72e0e1e299c3cfea29fd8542cd525133eb5a91a",
+          "url": "https://github.com/stacklok/mecatl/commit/4aa238f3cadb59bf98179d16b75bb5b52f00aa5c"
+        },
+        "date": 1792069992523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3269.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 70,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -444271,6 +444310,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792069989385,
+  "lastUpdate": 1792069993386,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
