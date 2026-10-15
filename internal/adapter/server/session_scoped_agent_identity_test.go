@@ -10,6 +10,7 @@ import (
 	"github.com/stacklok/mecatl/engine/adapter/mockllm"
 	"github.com/stacklok/mecatl/engine/adapter/permpolicy"
 	"github.com/stacklok/mecatl/engine/agent"
+	"github.com/stacklok/mecatl/engine/governance"
 	"github.com/stacklok/mecatl/engine/session"
 	"github.com/stacklok/mecatl/engine/tool"
 	"github.com/stacklok/mecatl/internal/adapter/server"
@@ -39,7 +40,10 @@ func TestSessionScopedAgentIdentity_Scenario2_ResponseEchoesBoundName(t *testing
 		// keeps exercising only the label/echo path; the real catalog-scoping
 		// behaviour is pinned by the Scenario 1 tests instead.
 		AgentDefSessionEngine: func(context.Context, server.ProviderSelector, server.SessionProfile, session.PermissionMode, session.Limits, string) (server.SessionEngineResult, error) {
-			return server.SessionEngineResult{Engine: shared, Close: func() error { return nil }}, nil
+			return server.SessionEngineResult{AgentDefinitionName: "release-reviewer", Engine: shared, BuiltForMode: session.ModeDefault, Authority: session.Authority{
+				Provenance: "agent-def:test", CapabilitySet: governance.CapabilitySet{Tools: []string{"Read"}},
+				Ceiling: &governance.CapabilitySet{Tools: []string{"Read"}},
+			}, Close: func() error { return nil }}, nil
 		},
 	})
 	if err != nil {

@@ -3,12 +3,12 @@ package server
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stacklok/mecatl/engine/adapter/memstore"
 	"github.com/stacklok/mecatl/engine/session"
-	"github.com/stacklok/mecatl/engine/tool"
 	"github.com/stacklok/mecatl/internal/adapter/mcp"
 )
 
@@ -29,12 +29,12 @@ func newAgentDefBoundService(t *testing.T) *Service {
 		Store:             memstore.New(),
 		PlacementProvider: brokerPlacementProvider{},
 		PlacementScope:    "test",
-		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, _ string) (SessionEngineResult, error) {
+		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, name string) (SessionEngineResult, error) {
 			// A real factory (agentDefSessionEngineFactory) always stamps
 			// BuiltForMode with the resolved/clamped mode; createPerSessionEngine
 			// reassigns its local `mode` FROM this field (ADR 0353 tighten-only
 			// clamp), so a stub leaving it "" would silently blank sess.Mode.
-			res := brokerEngineResult()
+			res := agentDefinitionEngineResult(name)
 			res.BuiltForMode = mode
 			return res, nil
 		},
@@ -69,8 +69,8 @@ func newAgentDefBoundServiceOverStore(t *testing.T, store *memstore.Store) *Serv
 		PlacementProvider: brokerPlacementProvider{},
 		PlacementScope:    "test",
 		SharedEngineRoot:  "/workspace",
-		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, _ string) (SessionEngineResult, error) {
-			res := brokerEngineResult()
+		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, name string) (SessionEngineResult, error) {
+			res := agentDefinitionEngineResult(name)
 			res.BuiltForMode = mode
 			return res, nil
 		},
@@ -179,29 +179,14 @@ func TestSessionScopedAgentIdentity_Scenario3_BrokerAuthorizationAndWorkspaceEnr
 	})
 
 	t.Run("ConnectWorkspaceServices", func(t *testing.T) {
-		runtime := testBrokerRuntime(t)
-		defer runtime.Close()
-		svc, err := NewService(Config{
-			Engine:            brokerEngineResult().Engine,
-			Store:             memstore.New(),
-			PlacementProvider: brokerPlacementProvider{},
-			PlacementScope:    "test",
-			MCPBroker:         runtime,
-			AgentDefSessionEngine: func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
-				return brokerEngineResult(), nil
-			},
-			SessionEngineWithTools: func(context.Context, ProviderSelector, []mcp.ServerConfig, SessionProfile, string, session.PermissionMode, []tool.Tool) (SessionEngineResult, error) {
-				return brokerEngineResult(), nil
-			},
-		})
-		if err != nil {
-			t.Fatalf("NewService: %v", err)
-		}
-		defer svc.Close()
+		svc, attachCalled := newAgentDefBrokerService(t)
 		sess := createAgentDefBoundSession(t, svc, "release-reviewer")
 
 		if _, err := svc.ConnectWorkspaceServices(context.Background(), sess.ID); err == nil || !errors.Is(err, ErrInvalidArgument) {
 			t.Fatalf("ConnectWorkspaceServices for an agent-bound session = %v, want an ErrInvalidArgument rejection", err)
+		}
+		if got := atomic.LoadInt32(attachCalled); got != 0 {
+			t.Fatalf("MCPBroker.AttachSession called %d time(s) for an agent-bound session", got)
 		}
 	})
 }

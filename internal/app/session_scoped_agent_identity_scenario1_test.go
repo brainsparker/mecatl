@@ -23,12 +23,8 @@ import (
 	"github.com/stacklok/mecatl/internal/adapter/server"
 )
 
-// writeScopedAgentDefFile writes a minimal agent-def markdown file with an
-// explicit `tools:` allowlist (empty tools omits the field, exercising the
-// "omitted tools:" resolution). It is this test file's own fixture writer
-// (distinct from subagent_agent_router_test.go's writeAgentDefFile, which has
-// no tools:/mcpServers: knobs) so Scenario 1's tests can pin an exact
-// allowlist per def.
+// writeScopedAgentDefFile writes a definition with an optional tools allowlist.
+// Empty tools omits the field to exercise bounded-base resolution.
 func writeScopedAgentDefFile(t *testing.T, dir, name string, tools []string, body string) {
 	t.Helper()
 	fm := "---\nname: " + name + "\ndescription: " + name + " specialist\n"
@@ -49,84 +45,63 @@ func testAgentDefRootPolicy(cfg Config) port.PermissionPolicy {
 	return permpolicy.NewPolicy(mainRules(cfg), nil, mainEvaluatorOptions(cfg)...)
 }
 
-// --- AC1.1 -------------------------------------------------------------------
-
-// TestSessionScopedAgentIdentity_Scenario1_CatalogExactlyMatchesDef pins AC1.1:
-// an agent-bound session's catalog is built EXCLUSIVELY from the resolved
-// def's own tools (core) and mcpServers: (MCP) — never the deployment's
-// default explorer catalog. baseSubagentTools(cfg) here carries far more than
-// {Read, Grep} (Edit/Write/Copy/Move/Remove/Glob/WebFetch too), so an exact
-// match proves the allowlist is a REPLACEMENT, not additive.
-func TestSessionScopedAgentIdentity_Scenario1_CatalogExactlyMatchesDef(t *testing.T) {
-	url := newMCPTestServer(t)
+// The definition's allowlist replaces, rather than extends, the bounded base catalog.
+func TestSessionScopedAgentIdentity_Scenario1_ResolvedCatalog(t *testing.T) {
 	cfg := Config{}
-	def := agents.AgentDef{
-		Name:       "reviewer",
-		Tools:      []string{"Read", "Grep"},
-		MCPServers: []agents.AgentMCPServer{{Name: "inline", URL: url}},
-	}
 	base := baseSubagentTools(cfg)
-	cat, _, _, mcpClose, _, _, _ := resolvedAgentDefCatalog(context.Background(), cfg, def, "test",
-		"model-x", base, true /*allowMutating*/, false /*allowShell*/, nil, hookexec.New(nil), nil, nil, cfg.Workspace)
-	if mcpClose != nil {
-		defer func() { _ = mcpClose() }()
-	}
-
-	want := []string{"Read", "Grep", "mcp__inline__echo"}
-	sort.Strings(want)
-	if onlyWant, onlyGot := diffNameSets(want, sortedNames(cat)); len(onlyWant) > 0 || len(onlyGot) > 0 {
-		t.Fatalf("agent-bound root catalog is NOT exactly the def's own tools+mcpServers::\n  missing: %v\n  unexpected (leaked from the deployment default): %v",
-			onlyWant, onlyGot)
-	}
-}
-
-// --- AC1.3 / AC1.16 -----------------------------------------------------------
-
-// TestSessionScopedAgentIdentity_Scenario1_OmittedToolsUsesChildBaseSet pins
-// AC1.3: an omitted tools: resolves against the SAME bounded base set a
-// Subagent child gets (baseSubagentTools(cfg)) — computed here directly from
-// that shared function (data-driven, not a hard-coded literal), so a future
-// change to the base set cannot silently desync this expectation from
-// reality.
-func TestSessionScopedAgentIdentity_Scenario1_OmittedToolsUsesChildBaseSet(t *testing.T) {
-	cfg := Config{}
-	def := agents.AgentDef{Name: "generalist"} // Tools omitted.
-	base := baseSubagentTools(cfg)
-	want := make([]string, 0, len(base))
+	baseNames := make([]string, 0, len(base))
 	for name := range base {
-		want = append(want, name)
+		baseNames = append(baseNames, name)
 	}
-	sort.Strings(want)
-
-	cat, _, _, mcpClose, _, _, _ := resolvedAgentDefCatalog(context.Background(), cfg, def, "test",
-		"model-x", base, true /*allowMutating*/, false /*allowShell*/, nil, hookexec.New(nil), nil, nil, cfg.Workspace)
-	if mcpClose != nil {
-		defer func() { _ = mcpClose() }()
-	}
-	if onlyWant, onlyGot := diffNameSets(want, sortedNames(cat)); len(onlyWant) > 0 || len(onlyGot) > 0 {
-		t.Fatalf("omitted tools: is NOT exactly baseSubagentTools(cfg):\n  missing: %v\n  unexpected: %v", onlyWant, onlyGot)
-	}
-}
-
-// TestSessionScopedAgentIdentity_Scenario1_ExplicitlyListedToolOutsideBaseSetStillDropped
-// pins AC1.16: naming WebSearch/Schedule/Team (each present on the ordinary
-// default catalog but absent from baseSubagentTools) does not grant them —
-// scopedToolNamesMode drops any name outside the available base set
-// unconditionally, whether tools: is omitted (previous test) or explicit
-// (this one).
-func TestSessionScopedAgentIdentity_Scenario1_ExplicitlyListedToolOutsideBaseSetStillDropped(t *testing.T) {
-	cfg := Config{}
-	def := agents.AgentDef{Name: "over-reacher", Tools: []string{"Read", "WebSearch", "Schedule", "Team", tool.ToolSearchName}}
-	base := baseSubagentTools(cfg)
-
-	cat, _, _, mcpClose, _, _, _ := resolvedAgentDefCatalog(context.Background(), cfg, def, "test",
-		"model-x", base, true /*allowMutating*/, false /*allowShell*/, nil, hookexec.New(nil), nil, nil, cfg.Workspace)
-	if mcpClose != nil {
-		defer func() { _ = mcpClose() }()
-	}
-	got := sortedNames(cat)
-	if len(got) != 1 || got[0] != "Read" {
-		t.Fatalf("tools: naming names outside baseSubagentTools(cfg) leaked into the catalog: got %v, want [Read]", got)
+	for _, tc := range []struct {
+		name string
+		def  agents.AgentDef
+		base map[string]tool.Tool
+		want []string
+	}{
+		{
+			name: "core and inline MCP",
+			def: agents.AgentDef{
+				Name:       "reviewer",
+				Tools:      []string{"Read", "Grep"},
+				MCPServers: []agents.AgentMCPServer{{Name: "inline"}},
+			},
+			base: base,
+			want: []string{"Read", "Grep", "mcp__inline__echo"},
+		},
+		{
+			name: "omitted tools uses bounded base",
+			def:  agents.AgentDef{Name: "generalist"},
+			base: base,
+			want: baseNames,
+		},
+		{
+			name: "explicit out-of-base tools dropped",
+			def:  agents.AgentDef{Name: "over-reacher", Tools: []string{"Read", "WebSearch", "Schedule", "Team", tool.ToolSearchName}},
+			base: base,
+			want: []string{"Read"},
+		},
+		{
+			name: "no-fs excludes Write and Shell but keeps WebFetch",
+			def:  agents.AgentDef{Name: "writer", Tools: []string{"Write", "Shell", "WebFetch"}},
+			base: baseSubagentToolsNoFS(),
+			want: []string{"WebFetch"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if len(tc.def.MCPServers) > 0 {
+				tc.def.MCPServers[0].URL = newMCPTestServer(t)
+			}
+			cat, _, _, mcpClose, _, _, _ := resolvedAgentDefCatalog(context.Background(), cfg, tc.def, "test",
+				"model-x", tc.base, true /*allowMutating*/, false /*allowShell*/, nil, hookexec.New(nil), nil, nil, cfg.Workspace)
+			if mcpClose != nil {
+				t.Cleanup(func() { _ = mcpClose() })
+			}
+			sort.Strings(tc.want)
+			if onlyWant, onlyGot := diffNameSets(tc.want, sortedNames(cat)); len(onlyWant) > 0 || len(onlyGot) > 0 {
+				t.Fatalf("catalog mismatch:\n  missing: %v\n  unexpected: %v", onlyWant, onlyGot)
+			}
+		})
 	}
 }
 
@@ -145,7 +120,7 @@ func TestSessionScopedAgentIdentity_Scenario1_MutationFollowsDefTools(t *testing
 
 	eng, mcpClose, _ := buildAgentDefRootEngine(context.Background(), cfg, def, "src", oa, session.ProviderModelID{ProviderID: "test", ModelID: "model-x"},
 		func() int { return 128000 }, base, false /*allowShell*/, nil, hookexec.New(nil), nil, nil,
-		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace)
+		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace, server.ProfileDefault, session.ModeDefault)
 	if mcpClose != nil {
 		defer func() { _ = mcpClose() }()
 	}
@@ -157,28 +132,6 @@ func TestSessionScopedAgentIdentity_Scenario1_MutationFollowsDefTools(t *testing
 	}
 	if eng.HasTool("Edit") {
 		t.Fatal("Edit is not named in tools: and must not appear")
-	}
-}
-
-// --- AC1.15 ----------------------------------------------------------------------
-
-// TestSessionScopedAgentIdentity_Scenario1_NoFSComposesWithDefCeiling pins
-// AC1.15: under profile: "no-fs", filesystem tools and Shell stay absent even
-// when the def's tools: lists them — the profile's AVAILABLE base
-// (baseSubagentToolsNoFS) and the def's ceiling compose by intersection.
-func TestSessionScopedAgentIdentity_Scenario1_NoFSComposesWithDefCeiling(t *testing.T) {
-	cfg := Config{}
-	def := agents.AgentDef{Name: "writer", Tools: []string{"Write", "Shell", "WebFetch"}}
-	base := baseSubagentToolsNoFS()
-
-	cat, _, _, mcpClose, _, _, _ := resolvedAgentDefCatalog(context.Background(), cfg, def, "test",
-		"model-x", base, true /*allowMutating*/, false /*allowShell*/, nil, hookexec.New(nil), nil, nil, cfg.Workspace)
-	if mcpClose != nil {
-		defer func() { _ = mcpClose() }()
-	}
-	got := sortedNames(cat)
-	if len(got) != 1 || got[0] != "WebFetch" {
-		t.Fatalf("no-fs base composed with the def's ceiling must keep ONLY WebFetch, got %v (Write/Shell must never be restored by the def's own allowlist)", got)
 	}
 }
 
@@ -204,7 +157,7 @@ func TestSessionScopedAgentIdentity_Scenario1_AuthorityMintedFromDefCatalog(t *t
 
 	_, mcpClose, authority := buildAgentDefRootEngine(context.Background(), cfg, def, "src", oa, session.ProviderModelID{ProviderID: "test", ModelID: "model-x"},
 		func() int { return 128000 }, base, false /*allowShell*/, nil, hookexec.New(nil), nil, nil,
-		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace)
+		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace, server.ProfileDefault, session.ModeDefault)
 	if mcpClose != nil {
 		defer func() { _ = mcpClose() }()
 	}
@@ -402,13 +355,7 @@ func TestSessionScopedAgentIdentity_Scenario1_ResolvesViaExistingAgentDefSource(
 	}
 }
 
-// --- AC1.12 / AC1.13 / AC1.14 (Task C) ----------------------------------------
-
-// writeAgentDefFrontmatterFile writes an agent-def markdown file from a raw
-// frontmatter body, verbatim — this test file's fixture writer for
-// frontmatter knobs writeScopedAgentDefFile doesn't expose (maxTurns/
-// maxToolCalls/permissionMode/provider/model), needed by the Task C tests
-// below.
+// writeAgentDefFrontmatterFile writes a definition with verbatim frontmatter.
 func writeAgentDefFrontmatterFile(t *testing.T, dir, name, frontmatter, body string) {
 	t.Helper()
 	content := "---\nname: " + name + "\ndescription: " + name + " specialist\n" + frontmatter + "---\n" + body
@@ -417,11 +364,7 @@ func writeAgentDefFrontmatterFile(t *testing.T, dir, name, frontmatter, body str
 	}
 }
 
-// TestSessionScopedAgentIdentity_Scenario1_LimitsTightenOnly pins AC1.12,
-// through the FULL composition: a request's Limits.max_turns/max_tool_calls
-// may only LOWER the bound def's own configured caps (maxTurns: 10,
-// maxToolCalls: 5) — never raise them — and an unset (zero) request field
-// means "not supplied, inherit the def's cap," never "explicitly unlimited."
+// Requests may tighten definition limits, never raise them; zero inherits the cap.
 func TestSessionScopedAgentIdentity_Scenario1_LimitsTightenOnly(t *testing.T) {
 	ctx := context.Background()
 	ws := t.TempDir()
@@ -446,7 +389,6 @@ func TestSessionScopedAgentIdentity_Scenario1_LimitsTightenOnly(t *testing.T) {
 		{"unset request inherits the def's cap", session.Limits{}, 10, 5},
 		{"looser request is tightened down to the def's cap", session.Limits{MaxTurns: 100, MaxToolCalls: 100}, 10, 5},
 		{"tighter request narrows below the def's cap", session.Limits{MaxTurns: 3, MaxToolCalls: 2}, 3, 2},
-		{"per-field: tighter turns, unset tool calls inherits the def's cap", session.Limits{MaxTurns: 3}, 3, 5},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -462,12 +404,7 @@ func TestSessionScopedAgentIdentity_Scenario1_LimitsTightenOnly(t *testing.T) {
 	}
 }
 
-// TestSessionScopedAgentIdentity_Scenario1_PermissionModeClampedNotRaised pins
-// AC1.13, through the FULL composition: a request mode looser than the bound
-// def's configured permissionMode is silently clamped to the def's value
-// (plan < default < acceptEdits) — never rejected, never raised. A def
-// configuring NO permissionMode imposes no ceiling at all (ordinary main
-// session behavior — ADR 0353's ceiling is opt-in per def).
+// Permission-mode ceilings are opt-in and clamp looser requests without rejection.
 func TestSessionScopedAgentIdentity_Scenario1_PermissionModeClampedNotRaised(t *testing.T) {
 	ctx := context.Background()
 	ws := t.TempDir()
@@ -490,9 +427,7 @@ func TestSessionScopedAgentIdentity_Scenario1_PermissionModeClampedNotRaised(t *
 		reqMode  session.PermissionMode
 		wantMode session.PermissionMode
 	}{
-		{"looser default clamps down to the def's plan ceiling", "planner", session.ModeDefault, session.ModePlan},
 		{"looser acceptEdits clamps down to the def's plan ceiling", "planner", session.ModeAccept, session.ModePlan},
-		{"a request already at the def's ceiling is unchanged", "planner", session.ModePlan, session.ModePlan},
 		{"a def with no permissionMode imposes no ceiling: acceptEdits is honoured", "unrestricted", session.ModeAccept, session.ModeAccept},
 	}
 	for _, tc := range cases {

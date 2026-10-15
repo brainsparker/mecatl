@@ -3128,9 +3128,8 @@ func resolveAgentSeam(ctx context.Context, cfg Config) (*agents.Registry, func()
 // (Config.defaultModelPending). It resolves the registry's CURRENT default —
 // a no-op (fallbackProvider, "") when the proxy is still down, so the
 // session fails at request time (the documented residual for a session
-// built before the heal lands). Extracted out of
-// sessionEngineFactory to keep its cyclomatic complexity under the lint cap;
-// it has no other caller.
+// built before the heal lands). Ordinary, debug, and agent-bound roots share
+// this adoption path; child defaults and routing do not participate.
 func adoptHealedDefault(reg *providerRegistry, providerID string, fallbackProvider port.LLMProvider) (port.LLMProvider, string) {
 	healed := reg.ResolvedDefaultModel()
 	if healed == "" {
@@ -3401,21 +3400,6 @@ func sessionEngineFactoryWithTools(
 		// equals the operator default the entry was built with, the shared entry.provider
 		// is reused (no re-mint); a re-mint happens ONLY when effort OR the per-session
 		// capability intersection differs and the entry exposes a remint closure.
-		resolvedEffort := resolveSessionEffort(ctx, cfg, sel.ReasoningEffort)
-		resolvedEffort, clamped := clampEffortForProvider(resolvedProviderID, resolvedEffort)
-		if clamped {
-			cfg.diag().Log(ctx, port.LevelWarn,
-				"reasoning-effort: clamped for provider (this provider supports low/medium/high only)",
-				"provider", resolvedProviderID, "effort", resolvedEffort)
-		}
-		if resolvedEffort != "" {
-			if supported, known := modelReasoningSupport(reg, resolvedProviderID, resolvedModel); known && !supported {
-				cfg.diag().Log(ctx, port.LevelWarn,
-					"reasoning-effort: model does not support reasoning effort; ignoring",
-					"provider", resolvedProviderID, "model", resolvedModel, "effort", resolvedEffort)
-				resolvedEffort = ""
-			}
-		}
 		// utilityProvider is the OPERATOR-DEFAULT provider (the entry's shared
 		// .provider). Reasoning effort binds the AGENT's reasoning (the main engine) and
 		// its SUBAGENTS (the catalog parent below) — NOT the harness's own internal
@@ -3432,22 +3416,7 @@ func sessionEngineFactoryWithTools(
 		// the server adapter. It is ALSO the intersection the provider adapter's
 		// request builder consults to project a tool result's typed Parts (T7) —
 		// threaded into the adapter via the re-mint below.
-		sessionCaps := modelCapability(reg, resolvedProviderID, resolvedModel)
-		// Re-mint ONLY when the resolved session effort OR capability intersection
-		// differs from the OPERATOR-DEFAULT the entry's shared .provider was built
-		// with (the SAME normalise+clamp the registry applied at build, and the
-		// default-model caps the post-assembly fixup stamped). When both match, the
-		// shared provider is reused byte-for-byte (the byte-identical default path).
-		// A hand-built/test registry entry with no defaultCaps (zero value) is treated
-		// as "match anything" so a test without defaultCaps never re-mints on caps.
-		if entry, ok := reg.Lookup(resolvedProviderID); ok && entry.remint != nil {
-			entryEffort, _ := NormalizeReasoningEffort(cfg.ReasoningEffort)
-			entryEffort, _ = clampEffortForProvider(resolvedProviderID, entryEffort)
-			capsDiff := entry.defaultCaps != sessionCaps && entry.defaultCaps != (port.ProviderCapabilities{})
-			if resolvedEffort != entryEffort || capsDiff {
-				resolvedProvider = entry.remint(resolvedEffort, sessionCaps)
-			}
-		}
+		resolvedProvider, resolvedEffort, sessionCaps := sessionProviderOptions(ctx, cfg, reg, resolvedProvider, resolvedProviderID, resolvedModel, sel.ReasoningEffort)
 		// The compaction window is the LIVE-FIRST resolver over the resolved
 		// (provider, model) — the SAME reg.windowResolver the shared and child engines
 		// use, evaluated at the point of use. So the live ListModels picker, the session
@@ -4573,8 +4542,14 @@ func buildEngine(ctx context.Context, cfg Config, reg *providerRegistry, provide
 				sessionAssets.liveSkills = coreskillfs.NewAtomicCatalog(seam.metas, seam.source, nil)
 			}
 			sessionCfg.skillCommandInputs = skillCommandInputs{metas: seam.metas, source: seam.source}
-			factory := sessionEngineFactoryWithTools(sessionCfg, reg, provider, engineStore, sharedPolicy, hooks, mcpProvider, replaceHarnessInstructions(instructions, sessionCfg), sessionAssets, guardrailWaiver)
-			result, err := factory(ctx, selector, specs, profile, workspace, mode, extra)
+			var result server.SessionEngineResult
+			if root, ok := server.AgentDefSessionSelectionFromContext(ctx); ok {
+				factory := agentDefSessionEngineFactory(sessionCfg, reg, provider, engineStore, sharedPolicy, hooks, mcpProvider, replaceHarnessInstructions(instructions, sessionCfg), sessionAssets, guardrailWaiver)
+				result, err = factory(ctx, selector, profile, mode, root.Limits, root.Name)
+			} else {
+				factory := sessionEngineFactoryWithTools(sessionCfg, reg, provider, engineStore, sharedPolicy, hooks, mcpProvider, replaceHarnessInstructions(instructions, sessionCfg), sessionAssets, guardrailWaiver)
+				result, err = factory(ctx, selector, specs, profile, workspace, mode, extra)
+			}
 			if err != nil {
 				release()
 				return result, err

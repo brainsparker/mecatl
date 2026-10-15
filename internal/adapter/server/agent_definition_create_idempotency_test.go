@@ -2,11 +2,27 @@ package server
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stacklok/mecatl/engine/adapter/memstore"
+	"github.com/stacklok/mecatl/engine/governance"
 	"github.com/stacklok/mecatl/engine/session"
 )
+
+// agentDefinitionEngineResult supplies the durable authority required by an
+// agent-bound snapshot; brokerEngineResult alone is an ordinary-session fixture.
+func agentDefinitionEngineResult(name string) SessionEngineResult {
+	res := brokerEngineResult()
+	res.AgentDefinitionName = name
+	res.BuiltForMode = session.ModeDefault
+	res.Authority = session.Authority{
+		Provenance:    "agent-def:test",
+		CapabilitySet: governance.CapabilitySet{Tools: []string{"Read"}},
+		Ceiling:       &governance.CapabilitySet{Tools: []string{"Read"}},
+	}
+	return res
+}
 
 // agentDefLimitsEngine builds an AgentDefSessionEngineFactory whose
 // SessionEngineResult.Limits simulates a def that caps MaxTurns/MaxToolCalls
@@ -14,8 +30,8 @@ import (
 // mirroring the real agentDefSessionEngineFactory's tighten-only clamp,
 // without needing a real AgentDef/registry for this package-level test.
 func agentDefLimitsEngine(maxTurns int) AgentDefSessionEngineFactory {
-	return func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, _ string) (SessionEngineResult, error) {
-		res := brokerEngineResult()
+	return func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, name string) (SessionEngineResult, error) {
+		res := agentDefinitionEngineResult(name)
 		limits := session.Limits{MaxTurns: maxTurns, MaxToolCalls: maxTurns}
 		res.Limits = &limits
 		res.BuiltForMode = mode // pass through: this fake def imposes no permissionMode clamp of its own.
@@ -101,42 +117,83 @@ func TestCreateSessionExplicitIDRetryRejectsDifferentAgentBinding(t *testing.T) 
 	})
 }
 
-// TestCreateSessionExplicitIDRetryIgnoresRawLimitsForAgentBoundSession pins
-// the companion gap: an agent-bound session's PERSISTED Limits are the def's
-// own tighten-only CLAMPED effective value, never the caller's raw request
-// value (createSession deliberately skips its WithDefaults fold for an
-// agent-bound create so the factory alone sees "zero means not supplied").
-// Comparing sess.Limits against a retry's raw r.limits directly would reject
-// nearly every legitimate retry whenever the def's cap differs at all from
-// whatever the caller happened to send — confirmed here with a retry sending
-// a deliberately DIFFERENT raw limit that clamps to the SAME effective value.
-// Mutation-verified: this failed with "session id retried with a different
-// request" before matches() stopped comparing raw Limits directly for an
-// agent-bound request.
-func TestCreateSessionExplicitIDRetryIgnoresRawLimitsForAgentBoundSession(t *testing.T) {
+// Explicit-ID retries compare original intent, not effective clamps or a newly
+// resolved definition. memstore serializes snapshots on every save/load.
+func TestCreateSessionAgentIntentSurvivesSnapshotAndFreshService(t *testing.T) {
 	store := memstore.New()
 	alice := session.Principal{Issuer: "https://issuer.example", Subject: "alice"}
 	ctx := session.WithPrincipal(context.Background(), &alice)
-	const id session.SessionID = "retry-agent-limits"
-
-	first, err := newAgentDefRetryService(t, store).CreateSessionWithProfile(ctx, session.ModeDefault, session.Limits{MaxTurns: 1000},
-		ProviderSelector{}, ProfileDefault, WithSessionID(id), WithAgentDefinitionName("reviewer"))
+	const id session.SessionID = "retry-agent-intent"
+	selector := ProviderSelector{ProviderID: "requested", ModelID: "raw/vendor:model@revision", ReasoningEffort: "high"}
+	limits := session.Limits{MaxTurns: 1000, MaxToolCalls: 200, MaxConsecutiveFailures: 3}
+	svc := newAgentDefRetryService(t, store)
+	svc.cfg.AgentDefSessionEngine = func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
+		res := agentDefinitionEngineResult("reviewer")
+		res.BuiltForMode = session.ModePlan
+		res.Limits = &session.Limits{MaxTurns: 1, MaxToolCalls: 2, MaxConsecutiveFailures: 1}
+		res.ProviderID, res.ModelID, res.ReasoningEffort = "resolved", selector.ModelID, "low"
+		return res, nil
+	}
+	first, err := svc.CreateSessionWithProfile(ctx, session.ModeDefault, limits, selector, ProfileDefault, WithSessionID(id), WithAgentDefinitionName("reviewer"))
 	if err != nil {
-		t.Fatalf("first CreateSession: %v", err)
+		t.Fatal(err)
 	}
-	if first.Limits.MaxTurns != 10 {
-		t.Fatalf("first.Limits.MaxTurns = %d, want 10 (the def's clamp, not the caller's raw 1000)", first.Limits.MaxTurns)
+	if first.Mode != session.ModePlan || first.Limits.MaxTurns != 1 || first.AgentCreateIntent == "" || first.ProviderID != "resolved" || first.ModelID != selector.ModelID || first.ReasoningEffort != "low" {
+		t.Fatalf("effective creation metadata = %+v", first)
 	}
-
-	// A retry (fresh Service instance, same store) sending a DIFFERENT raw
-	// value (50, not the original 1000) that the SAME def clamps to the SAME
-	// effective 10 must still be accepted as the same logical create.
-	again, err := newAgentDefRetryService(t, store).CreateSessionWithProfile(ctx, session.ModeDefault, session.Limits{MaxTurns: 50},
-		ProviderSelector{}, ProfileDefault, WithSessionID(id), WithAgentDefinitionName("reviewer"))
-	if err != nil {
-		t.Fatalf("retry with different raw limits (same def, same effective clamp): %v", err)
+	for _, tc := range []struct {
+		name     string
+		mode     session.PermissionMode
+		limits   session.Limits
+		selector ProviderSelector
+		binding  string
+		ok       bool
+	}{
+		{"same", session.ModeDefault, limits, selector, "reviewer", true},
+		{"mode", session.ModePlan, limits, selector, "reviewer", false},
+		{"turns", session.ModeDefault, session.Limits{MaxTurns: 50, MaxToolCalls: 200, MaxConsecutiveFailures: 3}, selector, "reviewer", false},
+		{"tools", session.ModeDefault, session.Limits{MaxTurns: 1000, MaxToolCalls: 201, MaxConsecutiveFailures: 3}, selector, "reviewer", false},
+		{"failures", session.ModeDefault, session.Limits{MaxTurns: 1000, MaxToolCalls: 200, MaxConsecutiveFailures: 4}, selector, "reviewer", false},
+		{"provider", session.ModeDefault, limits, ProviderSelector{ProviderID: "different", ModelID: selector.ModelID, ReasoningEffort: "high"}, "reviewer", false},
+		{"model", session.ModeDefault, limits, ProviderSelector{ProviderID: "requested", ModelID: "different", ReasoningEffort: "high"}, "reviewer", false},
+		{"effort", session.ModeDefault, limits, ProviderSelector{ProviderID: "requested", ModelID: selector.ModelID, ReasoningEffort: "low"}, "reviewer", false},
+		{"binding", session.ModeDefault, limits, selector, "different", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			retry := newAgentDefRetryService(t, store)
+			retry.cfg.AgentDefSessionEngine = func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
+				t.Fatal("retry re-resolved definition or rebuilt resources")
+				return SessionEngineResult{}, nil
+			}
+			retry.cfg.ResolveSessionModel = func(ProviderSelector, session.PermissionMode) ResolvedModel {
+				t.Fatal("persisted agent identity was re-resolved")
+				return ResolvedModel{}
+			}
+			again, err := retry.CreateSessionWithProfile(ctx, tc.mode, tc.limits, tc.selector, ProfileDefault, WithSessionID(id), WithAgentDefinitionName(tc.binding))
+			if !tc.ok {
+				if !errors.Is(err, ErrInvalidArgument) {
+					t.Fatalf("changed intent = %v, want InvalidArgument", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if again.Mode != first.Mode || again.Limits != first.Limits || again.AgentCreateIntent != first.AgentCreateIntent || again.ProviderID != first.ProviderID || again.ModelID != first.ModelID || again.ReasoningEffort != first.ReasoningEffort {
+				t.Fatalf("retry changed effective metadata: %+v", again)
+			}
+			rm := retry.resolvedModelFor(again)
+			if rm.ProviderID != first.ProviderID || rm.ModelID != first.ModelID || rm.ReasoningEffort != first.ReasoningEffort {
+				t.Fatalf("reloaded identity = %+v", rm)
+			}
+		})
 	}
-	if again.ID != id || again.Limits.MaxTurns != 10 {
-		t.Fatalf("retry = %+v, want the same agent-bound session with its original 10-turn clamp intact", again)
+	first.AgentCreateIntent = ""
+	if err := store.Save(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	_, err = newAgentDefRetryService(t, store).CreateSessionWithProfile(ctx, session.ModeDefault, limits, selector, ProfileDefault, WithSessionID(id), WithAgentDefinitionName("reviewer"))
+	if !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("legacy missing intent = %v, want fail-closed conflict", err)
 	}
 }

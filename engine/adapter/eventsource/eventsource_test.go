@@ -89,6 +89,14 @@ func TestEventFoldRejectsEmptyAuthorityClaim(t *testing.T) {
 func TestSessionScopedAgentIdentity_FoldRejectsAgentBoundMetaWithoutCeiling(t *testing.T) {
 	t.Parallel()
 
+	t.Run("nil authority is rejected", func(t *testing.T) {
+		m := meta()
+		m.AgentDefinitionName = "escalator"
+		if restored, err := eventsource.Fold(m, seq(nil)); !errors.Is(err, eventsource.ErrReconstruct) || restored != nil {
+			t.Fatalf("missing authority folded: %v, %v", restored, err)
+		}
+	})
+
 	t.Run("agent-bound label with a Ceiling-less authority is rejected", func(t *testing.T) {
 		m := meta()
 		m.AgentDefinitionName = "escalator"
@@ -111,6 +119,7 @@ func TestSessionScopedAgentIdentity_FoldRejectsAgentBoundMetaWithoutCeiling(t *t
 	t.Run("agent-bound label WITH a matching Ceiling folds fine (positive control)", func(t *testing.T) {
 		m := meta()
 		m.AgentDefinitionName = "escalator"
+		m.AgentCreateIntent = "v1:opaque-create-intent"
 		m.Authority = &session.Authority{
 			CapabilitySet: governance.CapabilitySet{Tools: []string{"Read"}},
 			Provenance:    "agent-def:test",
@@ -119,6 +128,9 @@ func TestSessionScopedAgentIdentity_FoldRejectsAgentBoundMetaWithoutCeiling(t *t
 		restored, err := eventsource.Fold(m, seq(nil))
 		if err != nil {
 			t.Fatalf("agent-bound meta with a consistent Ceiling: fold failed: %v", err)
+		}
+		if restored.AgentCreateIntent != m.AgentCreateIntent {
+			t.Fatalf("create intent = %q, want %q", restored.AgentCreateIntent, m.AgentCreateIntent)
 		}
 		if restored.AgentDefinitionName != "escalator" {
 			t.Fatalf("AgentDefinitionName = %q, want escalator", restored.AgentDefinitionName)

@@ -136,6 +136,18 @@ func TestSessionScopedAgentIdentity_RestoreRejectsAgentBoundSnapshotWithoutCeili
 	t.Parallel()
 	const snapshotPrefix = `{"id":"agent-bound-no-ceiling","state":"idle","mode":"default","limits":{},"counters":{},"token_usage":{},"environment_ref":{"Kind":"local","ID":"/workspace","Revision":"in-tree-v1"},"created_at":"1970-01-01T00:00:01Z","agent_definition_name":"escalator",`
 
+	t.Run("absent authority is rejected", func(t *testing.T) {
+		for _, ending := range []string{`"profile":"default"}`, `"authority":null}`} {
+			if restored, err := sessnap.Unmarshal([]byte(snapshotPrefix + ending)); err == nil || restored != nil {
+				t.Fatalf("missing authority restored: %v, %v", restored, err)
+			}
+		}
+		snap := sessnap.Snapshot{ID: "agent", AgentDefinitionName: "escalator", EnvironmentRef: session.EnvironmentRef{Kind: session.EnvKindLocal, ID: "/ws", Revision: "v1"}}
+		if restored, err := snap.Restore(); err == nil || restored != nil {
+			t.Fatalf("nil authority restored: %v, %v", restored, err)
+		}
+	})
+
 	t.Run("agent-bound label with a Ceiling-less authority is rejected", func(t *testing.T) {
 		restored, err := sessnap.Unmarshal([]byte(snapshotPrefix +
 			`"authority":{"capability_set":{"tools":["Read"]},"provenance":"agent-def:test"}}`))

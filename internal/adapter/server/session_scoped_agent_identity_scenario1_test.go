@@ -12,10 +12,7 @@ import (
 	brokercontract "github.com/stacklok/mecatl/internal/mcpbroker"
 )
 
-// countingBrokerService wraps a REAL brokercontract.Service (testBrokerRuntime's
-// adapterbroker.Runtime — the reference implementation, never a mock-framework
-// mock) and counts AttachSession calls, so a test can assert the broker path was
-// never reached at all rather than merely that its RESULT was ignored.
+// countingBrokerService counts attempts, not just successful broker attachments.
 type countingBrokerService struct {
 	inner        brokercontract.Service
 	attachCalled *int32
@@ -30,14 +27,11 @@ func (c countingBrokerService) DeleteSession(ctx context.Context, id session.Ses
 	return c.inner.DeleteSession(ctx, id)
 }
 
-// TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped pins
-// AC1.10: Config.MCPBroker attachment is skipped ENTIRELY for an agent-bound
-// session at session-creation time — createPerSessionEngine's agent-def
-// branch never reaches the MCPBroker != nil code at all, so
-// AttachSession must never be called, even though a broker IS configured.
-func TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped(t *testing.T) {
+// newAgentDefBrokerService exercises agent-bound entrypoints with a live broker.
+func newAgentDefBrokerService(t *testing.T) (*Service, *int32) {
+	t.Helper()
 	runtime := testBrokerRuntime(t)
-	defer runtime.Close()
+	t.Cleanup(func() { _ = runtime.Close() })
 	var attachCalled int32
 
 	svc, err := NewService(Config{
@@ -47,13 +41,10 @@ func TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped(t *test
 		PlacementScope:    "test",
 		MCPBroker:         countingBrokerService{inner: runtime, attachCalled: &attachCalled},
 		AgentDefSessionEngine: func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
-			return brokerEngineResult(), nil
+			return agentDefinitionEngineResult("release-reviewer"), nil
 		},
-		// Wired so that IF the agent-def branch ever regressed into the ordinary
-		// broker/callSessionEngine path, CreateSession would still succeed and
-		// this test would fail on the precise attachCalled assertion below,
-		// rather than on an unrelated "no session-engine factory configured"
-		// config error.
+		// Keep the ordinary path working so regressions fail the attach assertion,
+		// not an unrelated missing-factory configuration check.
 		SessionEngineWithTools: func(context.Context, ProviderSelector, []mcp.ServerConfig, SessionProfile, string, session.PermissionMode, []tool.Tool) (SessionEngineResult, error) {
 			return brokerEngineResult(), nil
 		},
@@ -61,14 +52,18 @@ func TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped(t *test
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
-	defer svc.Close()
+	t.Cleanup(svc.Close)
+	return svc, &attachCalled
+}
 
-	_, err = svc.CreateSessionWithProfile(context.Background(), session.ModeDefault, session.Limits{},
+func TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped(t *testing.T) {
+	svc, attachCalled := newAgentDefBrokerService(t)
+	_, err := svc.CreateSessionWithProfile(context.Background(), session.ModeDefault, session.Limits{},
 		ProviderSelector{}, ProfileDefault, WithAgentDefinitionName("release-reviewer"))
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	if got := atomic.LoadInt32(&attachCalled); got != 0 {
+	if got := atomic.LoadInt32(attachCalled); got != 0 {
 		t.Fatalf("MCPBroker.AttachSession was called %d time(s) for an agent-bound session — it must be skipped entirely (AC1.10)", got)
 	}
 }

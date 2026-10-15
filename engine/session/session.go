@@ -364,6 +364,11 @@ type Session struct {
 	// mutator); persisting it lets a restarted process re-identify the binding.
 	// Empty means an ordinary session (today's default-explorer behavior).
 	AgentDefinitionName string
+	// AgentCreateIntent is an opaque, versioned fingerprint of the original
+	// explicit-ID create request, distinct from effective mode, limits and model.
+	// Empty means no retry evidence; hosts must not infer it from effective values.
+	// Write-once at creation, never inherited by successors.
+	AgentCreateIntent string
 	// ProviderID and ModelID are the opaque neutral provider+model selector pair
 	// this session was bound to. The aggregate STORES them but never interprets
 	// them — the ProviderSelector type and all resolution stay in composition; only
@@ -1188,6 +1193,37 @@ func (s *Session) SetMode(mode PermissionMode) error {
 		return fmt.Errorf("%w: SetMode from %q", ErrIllegalTransition, s.State)
 	}
 	s.Mode = mode
+	return nil
+}
+
+// TightenConfiguration restricts an idle, not-yet-run session's initial posture
+// and budgets atomically. Hosts use it on an unpublished successor after factory
+// resolution, never to change an existing session's lifetime configuration.
+func (s *Session) TightenConfiguration(mode PermissionMode, limits Limits) error {
+	if s.State != StateIdle || s.Counters != (Counters{}) {
+		return fmt.Errorf("%w: TightenConfiguration requires an idle, not-yet-run session", ErrIllegalTransition)
+	}
+	rank := func(m PermissionMode) int {
+		switch m {
+		case ModePlan:
+			return 1
+		case ModeDefault:
+			return 2
+		case ModeAccept:
+			return 3
+		default:
+			return 0
+		}
+	}
+	if rank(mode) == 0 || rank(s.Mode) == 0 || rank(mode) > rank(s.Mode) {
+		return errors.New("session: configuration would widen or invalidate permission mode")
+	}
+	for _, pair := range [][2]int{{s.Limits.MaxTurns, limits.MaxTurns}, {s.Limits.MaxToolCalls, limits.MaxToolCalls}, {s.Limits.MaxConsecutiveFailures, limits.MaxConsecutiveFailures}} {
+		if pair[1] < 0 || pair[0] > 0 && (pair[1] == 0 || pair[1] > pair[0]) {
+			return errors.New("session: configuration would widen or invalidate limits")
+		}
+	}
+	s.Mode, s.Limits = mode, limits
 	return nil
 }
 

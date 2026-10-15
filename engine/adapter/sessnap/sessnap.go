@@ -71,6 +71,9 @@ type Snapshot struct {
 	// additive, no format-tag bump, same round-trip discipline as
 	// Profile/ProviderID/ModelID.
 	AgentDefinitionName string `json:"agent_definition_name,omitempty"`
+	// AgentCreateIntent preserves original explicit-ID retry evidence. Absent
+	// legacy evidence remains empty; effective configuration cannot recover it.
+	AgentCreateIntent string `json:"agent_create_intent,omitempty"`
 	// ProviderID and ModelID are the session's opaque neutral provider+model
 	// selector pair. omitempty keeps a v1 snapshot with no key decoding to the empty
 	// pair ("server default") — additive, no version bump. Persisting them lets a
@@ -148,9 +151,9 @@ type Snapshot struct {
 	// entry under engine/COMPATIBILITY.md; a direct-assignment field is
 	// Added/minor).
 	Owner *session.Principal `json:"owner,omitempty"`
-	// Authority is the plain, derived capability payload. A nil pointer is a
-	// genuine legacy record written without authority; a present payload must decode to the
-	// one governance.CapabilitySet representation or restore fails closed.
+	// Authority is the plain, derived capability payload. A nil pointer is
+	// allowed only for an ordinary legacy record. Agent-bound records require
+	// a valid authority and ceiling; present payloads always validate on restore.
 	Authority             *session.Authority             `json:"authority,omitempty"`
 	ExecutionCapabilities *session.ExecutionCapabilities `json:"execution_capabilities,omitempty"`
 	// EnvironmentRef is the sole durable execution-environment identity. It is
@@ -304,6 +307,7 @@ func Of(s *session.Session) (Snapshot, error) {
 		Placement:                 s.Placement,
 		Profile:                   s.Profile,
 		AgentDefinitionName:       s.AgentDefinitionName,
+		AgentCreateIntent:         s.AgentCreateIntent,
 		ExecutionTemplateID:       s.ExecutionTemplateID,
 		ExecutionTemplateRevision: s.ExecutionTemplateRevision,
 		ProviderID:                s.ProviderID,
@@ -386,6 +390,7 @@ func (s Snapshot) Restore() (*session.Session, error) {
 	// as the real create path already sequences it (newCreatedSession stamps the
 	// label before setSessionLabels/RestoreLabels ever binds authority).
 	restored.AgentDefinitionName = s.AgentDefinitionName
+	restored.AgentCreateIntent = s.AgentCreateIntent
 
 	if err := restoreAuthority(restored, s.Authority); err != nil {
 		return nil, err
@@ -455,8 +460,8 @@ func (s Snapshot) Restore() (*session.Session, error) {
 }
 
 func restoreAuthority(s *session.Session, authority *session.Authority) error {
-	if authority == nil {
-		return nil // Pre-feature record: legacy, deliberately unbound.
+	if authority == nil && s.AgentDefinitionName == "" {
+		return nil // Pre-feature ordinary record: deliberately unbound.
 	}
 	if err := ValidatePersistedAuthority(authority); err != nil {
 		return fmt.Errorf("sessnap: restore authority: %w", err)
