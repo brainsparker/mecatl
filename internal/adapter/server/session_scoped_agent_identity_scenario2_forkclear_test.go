@@ -47,7 +47,9 @@ func TestSessionScopedAgentIdentity_Scenario2_ForkClearPreserveBindingAndCatalog
 					if defName != "release-reviewer" {
 						t.Errorf("AgentDefSessionEngine called with defName=%q, want %q", defName, "release-reviewer")
 					}
-					return SessionEngineResult{Engine: restrictedEngine, Close: func() error { return nil }}, nil
+					res := agentDefinitionEngineResult("release-reviewer")
+					res.Engine = restrictedEngine
+					return res, nil
 				},
 				// Wired so that IF the successor rebuild ever regressed into the
 				// ordinary catalog path, the test fails on the precise engine-identity
@@ -129,7 +131,7 @@ func TestSessionScopedAgentIdentity_Scenario2_ForkClearSkipMCPBrokerAttachment(t
 				PlacementProvider: brokerPlacementProvider{}, PlacementScope: "test",
 				MCPBroker: countingBrokerService{inner: runtime, attachCalled: &attachCalled},
 				AgentDefSessionEngine: func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
-					return brokerEngineResult(), nil
+					return agentDefinitionEngineResult("release-reviewer"), nil
 				},
 			})
 			if err != nil {

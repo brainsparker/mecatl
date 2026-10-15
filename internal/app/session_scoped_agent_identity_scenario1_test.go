@@ -145,7 +145,7 @@ func TestSessionScopedAgentIdentity_Scenario1_MutationFollowsDefTools(t *testing
 
 	eng, mcpClose, _ := buildAgentDefRootEngine(context.Background(), cfg, def, "src", oa, session.ProviderModelID{ProviderID: "test", ModelID: "model-x"},
 		func() int { return 128000 }, base, false /*allowShell*/, nil, hookexec.New(nil), nil, nil,
-		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace)
+		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace, server.ProfileDefault, session.ModeDefault)
 	if mcpClose != nil {
 		defer func() { _ = mcpClose() }()
 	}
@@ -204,7 +204,7 @@ func TestSessionScopedAgentIdentity_Scenario1_AuthorityMintedFromDefCatalog(t *t
 
 	_, mcpClose, authority := buildAgentDefRootEngine(context.Background(), cfg, def, "src", oa, session.ProviderModelID{ProviderID: "test", ModelID: "model-x"},
 		func() int { return 128000 }, base, false /*allowShell*/, nil, hookexec.New(nil), nil, nil,
-		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace)
+		memstore.New(), testAgentDefRootPolicy(cfg), nil, nil, provReg, providerMock, nil, cfg.Workspace, server.ProfileDefault, session.ModeDefault)
 	if mcpClose != nil {
 		defer func() { _ = mcpClose() }()
 	}

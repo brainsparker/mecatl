@@ -191,6 +191,31 @@ func childWindowFor(cfg Config, provReg *providerRegistry, providerID, model str
 	return provReg.windowResolver(cfg, providerID, model)
 }
 
+// resolveAgentDefRootTarget resolves only definition intent over the deployment
+// pair. Child defaults and automatic routing never participate in a root build.
+func resolveAgentDefRootTarget(cfg Config, reg *providerRegistry, def agents.AgentDef, parentProviderID string) (string, string) {
+	pinned := strings.TrimSpace(def.Provider)
+	fallbackPID, fallbackModel := parentProviderID, cfg.Model
+	if pinned != "" && pinned != parentProviderID {
+		fallbackPID, fallbackModel = pinned, reg.DefaultModelFor(pinned)
+	}
+	selector := strings.TrimSpace(def.Model)
+	if selector == "" || selector == "inherit" {
+		return fallbackPID, fallbackModel
+	}
+	target, err := resolveModelTarget(cfg, parentProviderID, pinned, selector)
+	if err == nil {
+		if _, available := reg.Lookup(target.ProviderID); available {
+			return target.ProviderID, target.Model
+		}
+	}
+	// A conflicting alias falls back as a whole, preserving an explicit pin.
+	// Missing explicit pins are rejected by the caller before this fallback.
+	cfg.diag().Log(context.Background(), port.LevelWarn, "agent def model target is unavailable or conflicts with its provider; inheriting fallback target",
+		"agent", def.Name, "origin", string(def.Origin))
+	return fallbackPID, fallbackModel
+}
+
 // resolveAgentDefRootProviderModel implements ADR 0353's 5-case provider/model
 // pair resolution for an agent-bound SESSION ROOT (AC1.14) — a DISTINCT
 // resolver from resolveChildProvider/resolveProviderModel (the Subagent-
@@ -203,9 +228,7 @@ func childWindowFor(cfg Config, provReg *providerRegistry, providerID, model str
 //
 // The 5 cases:
 //  1. sel has neither field set: resolve the BASE PAIR — def.Provider/def.Model
-//     over the deployment default (delegates to resolveProviderModel for this
-//     step only, per the plan's implementation guidance — the base-pair
-//     computation is identical and already tested there).
+//     over the deployment default (excluding child defaults and routing).
 //  2. sel.ModelID alone: applies to the BASE PAIR's provider (never switches
 //     provider) — the request model replaces the base pair's model verbatim.
 //  3. sel.ProviderID alone: switches provider and re-derives THAT provider's
@@ -224,7 +247,10 @@ func childWindowFor(cfg Config, provReg *providerRegistry, providerID, model str
 // handled everywhere else in session creation.
 func resolveAgentDefRootProviderModel(cfg Config, provReg *providerRegistry, def agents.AgentDef, parentProvider port.LLMProvider, parentProviderID string, sel server.ProviderSelector) (childProvider port.LLMProvider, providerID, model string, windowFn func() int, err error) {
 	reqProviderID := strings.TrimSpace(sel.ProviderID)
-	reqModelID := strings.TrimSpace(sel.ModelID)
+	reqModelID := sel.ModelID
+	if cfg.Model == "" {
+		parentProvider, cfg.Model = adoptHealedDefault(provReg, parentProviderID, parentProvider)
+	}
 
 	switch {
 	case reqProviderID == "":
@@ -237,7 +263,7 @@ func resolveAgentDefRootProviderModel(cfg Config, provReg *providerRegistry, def
 				return nil, "", "", nil, fmt.Errorf("%w: agent definition %q pins unavailable provider %q", server.ErrInvalidArgument, def.Name, pinned)
 			}
 		}
-		basePID, baseModel := resolveProviderModel(cfg, provReg, def, parentProviderID, cfg.Model)
+		basePID, baseModel := resolveAgentDefRootTarget(cfg, provReg, def, parentProviderID)
 		providerID = basePID
 		model = baseModel
 		if reqModelID != "" {
@@ -261,10 +287,8 @@ func resolveAgentDefRootProviderModel(cfg Config, provReg *providerRegistry, def
 	}
 
 	childProvider = parentProvider
-	if providerID != parentProviderID {
-		if entry, ok := provReg.Lookup(providerID); ok {
-			childProvider = entry.provider
-		}
+	if entry, ok := provReg.Lookup(providerID); ok {
+		childProvider = entry.provider
 	}
 	windowFn = childWindowFor(cfg, provReg, providerID, model)
 	return childProvider, providerID, model, windowFn, nil

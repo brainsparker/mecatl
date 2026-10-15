@@ -6,6 +6,12 @@ import (
 	"testing"
 
 	agents "github.com/stacklok/mecatl/engine/adapter/agentfs"
+	"github.com/stacklok/mecatl/engine/adapter/memfs"
+	"github.com/stacklok/mecatl/engine/adapter/mockllm"
+	"github.com/stacklok/mecatl/engine/port"
+	"github.com/stacklok/mecatl/engine/session"
+	"github.com/stacklok/mecatl/engine/tool"
+	"github.com/stacklok/mecatl/internal/adapter/server"
 )
 
 // TestSessionScopedAgentIdentity_Scenario2_ProjectMemoryScopedToOwnPlacement
@@ -67,6 +73,86 @@ func TestSessionScopedAgentIdentity_Scenario2_ProjectMemoryScopedToOwnPlacement(
 			t.Fatalf("an unvetted placement must not resolve project memory (neither its own file nor cfg.Workspace's), got ok=%v head=%q", ok, head)
 		}
 	})
+}
+
+func TestAgentDefRootProjectMemoryThroughSuccessors(t *testing.T) {
+	for _, trust := range []bool{false, true} {
+		name := "untrusted"
+		if trust {
+			name = "trusted"
+		}
+		t.Run(name, func(t *testing.T) {
+			launch, alternate, defs := t.TempDir(), t.TempDir(), t.TempDir()
+			writeAgentMemory(t, filepath.Join(launch, ".mecatl"), "root", "LAUNCH-MEMORY-SENTINEL\n")
+			writeAgentMemory(t, filepath.Join(alternate, ".mecatl"), "root", "ALTERNATE-MEMORY-SENTINEL\n")
+			writeAgentDefFrontmatterFile(t, defs, "root", "tools: [Read]\nmemory: project\n", "ROOT-DEFINITION-SENTINEL")
+			issuer, err := server.NewWorktreeSelectorIssuer(make([]byte, 32))
+			if err != nil {
+				t.Fatal(err)
+			}
+			placement := &localPlacementProvider{scope: "test", root: launch, selectors: issuer,
+				worktrees: &scriptedWorktreeLister{responses: [][]server.Worktree{{{Path: alternate, Branch: "alternate", Head: "test-head"}}}},
+				workspace: func(root string) tool.Workspace { return memfs.NewWorkspace(root) },
+			}
+			var requests []port.LLMRequest
+			llm := mockllm.NewWith([]mockllm.Option{mockllm.WithRequestObserver(func(req port.LLMRequest) { requests = append(requests, req) })},
+				mockllm.TextTurn("done"), mockllm.TextTurn("done"), mockllm.TextTurn("done"), mockllm.TextTurn("done"), mockllm.TextTurn("done"), mockllm.TextTurn("done"), mockllm.TextTurn("done"), mockllm.TextTurn("done"))
+			built, err := buildIsolated(t, t.Context(), Config{Workspace: launch, NoSoul: true, TrustProject: trust, AgentsDirs: []string{defs}, MockProvider: llm, PlacementProvider: placement, PlacementScope: "test"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer built.Close()
+			check := func(id session.SessionID, wantMemory bool) {
+				t.Helper()
+				before := len(requests)
+				run, err := built.Service.StartRun(t.Context(), id, "hello")
+				if err != nil {
+					t.Fatal(err)
+				}
+				drainRun(run)
+				built.Service.FinishRun(id, run)
+				if len(requests) != before+1 {
+					t.Fatalf("request count=%d, want %d", len(requests), before+1)
+				}
+				request := requests[len(requests)-1]
+				text := request.System.Render()
+				for _, message := range request.Messages {
+					text += message.Text
+				}
+				if !strings.Contains(text, "ROOT-DEFINITION-SENTINEL") || strings.Contains(text, "LAUNCH-MEMORY-SENTINEL") != wantMemory || strings.Contains(text, "ALTERNATE-MEMORY-SENTINEL") {
+					t.Fatalf("session %s: definition or memory scope mismatch (want launch=%v)", id, wantMemory)
+				}
+			}
+			for _, profile := range []server.SessionProfile{server.ProfileDefault, server.ProfileNoFS} {
+				source, err := built.Service.CreateSessionWithProfile(t.Context(), session.ModeDefault, session.Limits{}, server.ProviderSelector{}, profile, server.WithAgentDefinitionName("root"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				wantMemory := trust && profile != server.ProfileNoFS
+				check(source.ID, wantMemory)
+				placements := []server.SuccessorPlacement{{}}
+				if profile != server.ProfileNoFS {
+					choices, err := built.Service.ListWorktreesForSession(t.Context(), source.ID)
+					if err != nil || len(choices) != 1 {
+						t.Fatalf("worktree choices=%v err=%v", choices, err)
+					}
+					placements = append(placements, server.SuccessorPlacement{Selector: choices[0].Selector, SelectorPresent: true})
+				}
+				for _, target := range placements {
+					fork, err := built.Service.ForkSessionSuccessor(t.Context(), server.ForkSuccessorRequest{Source: source.ID, Placement: target})
+					if err != nil {
+						t.Fatal(err)
+					}
+					check(fork, wantMemory && target.Selector == "")
+					cleared, err := built.Service.ClearSessionSuccessor(t.Context(), source.ID, target)
+					if err != nil {
+						t.Fatal(err)
+					}
+					check(cleared, wantMemory && target.Selector == "")
+				}
+			}
+		})
+	}
 }
 
 // TestSessionScopedAgentIdentity_Scenario2_ProjectMemoryInertUnderNoFS pins

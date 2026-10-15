@@ -47,7 +47,7 @@ func TestSessionScopedAgentIdentity_Scenario1_MCPBrokerAttachmentSkipped(t *test
 		PlacementScope:    "test",
 		MCPBroker:         countingBrokerService{inner: runtime, attachCalled: &attachCalled},
 		AgentDefSessionEngine: func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
-			return brokerEngineResult(), nil
+			return agentDefinitionEngineResult("release-reviewer"), nil
 		},
 		// Wired so that IF the agent-def branch ever regressed into the ordinary
 		// broker/callSessionEngine path, CreateSession would still succeed and

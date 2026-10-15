@@ -181,6 +181,9 @@ func (s *Service) createPlacedSuccessorLocked(ctx context.Context, req ForkSucce
 	publishedPlacement := false
 	defer func() {
 		if !publishedPlacement {
+			if s.cfg.Commands != nil {
+				s.cfg.Commands.Retire(destinationID)
+			}
 			rollbackUnpublishedPlacement(s, &binding)
 		}
 	}()

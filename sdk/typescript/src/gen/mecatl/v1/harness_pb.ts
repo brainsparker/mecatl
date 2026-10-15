@@ -96,8 +96,9 @@ export type CreateSessionRequest = Message<"mecatl.v1.CreateSessionRequest"> & {
 
   /**
    * provider_id selects which configured provider backs this session, by its
-   * stable registry id ("openai" / "openrouter"). Empty => the server default
-   * provider (today's behaviour). An unknown/unavailable id is a loud
+   * stable registry id ("openai" / "openrouter"). Empty => the agent definition's
+   * base provider when bound, otherwise the server default provider.
+   * An unknown/unavailable id is a loud
    * InvalidArgument, never a silent fallback. The provider is FIXED for the
    * session lifetime (reasoning-replay + byte-stable prefix are provider-private);
    * "switch provider" = new session. Keys are NEVER on the wire — only this id.
@@ -108,12 +109,13 @@ export type CreateSessionRequest = Message<"mecatl.v1.CreateSessionRequest"> & {
   providerId: string;
 
   /**
-   * model_id is the opaque model selector within provider_id. Empty => the
-   * provider's default model. An id ListModels did not advertise is passed
-   * through to the provider VERBATIM (a power-user escape hatch for a model the
-   * embedded catalog doesn't yet know). NOT slash-joined with provider_id —
-   * two distinct fields by design. Setting model_id WITHOUT provider_id is a loud
-   * InvalidArgument (a bare model on an env-derived default provider is ambiguous).
+   * model_id is an opaque literal model selector, never expanded as an alias.
+   * With provider_id alone, the provider's default model applies. With neither
+   * field, an agent-bound session uses its definition's base provider/model pair;
+   * an ordinary session uses the deployment default. An id ListModels did not
+   * advertise is passed through VERBATIM. Provider and model are distinct fields,
+   * never slash-joined. model_id WITHOUT provider_id requires agent_definition_name
+   * to supply the base provider; otherwise it is InvalidArgument.
    *
    * @generated from field: string model_id = 5;
    */
@@ -139,8 +141,8 @@ export type CreateSessionRequest = Message<"mecatl.v1.CreateSessionRequest"> & {
    * low/medium/high only, so xhigh/max clamp DOWN to high; Anthropic maps all
    * five) and CAPABILITY-GATES it (a model with no reasoning support drops it).
    * An unknown value falls back to the operator default with a WARN (it never
-   * 400s the request). It OUT-RANKS the operator default; unlike model_id it is
-   * meaningful WITHOUT a provider_id (it rides the server-default provider). The
+   * 400s the request). It OUT-RANKS the operator default and is meaningful WITHOUT
+   * a provider_id (it rides the resolved provider). The
    * EFFECTIVE resolved value is echoed back on resolved_model.reasoning_effort.
    *
    * @generated from field: string reasoning_effort = 7;
@@ -190,9 +192,13 @@ export type CreateSessionRequest = Message<"mecatl.v1.CreateSessionRequest"> & {
 
   /**
    * agent_definition_name optionally binds this session's root to a named
-   * AgentDef (ADR 0353). Empty (the default) is byte-identical to today's
-   * behavior: the deployment's default explorer session. The resolved name is
-   * echoed back verbatim on CreateSessionResponse.resolved_agent_definition_name.
+   * AgentDef (ADR 0353). Empty preserves ordinary session creation. Clients MUST
+   * require session_agent_definitions in GetCompatibilityInfo.features before
+   * relying on binding, then verify resolved_agent_definition_name echoes the
+   * requested name. Older gRPC servers can silently ignore this field.
+   * Unknown definitions and combinations with debug_target_session_id,
+   * debug_mcp_servers, or mcp_servers are rejected. The definition supplies the
+   * exclusive catalog and a nonwidenable authority ceiling.
    *
    * @generated from field: string agent_definition_name = 13;
    */

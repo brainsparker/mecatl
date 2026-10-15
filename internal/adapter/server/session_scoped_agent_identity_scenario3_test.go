@@ -29,12 +29,12 @@ func newAgentDefBoundService(t *testing.T) *Service {
 		Store:             memstore.New(),
 		PlacementProvider: brokerPlacementProvider{},
 		PlacementScope:    "test",
-		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, _ string) (SessionEngineResult, error) {
+		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, name string) (SessionEngineResult, error) {
 			// A real factory (agentDefSessionEngineFactory) always stamps
 			// BuiltForMode with the resolved/clamped mode; createPerSessionEngine
 			// reassigns its local `mode` FROM this field (ADR 0353 tighten-only
 			// clamp), so a stub leaving it "" would silently blank sess.Mode.
-			res := brokerEngineResult()
+			res := agentDefinitionEngineResult(name)
 			res.BuiltForMode = mode
 			return res, nil
 		},
@@ -69,8 +69,8 @@ func newAgentDefBoundServiceOverStore(t *testing.T, store *memstore.Store) *Serv
 		PlacementProvider: brokerPlacementProvider{},
 		PlacementScope:    "test",
 		SharedEngineRoot:  "/workspace",
-		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, _ string) (SessionEngineResult, error) {
-			res := brokerEngineResult()
+		AgentDefSessionEngine: func(_ context.Context, _ ProviderSelector, _ SessionProfile, mode session.PermissionMode, _ session.Limits, name string) (SessionEngineResult, error) {
+			res := agentDefinitionEngineResult(name)
 			res.BuiltForMode = mode
 			return res, nil
 		},
@@ -188,7 +188,7 @@ func TestSessionScopedAgentIdentity_Scenario3_BrokerAuthorizationAndWorkspaceEnr
 			PlacementScope:    "test",
 			MCPBroker:         runtime,
 			AgentDefSessionEngine: func(context.Context, ProviderSelector, SessionProfile, session.PermissionMode, session.Limits, string) (SessionEngineResult, error) {
-				return brokerEngineResult(), nil
+				return agentDefinitionEngineResult("release-reviewer"), nil
 			},
 			SessionEngineWithTools: func(context.Context, ProviderSelector, []mcp.ServerConfig, SessionProfile, string, session.PermissionMode, []tool.Tool) (SessionEngineResult, error) {
 				return brokerEngineResult(), nil

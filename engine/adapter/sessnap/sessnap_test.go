@@ -502,8 +502,18 @@ func TestSnapshotRoundTripsPhase1Fields(t *testing.T) {
 // snapshot and restores byte-identical across a save/restore round-trip —
 // the same discipline as Profile/ProviderID/ModelID alongside it.
 func TestSessionScopedAgentIdentity_Scenario2_PersistsAcrossSnapshotRoundTrip(t *testing.T) {
-	want := runningSession(t)
+	want := session.New("agent", session.ModeDefault, session.EnvironmentRef{Kind: session.EnvKindLocal, ID: "/ws", Revision: "in-tree-v1"}, session.Limits{}, time.Unix(1700000000, 0).UTC())
 	want.AgentDefinitionName = "release-reviewer"
+	bound := authorityBinding(t)
+	ceiling := bound.Clone().CapabilitySet
+	bound.Ceiling = &ceiling
+	if err := want.BindAuthority(bound); err != nil {
+		t.Fatal(err)
+	}
+	want.AgentCreateIntent = "v1:opaque-create-intent"
+	if err := want.BeginTurn(); err != nil {
+		t.Fatal(err)
+	}
 	line := mustMarshal(t, want)
 
 	if !strings.Contains(string(line), `"agent_definition_name":"release-reviewer"`) {
@@ -513,6 +523,9 @@ func TestSessionScopedAgentIdentity_Scenario2_PersistsAcrossSnapshotRoundTrip(t 
 	got, err := sessnap.Unmarshal(line)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
+	}
+	if got.AgentCreateIntent != want.AgentCreateIntent {
+		t.Fatalf("create intent = %q, want %q", got.AgentCreateIntent, want.AgentCreateIntent)
 	}
 	if got.AgentDefinitionName != "release-reviewer" {
 		t.Errorf("AgentDefinitionName = %q, want %q (round-trip must survive)", got.AgentDefinitionName, "release-reviewer")

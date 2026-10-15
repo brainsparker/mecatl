@@ -13,6 +13,14 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
 
 ### Added
 
+- **Agent-bound lifecycle persistence** — adds `Session.AgentCreateIntent`, an
+  opaque original explicit-ID create fingerprint, and `Session.TightenConfiguration`
+  for atomic, tighten-only configuration of an unpublished successor. Snapshot and
+  event-source metadata round-trip the optional fingerprint; older snapshots remain
+  readable with valid authority but cannot prove explicit-ID retry equality. No
+  fingerprint is inferred from effective values or inherited by successors.
+  Added (minor).
+
 - **Schedule-store claim and retry conformance** — adds
   `scheduleconformance.RunClaimAndRetryConformance` with the complete shared
   suite plus unresolved prior-claim rejection, late-result isolation, and
@@ -60,9 +68,7 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
   (a write-once creation label, empty for an ordinary session) and
   `session.Authority.Ceiling` (an optional, write-once capability-set upper
   bound set once at bind time for an agent-bound session; nil/absent —
-  unrestricted — for an ordinary session). `GrantToolAuthority` and
-  `CompleteWorkspaceEnrollment` now reject any grant that would exceed a bound
-  session's Ceiling (ADR 0353). Both additions are additive. Added (minor).
+  unrestricted — for an ordinary session). Added (minor).
 
 - **Configurable standard commit co-author guidance** — adds
   `prompt.Config.CommitCoauthor`. `nil` and `true` include the canonical Mecatl
@@ -401,6 +407,15 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
 - **`port.SessionLease.Renew` doc comment narrowed (issue #1333)** — clarifies that bare expiry of the caller's own owner/token, with nothing else having taken the lease over, is not by itself one of the definitive-loss conditions `ErrLeaseHeld` documents; loss is specifically a holder or token change. An implementation that can prove no one else could have raced it (e.g. a single-host backend re-checking its own durable record under its stable transition lock) may reclaim instead of declaring loss — `internal/adapter/flocklease.Lease.Renew` now does exactly this. This narrows, never widens, when `ErrLeaseHeld` may be returned, so it is a documentation clarification, not a contract change; no exported signature changed. No `task api:update` needed.
 
 ### Changed
+
+- **Agent-bound authority enforcement** — `Session.BindAuthority` requires a
+  ceiling when `AgentDefinitionName` is set and rejects tools outside that ceiling.
+  `GrantToolAuthority` and `CompleteWorkspaceEnrollment` reject tool grants beyond
+  the bound ceiling. Snapshot and event-source restoration reject agent-bound
+  records with absent authority or ceiling; ordinary legacy unbound records remain
+  supported. Hosts constructing agent-bound sessions must bind consistent authority
+  before persisting them. Changed (breaking pre-v1 minor); existing ordinary-session
+  wire clients are unaffected.
 
 - **Target-scoped project guidance and ephemeral snapshot** — `prompt.InstructionAssembler`
   now requires `Assemble(context.Context, []string, *session.InstructionSnapshot, int)`

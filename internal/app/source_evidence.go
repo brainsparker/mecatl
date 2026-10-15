@@ -89,7 +89,13 @@ func (l *learningEvidenceLoader) loadForExecution(ctx context.Context, partition
 	if readState != evidenceReadComplete {
 		return unavailable()
 	}
+	var authority *session.Authority
+	if bound, ok := sess.BoundAuthority(); ok {
+		authority = &bound
+	}
 	reconstructed, err := eventsource.Fold(eventsource.SessionMeta{
+		Owner:               sess.Owner.Clone(),
+		Authority:           authority,
 		ID:                  sess.ID,
 		Mode:                sess.Mode,
 		Limits:              sess.Limits,

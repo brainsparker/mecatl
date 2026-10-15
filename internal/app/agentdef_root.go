@@ -62,6 +62,8 @@ func buildAgentDefRootEngine(
 	parentProviderID string,
 	guardrailWaiver *modelhook.WaiverHolder,
 	sessionRoot string,
+	profile server.SessionProfile,
+	mode session.PermissionMode,
 ) (*agent.Engine, func() error, session.Authority) {
 	// sessionRoot is THIS session's own bound placement root (ADR 0291), never
 	// cfg.Workspace unconditionally — cfg is a single deployment-wide value
@@ -76,6 +78,13 @@ func buildAgentDefRootEngine(
 	deps := engineDepsForProvider(cfg, provider, providerModel, windowFn, store, policy, hooks, mcpProvider, instructions)
 	deps.Catalog = cat
 	deps.PromptConfig = pc
+	deps = applyRemoteExecutionPosture(deps, cfg.RemoteExecution && profile != server.ProfileNoFS)
+	if profile == server.ProfileNoFS {
+		deps.PromptConfig = applyNoFSPosture(deps.PromptConfig, noFSPostureNote)
+	}
+	deps.PromptConfig = applyRedisWorkspacePosture(deps.PromptConfig, redisWorkspacePostureEnabled(cfg, profile == server.ProfileNoFS))
+	deps.PromptConfig = applyPlanModePosture(deps.PromptConfig, mode)
+	deps.PromptConfig = applyContextualGuardrailWorkerPosture(deps.PromptConfig, guardrailsConfigured(cfg))
 	// Deps.Role is deliberately left at engineDepsForProvider's default (empty)
 	// — NOT set to role, despite role being exactly the diagnostic label a
 	// child-shaped engine would carry there. engine/agent uses `Role != ""`
@@ -97,7 +106,11 @@ func buildAgentDefRootEngine(
 	// sites use (build.go's shared engine and per-session factory) — never the
 	// removed buildGuardrailsHooks. This is what keeps an agent-bound session's
 	// contextual review indistinguishable from any other main session's (AC1.6).
-	attachGuardrailReviewer(&deps, buildGuardrailsActionReviewer(cfg, provReg, provider, parentProviderID, guardrailWaiver), cfg.guardrailDetails)
+	guardrailProvider := provider
+	if entry, ok := provReg.Lookup(providerModel.ProviderID); ok {
+		guardrailProvider = entry.provider
+	}
+	attachGuardrailReviewer(&deps, buildGuardrailsActionReviewer(cfg, provReg, guardrailProvider, parentProviderID, guardrailWaiver), cfg.guardrailDetails)
 
 	// The session's minted Authority is derived from THIS def's own resolved
 	// catalog + resource-capability list — never cfg.RootAuthority(kind), the
@@ -171,6 +184,16 @@ func agentDefSessionEngineFactory(
 ) server.AgentDefSessionEngineFactory {
 	mainRunner := buildCommandRunner(cfg)
 	return func(ctx context.Context, sel server.ProviderSelector, profile server.SessionProfile, mode session.PermissionMode, limits session.Limits, defName string) (server.SessionEngineResult, error) {
+		ctx, assets, revision, release, err := pinCatalogAssets(ctx, assets)
+		if err != nil {
+			return server.SessionEngineResult{}, err
+		}
+		defer release()
+		cfg := cfg
+		sessionRoot := server.AgentDefSessionRootFromContext(ctx)
+		projectWorkspace, remote, instructions, policy := remoteSessionConfiguration(cfg, profile, sessionRoot, instructions, policy)
+		cfg.defaultInstructionMapping = defaultInstructionMappingForSession(cfg, profile, sessionRoot, remote)
+		cfg.childPermResolver = childPermResolverFor(cfg, projectWorkspace)
 		def, ok := agentDefLookup(assets.agentReg, defName)
 		if !ok {
 			return server.SessionEngineResult{}, fmt.Errorf("%w: unknown agent definition %q", server.ErrInvalidArgument, defName)
@@ -191,6 +214,8 @@ func agentDefSessionEngineFactory(
 			return server.SessionEngineResult{}, err
 		}
 
+		childProvider, effort, caps := sessionProviderOptions(ctx, cfg, provReg, childProvider, pid, model, sel.ReasoningEffort)
+
 		// ADR 0353 tighten-only clamps (AC1.12/AC1.13): the def's own configured
 		// permissionMode/Limits are the ceiling; the request may only narrow them.
 		clampedMode := clampPermissionMode(resolvePermissionMode(cfg.diag(), def), mode)
@@ -204,10 +229,9 @@ func agentDefSessionEngineFactory(
 		// attaches THIS session's own resolved governance root to ctx before
 		// invoking this factory. "" (unset, e.g. profile: "no-fs") makes
 		// resolveAgentMemoryHead's "project" tier a no-op, never an error (AC2.6).
-		sessionRoot := server.AgentDefSessionRootFromContext(ctx)
 		eng, mcpClose, authority := buildAgentDefRootEngine(ctx, cfg, def, assets.agentReg.Detail(def.Name),
 			childProvider, session.ProviderModelID{ProviderID: pid, ModelID: model}, windowFn, base, allowShell, assets.skillIndex, hooks, runner, assets.globalMgr,
-			store, policy, mcpProvider, instructions, provReg, parentProviderID, guardrailWaiver, sessionRoot)
+			store, policy, mcpProvider, instructions, provReg, pid, guardrailWaiver, sessionRoot, profile, clampedMode)
 
 		closeFn := func() error {
 			if mcpClose != nil {
@@ -220,14 +244,17 @@ func agentDefSessionEngineFactory(
 			"agent", def.Name, "provider", pid, "model", model, "no_fs", noFS)
 
 		return server.SessionEngineResult{
-			Engine:       eng,
-			Capabilities: modelCapability(provReg, pid, model),
-			ProviderID:   pid,
-			ModelID:      model,
-			BuiltForMode: clampedMode,
-			Limits:       &clampedLimits,
-			Authority:    authority,
-			Close:        closeFn,
+			AgentDefinitionName: def.Name,
+			Engine:              eng,
+			Capabilities:        caps,
+			ReasoningEffort:     effort,
+			RuntimeRevision:     revision,
+			ProviderID:          pid,
+			ModelID:             model,
+			BuiltForMode:        clampedMode,
+			Limits:              &clampedLimits,
+			Authority:           authority,
+			Close:               closeFn,
 		}, nil
 	}
 }

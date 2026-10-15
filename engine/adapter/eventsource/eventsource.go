@@ -100,6 +100,9 @@ type SessionMeta struct {
 	// AgentDef (ADR 0353); "" is an ordinary, non-agent-bound session. Write-once
 	// creation label, opaque to the fold — mirrors Profile's discipline exactly.
 	AgentDefinitionName string
+	// AgentCreateIntent is opaque original-create retry evidence, not event-carried.
+	// Missing legacy evidence must remain empty.
+	AgentCreateIntent string
 	// ProviderID and ModelID are the opaque neutral provider+model selector pair
 	// ("" / "" = server default).
 	ProviderID string
@@ -137,8 +140,9 @@ type SessionMeta struct {
 	Incarnation session.IncarnationID
 	Owner       *session.Principal
 	// Authority is the plain derived-capability payload supplied with creation
-	// metadata. Nil is a documented legacy record written without authority; a
-	// present payload is validated and bound before reconstruction proceeds.
+	// metadata. Nil is allowed only for ordinary legacy sessions. Agent-bound
+	// metadata requires authority and a ceiling; present payloads always validate
+	// and bind before reconstruction proceeds.
 	Authority *session.Authority
 	// ExternalBinding is the opaque composition-issued process-external
 	// identity (e.g. an MCP broker attachment binding). Not event-carried:
@@ -205,6 +209,7 @@ func Fold(meta SessionMeta, events iter.Seq2[session.Event, error]) (*session.Se
 	// Ceiling (ADR 0353) — it can only see the label if it is set first, exactly
 	// as the real create path already sequences it.
 	s.AgentDefinitionName = meta.AgentDefinitionName
+	s.AgentCreateIntent = meta.AgentCreateIntent
 	if err := restoreAuthority(s, meta.Authority); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrReconstruct, err)
 	}
@@ -304,7 +309,7 @@ func (f *folder) finalizeOpenTurn() {
 }
 
 func restoreAuthority(s *session.Session, authority *session.Authority) error {
-	if authority == nil {
+	if authority == nil && s.AgentDefinitionName == "" {
 		return nil
 	}
 	if err := sessnap.ValidatePersistedAuthority(authority); err != nil {
