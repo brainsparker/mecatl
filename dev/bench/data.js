@@ -337655,6 +337655,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792057030902,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62703833032adf6e1d8df69b889e9a5710d3cc18",
+          "message": "test(app): count the model call before publishing it in the MicroVM child test (#2350)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T11:29:31+02:00",
+          "tree_id": "17a047927b5ea0f7d7b55656691b789b572361ff",
+          "url": "https://github.com/stacklok/mecatl/commit/62703833032adf6e1d8df69b889e9a5710d3cc18"
+        },
+        "date": 1792057730362,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3253,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 51.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -441205,6 +441244,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792057727475,
+  "lastUpdate": 1792057731170,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
