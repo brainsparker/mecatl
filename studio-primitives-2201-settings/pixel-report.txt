@@ -1,0 +1,17 @@
+Red boxes mark the touched labels (Label primitive); every Before/After pair is pixel-identical.
+appearance-chat-desktop-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-desktop-dark	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-mobile-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-mobile-dark	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-off-desktop-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-off-desktop-dark	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-off-mobile-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+appearance-chat-off-mobile-dark	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-desktop-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-desktop-dark	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-mobile-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-mobile-dark	before-vs-before2=7	before-vs-after=7	before2-vs-after=0
+models-hidden-desktop-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-hidden-desktop-dark	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-hidden-mobile-light	before-vs-before2=0	before-vs-after=0	before2-vs-after=0
+models-hidden-mobile-dark	before-vs-before2=7	before-vs-after=7	before2-vs-after=0
