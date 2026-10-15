@@ -308274,6 +308274,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792072683030,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "97f0d86fb145cc8b4860606703e2a35be61eb5d8",
+          "message": "fix(studio): keep the reader put when a disclosure expands, and copy clean selections (#2319)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T16:01:05+02:00",
+          "tree_id": "5bd91d8c076b18e8f7044173b2898aa63dc3d894",
+          "url": "https://github.com/stacklok/mecatl/commit/97f0d86fb145cc8b4860606703e2a35be61eb5d8"
+        },
+        "date": 1792073575086,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -446281,6 +446315,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792073571585,
+  "lastUpdate": 1792073576126,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
