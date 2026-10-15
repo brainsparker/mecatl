@@ -337258,6 +337258,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792055342115,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e1ce3cb2a6a5c9bfb1216efb8c9149515abb56b",
+          "message": "fix(studio): give a stale plan ask its own error code (#2311)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T11:25:03+02:00",
+          "tree_id": "dd064e761d0d4020f8a6324c282102cb9d03db88",
+          "url": "https://github.com/stacklok/mecatl/commit/0e1ce3cb2a6a5c9bfb1216efb8c9149515abb56b"
+        },
+        "date": 1792057030902,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3282,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 80.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -440694,6 +440733,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792057027780,
+  "lastUpdate": 1792057031647,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
