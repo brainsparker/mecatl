@@ -340434,6 +340434,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792069992523,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e059070b49aeaac75fd592bc2bd5c9218a141d32",
+          "message": "feat(studio): show provider display names from the BFF (#2331)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T15:20:51+02:00",
+          "tree_id": "64e4db5d20d7f479ad60df7774d0cd0d1391e75e",
+          "url": "https://github.com/stacklok/mecatl/commit/e059070b49aeaac75fd592bc2bd5c9218a141d32"
+        },
+        "date": 1792071163478,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3283,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 82,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -444782,6 +444821,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792071160072,
+  "lastUpdate": 1792071164614,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
