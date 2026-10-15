@@ -336861,6 +336861,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792054454711,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2a48f792fedfff8864b3f0096292d45f7c5378e5",
+          "message": "feat(studio): show the prototype's settings section index on phones (#2330)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T10:56:39+02:00",
+          "tree_id": "1c92433e229d9e3237ae004c3a856d4d77d0ca95",
+          "url": "https://github.com/stacklok/mecatl/commit/2a48f792fedfff8864b3f0096292d45f7c5378e5"
+        },
+        "date": 1792055342115,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 78,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -440183,6 +440222,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792055338044,
+  "lastUpdate": 1792055343190,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
