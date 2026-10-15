@@ -336067,6 +336067,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792052294669,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1210721bea685288d533941c913428d8895fe78a",
+          "message": "fix(studio): show the whole approval command and its invisible characters (#2329)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T10:29:27+02:00",
+          "tree_id": "bbb0fec3eb40a1517aa1e342ae3e0bc6960d69bd",
+          "url": "https://github.com/stacklok/mecatl/commit/1210721bea685288d533941c913428d8895fe78a"
+        },
+        "date": 1792053739871,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3275,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -439161,6 +439200,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792053736775,
+  "lastUpdate": 1792053740706,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
