@@ -305052,6 +305052,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792057726644,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "76762a2df9748fc48169e35fa375f1a274fde03a",
+          "message": "feat(studio): show a skill's files on its page (#2155)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T11:51:45+02:00",
+          "tree_id": "aa9b20af25c0843e886c6276e797e41e2507d300",
+          "url": "https://github.com/stacklok/mecatl/commit/76762a2df9748fc48169e35fa375f1a274fde03a"
+        },
+        "date": 1792058614974,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -441682,6 +441716,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792058611891,
+  "lastUpdate": 1792058615880,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
