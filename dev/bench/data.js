@@ -310780,6 +310780,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792094866268,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d5feb5e82ce75e3c28309643c9297ff4cb770e3",
+          "message": "test(studio): wait for the composer's stored draft to clear after an accepted send (#2363)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T21:55:45+02:00",
+          "tree_id": "d2a6a1676271c2876b248d8a14c0520671446685",
+          "url": "https://github.com/stacklok/mecatl/commit/5d5feb5e82ce75e3c28309643c9297ff4cb770e3"
+        },
+        "date": 1792095569801,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -449858,6 +449892,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792095566480,
+  "lastUpdate": 1792095570831,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
