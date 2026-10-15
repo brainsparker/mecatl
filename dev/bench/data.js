@@ -305768,6 +305768,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792064182929,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "066a27135db153a4e6051eb05af373b72155e360",
+          "message": "test(microvm): stop fixture commits from spawning auto-maintenance (#2353)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T15:03:51+03:00",
+          "tree_id": "7ab6a2d62ba301f3ebf77aec201f2c6ba51dae05",
+          "url": "https://github.com/stacklok/mecatl/commit/066a27135db153a4e6051eb05af373b72155e360"
+        },
+        "date": 1792066519065,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -442704,6 +442738,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792066514221,
+  "lastUpdate": 1792066520169,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
