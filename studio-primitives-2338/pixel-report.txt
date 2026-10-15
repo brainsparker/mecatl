@@ -1,0 +1,8 @@
+avatars-fallback-desktop-light	noise=0	change=147
+avatars-fallback-desktop-dark	noise=0	change=143
+avatars-fallback-mobile-light	noise=0	change=0
+avatars-fallback-mobile-dark	noise=0	change=0
+avatars-picture-desktop-light	noise=0	change=0
+avatars-picture-desktop-dark	noise=0	change=0
+avatars-picture-mobile-light	noise=6	change=0 (vs second Before; first Before differs by 6 from scroll timing)
+avatars-picture-mobile-dark	noise=5	change=0
