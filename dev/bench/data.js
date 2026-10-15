@@ -307916,6 +307916,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792071944297,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e806207f8bc23334e11c0165cd0d8865c951deea",
+          "message": "fix(studio): keep Escape in another approval card from denying the active ask (#2332)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T15:42:41+02:00",
+          "tree_id": "043416451d8a22a0e1c4e4f65506845846b70d23",
+          "url": "https://github.com/stacklok/mecatl/commit/e806207f8bc23334e11c0165cd0d8865c951deea"
+        },
+        "date": 1792072683030,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -445770,6 +445804,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792072679829,
+  "lastUpdate": 1792072683990,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
