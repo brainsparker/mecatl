@@ -303978,6 +303978,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792054450665,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2a48f792fedfff8864b3f0096292d45f7c5378e5",
+          "message": "feat(studio): show the prototype's settings section index on phones (#2330)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T10:56:39+02:00",
+          "tree_id": "1c92433e229d9e3237ae004c3a856d4d77d0ca95",
+          "url": "https://github.com/stacklok/mecatl/commit/2a48f792fedfff8864b3f0096292d45f7c5378e5"
+        },
+        "date": 1792055337205,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -440149,6 +440183,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792055332998,
+  "lastUpdate": 1792055338044,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
