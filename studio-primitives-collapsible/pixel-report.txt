@@ -1,0 +1,21 @@
+state: Before(origin/main) vs Before2 (noise) | After(this branch merged onto origin/main) vs After2 (noise) | Before vs After | #2352 head vs this branch's head
+memory-closed-desktop-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-closed-desktop-light: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-closed-mobile-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-closed-mobile-light: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-focus-desktop-dark: noise-before=1px bbox=(286, 509, 287, 510) | noise-after=0 | before/after=0 | 2352/head=0
+memory-focus-desktop-light: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-open-desktop-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-open-desktop-light: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-open-mobile-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+memory-open-mobile-light: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+tools-closed-desktop-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+tools-closed-desktop-light: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=0
+tools-closed-mobile-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=6px bbox=(121, 25, 169, 27)
+tools-closed-mobile-light: noise-before=0 | noise-after=0 | before/after=6px bbox=(121, 25, 169, 27) | 2352/head=0
+tools-focus-desktop-dark: noise-before=78px bbox=(255, 591, 290, 602) | noise-after=0 | before/after=92px bbox=(198, 278, 290, 602) | 2352/head=103px bbox=(198, 278, 826, 602)
+tools-focus-desktop-light: noise-before=80px bbox=(255, 591, 289, 602) | noise-after=15px bbox=(198, 278, 203, 304) | before/after=95px bbox=(198, 278, 289, 602) | 2352/head=30px bbox=(198, 278, 826, 304)
+tools-open-desktop-dark: noise-before=189px bbox=(170, 589, 254, 600) | noise-after=0 | before/after=189px bbox=(170, 589, 254, 600) | 2352/head=78px bbox=(255, 591, 290, 602)
+tools-open-desktop-light: noise-before=234px bbox=(170, 588, 255, 599) | noise-after=0 | before/after=234px bbox=(170, 588, 255, 599) | 2352/head=0
+tools-open-mobile-dark: noise-before=0 | noise-after=0 | before/after=0 | 2352/head=6px bbox=(121, 25, 169, 27)
+tools-open-mobile-light: noise-before=0 | noise-after=0 | before/after=6px bbox=(121, 25, 169, 27) | 2352/head=0
