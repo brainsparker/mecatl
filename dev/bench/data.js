@@ -343610,6 +343610,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792084449476,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8cc7c2347e82b41f4fbbb51af7a2599f9095d3ae",
+          "message": "refactor(studio): move the learning refresh tooltip to the Tooltip primitive (#2357)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T19:11:41+02:00",
+          "tree_id": "0ef0b6b3e6a4aff3f2c0d199bec31158f5a726eb",
+          "url": "https://github.com/stacklok/mecatl/commit/8cc7c2347e82b41f4fbbb51af7a2599f9095d3ae"
+        },
+        "date": 1792085157827,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3252,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 52,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -448870,6 +448909,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792085154447,
+  "lastUpdate": 1792085158671,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
