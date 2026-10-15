@@ -342816,6 +342816,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792076632982,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ad7d940926301dfdded05ad5f219a58333309a9",
+          "message": "fix(enrollment): preserve workspace enrollment authority (#1809)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T17:03:28+02:00",
+          "tree_id": "a880290221f3f580a25b167c68f407a12eb90294",
+          "url": "https://github.com/stacklok/mecatl/commit/2ad7d940926301dfdded05ad5f219a58333309a9"
+        },
+        "date": 1792077363833,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3256,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 54,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -447848,6 +447887,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792077360905,
+  "lastUpdate": 1792077364649,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
