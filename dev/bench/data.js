@@ -335670,6 +335670,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1791982664041,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6bbbcedab9a19d667c684c715f638b3966737af7",
+          "message": "test(mecated): fire the MCP login callback after the state is recorded (#2346)\n\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T10:05:15+02:00",
+          "tree_id": "f1c488c4c3be5fe5eee6b6d2e8d68ede2cb4ac6f",
+          "url": "https://github.com/stacklok/mecatl/commit/6bbbcedab9a19d667c684c715f638b3966737af7"
+        },
+        "date": 1792052294669,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 78,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -438650,6 +438689,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792052291032,
+  "lastUpdate": 1792052295597,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
