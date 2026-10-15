@@ -307558,6 +307558,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792071158721,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f86205f55bc2fc52ae2ae1e5cac694d441b5869",
+          "message": "fix(studio): declare 400 and 429 on the skill files route, and stop hard-coding the route count (#2355)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T15:21:05+02:00",
+          "tree_id": "9c6a9dcbc0960eab9668c230b4eec61aa886f9fc",
+          "url": "https://github.com/stacklok/mecatl/commit/4f86205f55bc2fc52ae2ae1e5cac694d441b5869"
+        },
+        "date": 1792071944297,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -445259,6 +445293,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792071941052,
+  "lastUpdate": 1792071945343,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
