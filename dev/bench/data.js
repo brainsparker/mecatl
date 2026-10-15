@@ -303262,6 +303262,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792052290220,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1210721bea685288d533941c913428d8895fe78a",
+          "message": "fix(studio): show the whole approval command and its invisible characters (#2329)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T10:29:27+02:00",
+          "tree_id": "bbb0fec3eb40a1517aa1e342ae3e0bc6960d69bd",
+          "url": "https://github.com/stacklok/mecatl/commit/1210721bea685288d533941c913428d8895fe78a"
+        },
+        "date": 1792053735907,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -439127,6 +439161,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792053732816,
+  "lastUpdate": 1792053736775,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
