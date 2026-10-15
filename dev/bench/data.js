@@ -339640,6 +339640,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792067256504,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce0f816e076654146d0bb27c59ecc8bf3f32e57f",
+          "message": "fix(studio): refresh schedule history after actions and tidy the detail page (#2315)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-15T14:25:38+02:00",
+          "tree_id": "3f78855a66e1ef1902feba80c50ee7f0cfadf9c8",
+          "url": "https://github.com/stacklok/mecatl/commit/ce0f816e076654146d0bb27c59ecc8bf3f32e57f"
+        },
+        "date": 1792067987577,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3277,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 77,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -443760,6 +443799,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792067984353,
+  "lastUpdate": 1792067988327,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
