@@ -342419,6 +342419,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792074331285,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "090ebfb3693685d57842849902ae18e7a67e7249",
+          "message": "feat(mecated): add native MCP custody reset (#1991)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T16:51:19+02:00",
+          "tree_id": "a3883ce254c34ce7ecd24ae52f97e3bb1eaa04b3",
+          "url": "https://github.com/stacklok/mecatl/commit/090ebfb3693685d57842849902ae18e7a67e7249"
+        },
+        "date": 1792076632982,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 3250,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 50.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -447337,6 +447376,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792076629511,
+  "lastUpdate": 1792076634035,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
