@@ -344801,6 +344801,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792095574097,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e78d9432e6be43bbb0d6373f6ed41d45daa4cc0f",
+          "message": "feat(mecatui): add comfort transcript presentation (#2375)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T18:10:17-06:00",
+          "tree_id": "cbfd98d4f90a0f1659daa468dd53a521df80094f",
+          "url": "https://github.com/stacklok/mecatl/commit/e78d9432e6be43bbb0d6373f6ed41d45daa4cc0f"
+        },
+        "date": 1792110145739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16097,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12878.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -450403,6 +450442,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792110143249,
+  "lastUpdate": 1792110146503,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
