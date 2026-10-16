@@ -311854,6 +311854,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792112390948,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53d84382f7134699a17c63169c0b5bd71796340f",
+          "message": "docs: keep architecture guidance focused on durable contracts (#2378)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-16T11:23:13+03:00",
+          "tree_id": "dbb5427105ff411fea47da18db69abe637a00b4d",
+          "url": "https://github.com/stacklok/mecatl/commit/53d84382f7134699a17c63169c0b5bd71796340f"
+        },
+        "date": 1792139718411,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -451391,6 +451425,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792139715372,
+  "lastUpdate": 1792139719452,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
