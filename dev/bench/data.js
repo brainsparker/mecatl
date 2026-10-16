@@ -311138,6 +311138,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792095569801,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e78d9432e6be43bbb0d6373f6ed41d45daa4cc0f",
+          "message": "feat(mecatui): add comfort transcript presentation (#2375)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T18:10:17-06:00",
+          "tree_id": "cbfd98d4f90a0f1659daa468dd53a521df80094f",
+          "url": "https://github.com/stacklok/mecatl/commit/e78d9432e6be43bbb0d6373f6ed41d45daa4cc0f"
+        },
+        "date": 1792110142542,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -450369,6 +450403,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792110139979,
+  "lastUpdate": 1792110143249,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
