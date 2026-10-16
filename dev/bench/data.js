@@ -311496,6 +311496,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792110142542,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b32e5923eb0fc4e9e72b1636c73781d0605487f",
+          "message": "feat(mecatui): bound worktree picker and move it to a modal surface (#2279)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-15T18:48:14-06:00",
+          "tree_id": "6787cf38570759e82758041928dda67d6d06cc95",
+          "url": "https://github.com/stacklok/mecatl/commit/3b32e5923eb0fc4e9e72b1636c73781d0605487f"
+        },
+        "date": 1792112390948,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -450880,6 +450914,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792112387865,
+  "lastUpdate": 1792112391889,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
