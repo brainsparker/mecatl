@@ -8,11 +8,6 @@ application data and execution authority. This document proposes a target
 architecture and delivery phases. This document does not describe a shipped
 operator.
 
-This draft uses short sentences and consistent terms based on ASD-STE100
-principles. The [official standard site](https://asd-ste100.org/) identifies
-Issue 9, dated January 15, 2025. This work did not acquire the full licensed
-dictionary. This draft makes no claim of certification or full conformance.
-
 ## Decision summary
 
 | Area | Proposed decision |
