@@ -312928,6 +312928,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792141214835,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f08f6319ebb3fd3df3d6074d6c15f8583a2855c",
+          "message": "refactor(studio): use the Toggle primitive in the chat composer area (#2362)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-16T10:56:41+02:00",
+          "tree_id": "bcf2c42a74365d0eaa7c696a76cb09b534223695",
+          "url": "https://github.com/stacklok/mecatl/commit/9f08f6319ebb3fd3df3d6074d6c15f8583a2855c"
+        },
+        "date": 1792141945460,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -452924,6 +452958,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792141942033,
+  "lastUpdate": 1792141946312,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
