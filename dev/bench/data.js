@@ -346786,6 +346786,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792141218600,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f08f6319ebb3fd3df3d6074d6c15f8583a2855c",
+          "message": "refactor(studio): use the Toggle primitive in the chat composer area (#2362)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-16T10:56:41+02:00",
+          "tree_id": "bcf2c42a74365d0eaa7c696a76cb09b534223695",
+          "url": "https://github.com/stacklok/mecatl/commit/9f08f6319ebb3fd3df3d6074d6c15f8583a2855c"
+        },
+        "date": 1792141949544,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16134.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12913,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -452958,6 +452997,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792141946312,
+  "lastUpdate": 1792141950490,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
