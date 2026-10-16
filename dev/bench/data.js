@@ -314360,6 +314360,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792158773907,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "548d185c78eeec2765e97eda8d689a42e918a69e",
+          "message": "fix(sdk): end gRPC request sides when response trailers arrive (#2356)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-16T16:19:37+02:00",
+          "tree_id": "c01d2de7c8672d9cf1b5cf40bc26b83cadf132b9",
+          "url": "https://github.com/stacklok/mecatl/commit/548d185c78eeec2765e97eda8d689a42e918a69e"
+        },
+        "date": 1792161122880,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -454968,6 +455002,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792161119782,
+  "lastUpdate": 1792161123985,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
