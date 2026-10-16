@@ -313644,6 +313644,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792154408837,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dbec473f9fde003fe0bd8fbb4e04fa7b222fa1e2",
+          "message": "fix(engine): evaluate tool permissions on the same argument decode the tool executes (#2265)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-16T14:52:24+02:00",
+          "tree_id": "acc8cae6837af3b73e2310e442e3409789f69f11",
+          "url": "https://github.com/stacklok/mecatl/commit/dbec473f9fde003fe0bd8fbb4e04fa7b222fa1e2"
+        },
+        "date": 1792155919003,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -453946,6 +453980,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792155915967,
+  "lastUpdate": 1792155920036,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
