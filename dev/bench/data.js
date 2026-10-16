@@ -348771,6 +348771,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792161127459,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e17d8394d365a94fb79258fa02a940625bfb99ff",
+          "message": "Implement session-scoped Agent Definitions (#2003)\n\nBind session roots to named agent definitions with definition-scoped tool catalogs, nonwidenable authority ceilings, and ordinary root approval and guardrail handling.\n\nPreserve effective identity and authority through persistence and successors, enforce tighten-only mode and run budgets, and expose additive binding fields and compatibility discovery across HTTP, gRPC, and the SDK feature vocabulary.\n\nInclude regression coverage for final catalog exclusions, root Shell availability, explicit-auto reasoning effort, exact authority ceilings, and broker provenance.\n\nCo-authored-by: Claude Sonnet 5 <noreply@anthropic.com>\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-16T18:28:03+03:00",
+          "tree_id": "f9e297062656b18c666b16cfac8782f978d96a50",
+          "url": "https://github.com/stacklok/mecatl/commit/e17d8394d365a94fb79258fa02a940625bfb99ff"
+        },
+        "date": 1792165207374,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16100.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12879.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -455513,6 +455552,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792165204348,
+  "lastUpdate": 1792165208238,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
