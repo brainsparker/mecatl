@@ -346389,6 +346389,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792140512311,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b35098992ea394cc34fa5a9101b28221b392ccea",
+          "message": "fix(studio): scan schedules in the breakpoint guard, and widen the schedule time field (#2365)\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-16T10:42:23+02:00",
+          "tree_id": "fc4bf5dde44ac6717d92a2721d90ec29440dcdda",
+          "url": "https://github.com/stacklok/mecatl/commit/b35098992ea394cc34fa5a9101b28221b392ccea"
+        },
+        "date": 1792141218600,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16098,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12874,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -452447,6 +452486,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792141215579,
+  "lastUpdate": 1792141219358,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
