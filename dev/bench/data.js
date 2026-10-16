@@ -314002,6 +314002,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792155919003,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1ce2981914b479015fc86f12329ee41ab52f1f9f",
+          "message": "fix(studio): keep conversation controls usable on phones (#2382)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-16T16:40:54+03:00",
+          "tree_id": "766465cceae5e768f7a0ba4bf27fa1a54af658d2",
+          "url": "https://github.com/stacklok/mecatl/commit/1ce2981914b479015fc86f12329ee41ab52f1f9f"
+        },
+        "date": 1792158773907,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -454457,6 +454491,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792158770934,
+  "lastUpdate": 1792158774768,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
