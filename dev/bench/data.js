@@ -347183,6 +347183,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792141949544,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "022b9f112f21fc66fab0e806a2d1ee95900aa09f",
+          "message": "fix(providers): preserve structured streaming error diagnostics (#2377)\n\nPreserve typed SDK streaming-error classifications and safe diagnostic detail without exposing raw upstream payloads. Retain retry-before-output behavior and prevent replay after visible output; keep context-overflow failures breaker-neutral.\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-16T15:27:15+03:00",
+          "tree_id": "85fead18aa560183d6683ed58e47762ee4f05e33",
+          "url": "https://github.com/stacklok/mecatl/commit/022b9f112f21fc66fab0e806a2d1ee95900aa09f"
+        },
+        "date": 1792154413437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16131,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12911,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -453469,6 +453508,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792154409984,
+  "lastUpdate": 1792154414583,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
