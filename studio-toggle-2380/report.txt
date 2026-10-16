@@ -1,0 +1,30 @@
+composer-desktop-light: red=0 [] amber=1
+composer-desktop-dark: red=0 [] amber=1
+composer-mobile-light: red=0 [] amber=1
+composer-mobile-dark: red=0 [] amber=1
+composer-listening-desktop-light: red=0 [] amber=1
+composer-listening-desktop-dark: red=0 [] amber=1
+composer-listening-mobile-light: red=0 [] amber=1
+composer-listening-mobile-dark: red=0 [] amber=1
+side-thread-desktop-light: red=0 [] amber=2
+side-thread-desktop-dark: red=0 [] amber=2
+side-thread-mobile-light: red=0 [] amber=1
+side-thread-mobile-dark: red=0 [] amber=1
+side-thread-listening-desktop-light: red=0 [] amber=2
+side-thread-listening-desktop-dark: red=0 [] amber=2
+side-thread-listening-mobile-light: red=0 [] amber=1
+side-thread-listening-mobile-dark: red=0 [] amber=1
+model-menu-desktop-light: red=0 [] amber=0
+model-menu-desktop-dark: red=0 [] amber=0
+model-menu-mobile-light: red=0 [] amber=10
+model-menu-mobile-dark: red=0 [] amber=10
+mode-menu-mobile-light: red=0 [] amber=3
+mode-menu-mobile-dark: red=0 [] amber=3
+focus-row-mobile-light: red=1 [(np.int64(0), np.int64(605), np.int64(389), np.int64(655))] amber=9
+focus-row-mobile-dark: red=1 [(np.int64(0), np.int64(604), np.int64(389), np.int64(656))] amber=9
+focus-pill-mobile-light: red=1 [(np.int64(79), np.int64(697), np.int64(142), np.int64(740))] amber=9
+focus-pill-mobile-dark: red=1 [(np.int64(79), np.int64(697), np.int64(142), np.int64(740))] amber=9
+canvas-desktop-light: red=0 [] amber=3
+canvas-desktop-dark: red=0 [] amber=3
+canvas-mobile-light: red=1 [(np.int64(34), np.int64(121), np.int64(213), np.int64(161))] amber=0
+canvas-mobile-dark: red=2 [(np.int64(140), np.int64(129), np.int64(208), np.int64(151)), (np.int64(34), np.int64(133), np.int64(112), np.int64(150))] amber=0
