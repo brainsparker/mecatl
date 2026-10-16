@@ -314718,6 +314718,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792161122880,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "github@daniel-kantor.com",
+            "name": "Dániel Kántor",
+            "username": "kantord"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e17d8394d365a94fb79258fa02a940625bfb99ff",
+          "message": "Implement session-scoped Agent Definitions (#2003)\n\nBind session roots to named agent definitions with definition-scoped tool catalogs, nonwidenable authority ceilings, and ordinary root approval and guardrail handling.\n\nPreserve effective identity and authority through persistence and successors, enforce tighten-only mode and run budgets, and expose additive binding fields and compatibility discovery across HTTP, gRPC, and the SDK feature vocabulary.\n\nInclude regression coverage for final catalog exclusions, root Shell availability, explicit-auto reasoning effort, exact authority ceilings, and broker provenance.\n\nCo-authored-by: Claude Sonnet 5 <noreply@anthropic.com>\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-16T18:28:03+03:00",
+          "tree_id": "f9e297062656b18c666b16cfac8782f978d96a50",
+          "url": "https://github.com/stacklok/mecatl/commit/e17d8394d365a94fb79258fa02a940625bfb99ff"
+        },
+        "date": 1792165203383,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -455479,6 +455513,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792165199520,
+  "lastUpdate": 1792165204348,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
