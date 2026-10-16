@@ -347580,6 +347580,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792154413437,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dbec473f9fde003fe0bd8fbb4e04fa7b222fa1e2",
+          "message": "fix(engine): evaluate tool permissions on the same argument decode the tool executes (#2265)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-16T14:52:24+02:00",
+          "tree_id": "acc8cae6837af3b73e2310e442e3409789f69f11",
+          "url": "https://github.com/stacklok/mecatl/commit/dbec473f9fde003fe0bd8fbb4e04fa7b222fa1e2"
+        },
+        "date": 1792155923201,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16132,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12911,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -453980,6 +454019,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792155920036,
+  "lastUpdate": 1792155923986,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
