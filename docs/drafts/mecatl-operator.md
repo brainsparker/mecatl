@@ -1,19 +1,23 @@
 # Mecatl operator design proposal
 
 Keep `mecak8s` as the runtime. Add an operator that installs the service and
-publishes approved service offerings. Kubernetes should hold configuration
-and manage infrastructure. The runtime database should hold sessions, runs,
-approvals, and schedule execution state. Private memory and learning also
-belong in runtime backing stores, with their own storage and privacy controls.
+publishes approved service offerings. Kubernetes holds desired configuration
+and manages infrastructure. Runtime backing stores hold sessions, approvals,
+publication metadata, private memory, and schedule execution state. A
+platform-provided OCI registry holds immutable content artifacts.
 
-This is the target design, not existing profile support. It serves platform
-engineers who need to offer Mecatl to trusted teams with different guidance,
-models, and tools. It does not process agent turns or provide hostile-tenant
-isolation.
+This architecture is **proposed and subject to review**. The operator,
+profiles, publication protocol, and management handlers described below do
+not ship today. It serves platform engineers who offer Mecatl to trusted
+teams with different guidance, models, and tools. Team maintainers assemble
+those offerings. Engineers use them without Kubernetes access. The operator
+does not process agent turns or provide hostile-tenant isolation.
 
-A simpler fixed deployment remains valid. The operator is justified when
-independent owners need to assemble and reuse offerings; full profile and
-session binding requires runtime changes that the first release does not have.
+For fixed configurations, Helm remains sufficient. The first operator release
+adds dependency checks, drift repair, and coordinated drain, retention, and
+status for the existing runtime. This establishes safe lifecycle control
+before delegated publication. It is not yet a self-service profile platform;
+profiles and per-session revision binding belong to a distinct second release.
 
 ## An incident-investigation offering
 
@@ -52,6 +56,84 @@ maintainer assembles an offering within those limits. The end user consumes
 it through runtime APIs. Neither the maintainer nor the user needs authority
 to change platform credentials or executor Pods.
 
+## Cluster deployment and ownership
+
+The proposed initial topology uses one dedicated namespace per independent
+installation. All public platform CRs, the runtime, and its optional execution
+provider stay in that namespace. There is one execution provider per namespace.
+External dependencies bind by approved endpoints, not arbitrary cross-namespace
+CR references. The diagram shows processes and network paths; the CRs below it
+are configuration, not additional services.
+
+```mermaid
+flowchart TB
+  user["Engineer / platform approver"]
+  client["mecatui / SDK"]
+  gateway["Platform Gateway + routes + TLS"]
+  idp["Platform OIDC IdP"]
+  api["Kubernetes API server: platform CRs"]
+  gitops["GitOps controller"]
+  subgraph installation["Dedicated installation namespace"]
+    operator["Operator Deployment: reconcilers + publication orchestration"]
+    job["Short-lived fetch / validation Job"]
+    studio["Optional Studio Deployment + Service / BFF"]
+    runtime["mecak8s Deployment + ClusterIP Service\nclient API + private management handlers"]
+    provider["Optional execution provider Deployment + Service\nprivate allocation controller"]
+    executor["ExecutionEnvironment / executor Pods / retained PVCs"]
+  end
+  redis["Platform Redis: runtime data + proposed metadata"]
+  oci["Platform OCI registry: immutable artifacts"]
+  source["Approved Git / OCI content source"]
+  upstream["Approved model / MCP HTTPS services"]
+  user -->|HTTPS| gateway
+  user -->|OIDC login| idp
+  user --> client
+  client -->|TLS: gRPC / HTTP| gateway
+  gateway -->|HTTPS| studio
+  gateway -->|TLS: gRPC / HTTP client API| runtime
+  studio -->|TLS: client / admin API + user bearer| runtime
+  runtime -->|OIDC verification| idp
+  gitops -->|apply desired CRs| api
+  operator -->|watch / authoritative reads / reconcile| api
+  operator -->|create fixed-template Job| job
+  operator -->|private authenticated management API| runtime
+  job -->|fetch only| source
+  job -->|scoped artifact write| oci
+  runtime -->|authenticated storage connection| redis
+  runtime -->|HTTPS: read by digest| oci
+  runtime -->|HTTPS| upstream
+  runtime -->|mTLS gRPC| provider
+  provider -->|Kubernetes API| api
+  provider -->|manage through API / executor protocol| executor
+```
+
+| Owner | Installed or managed objects |
+|---|---|
+| Cluster administrator | CRDs and their upgrades; operator Deployment, ServiceAccount, and scoped Roles/bindings. CRD lifecycle remains separate from installation deletion. |
+| Operator, per `Harness` | `mecak8s` Deployment and ClusterIP Service, immutable nonsecret ConfigMaps, runtime ServiceAccount and Lease RBAC, and NetworkPolicies. Optional Studio Deployment/Service and, only when selected, execution provider Deployment/Service/ServiceAccount/RBAC. |
+| Existing private execution controller | `ExecutionEnvironment` allocations, executor Pods, and retained PVCs. No second allocation controller. Retained resources have no cascading owner reference to the platform CRs. |
+| External platform | Namespace, Gateway/routes/TLS certificates, provider credentials, Redis, OCI registry, IdP, and ToolHive MCP services. |
+
+The operator references the platform's public route address and reports its
+backend Service. It does not own the route or external dependencies. Its
+single Deployment contains publication orchestration as well as reconcilers.
+This avoids another service but shares capacity and rollout between those
+functions. There is no separate authority-service Deployment.
+Runtime management handlers live inside `mecak8s` and stay private. Network
+rules and authentication separate operator publication calls from client and
+human administration calls, even where they share a runtime process.
+
+For initial setup, the administrator supplies the namespace, Redis endpoint,
+OIDC configuration, and credential references. The publication release also
+requires the OCI registry. The administrator installs the CRDs and operator,
+then applies a `Harness` that references these dependencies.
+
+The operator validates the bindings and creates the serving workloads. It
+reports the backend Service so the administrator can connect the public route.
+The administrator checks deployment availability and login through that route
+before giving its address to users. Later, profile readiness confirms that the
+runtime has prepared the approved revision; Pod readiness alone does not.
+
 ## Resources follow ownership
 
 The target inventory separates resources that have different owners or update
@@ -75,12 +157,9 @@ as well as consumer authorization, following the idea behind
 [Gateway reference grants](https://gateway-api.sigs.k8s.io/geps/gep-709/).
 
 There is no CR per tool, model, memory record, or turn. Routing starts as typed
-profile configuration; a separate routing resource is justified only if it
-needs independent ownership. One profile selects one shared persona—the
-existing Mecatl soul configuration. That persona is not private user memory
-and does not need a separate `Soul` resource. The operator also leaves
-databases, PKI, Secrets, Gateways, and ToolHive workloads to their existing
-owners.
+profile configuration. One profile selects one shared persona from Mecatl's
+existing soul configuration; private user memory remains separate. These CRs
+describe offerings within one runtime service, not one runtime per profile.
 
 ## Guidance does not grant authority
 
@@ -92,8 +171,8 @@ enforces restrictions. Skills provide procedures and assets, not tool grants.
 An `AgentDefinition` currently describes a specialist child. Publishing one
 does not make it a top-level assistant.
 
-The publisher preserves source order, combine or replace behavior, exclusions,
-and collision rules from [context composition](../../internal/app/harness_context.go).
+The operator's publication logic preserves source order, combine or replace
+behavior, exclusions, and collision rules from [context composition](../../internal/app/harness_context.go).
 It records provenance and trust for each contribution. An acquisition URL is
 not a trusted runtime source identity. Mounting content at a platform-owned
 path does not raise its trust, and a bundle cannot import adjacent settings.
@@ -101,21 +180,22 @@ Existing project guidance and command templates also have different loading
 lifetimes; a common publisher does not imply per-run reload for every kind.
 
 Content can be inline, in Git at a full commit, or in OCI at a digest. Small
-declarations can stay in the CR; larger bodies and assets belong in artifact
-storage, outside etcd and status. All content uses shared acquisition, but
-each type retains its own validation and privilege limits. The
-[ToolHive skill media type](https://github.com/stacklok/toolhive-core/blob/v0.0.52/oci/skills/mediatypes.go)
-with a root `SKILL.md` applies to `Skill` only. It defines neither context
-bundles nor agent definitions. Flux integration is optional.
+declarations stay in CRs; bodies and assets stay outside etcd and status. The
+operator normalizes content into immutable bundles and manifests in the
+platform OCI registry. It retains both source artifacts and the compiled
+bundle digest. The proposed Mecatl package format is distinct from the
+[ToolHive skill media type](https://github.com/stacklok/toolhive-core/blob/v0.0.52/oci/skills/mediatypes.go),
+whose root `SKILL.md` applies only to `Skill` sources. Flux integration is optional.
 
-Acquisition runs in an isolated fetch environment. It restricts origins,
-checks redirects and authentication challenges before sending credentials, and
-blocks unauthorized internal endpoints to prevent server-side request forgery
-(SSRF). Extraction limits size and file count and rejects unsafe paths and
-links. Fetching executes no scripts or hooks and performs no implicit
-submodule downloads. Credentials stay separate from content. Failed
-acquisition reports a failure instead of silently selecting another backend,
-tag, or revision.
+The operator creates fixed-template, short-lived fetch and validation Jobs.
+Each Job gets only approved source credentials and a scoped output-artifact
+credential. It gets no Kubernetes API token or author-supplied Pod template.
+Acquisition restricts origins and checks redirects and authentication
+challenges before sending credentials. It blocks unauthorized internal
+endpoints, bounds extraction size and file count, and rejects unsafe paths
+and links. Content never executes: no scripts, hooks, or implicit submodule
+downloads. Credentials stay separate from artifacts. A failure cannot select
+another backend, tag, or revision silently.
 
 A signature proves provenance under a trust policy, not safety or approval.
 Platform approval covers the exact body, assets, and dependencies for a stated
@@ -127,28 +207,72 @@ specific destinations and purposes. These limits matter because current
 
 ## From a proposal to an active revision
 
-**Delegated publication is blocked until the approval and reference-use API is
-selected and implemented.** Platform-controlled records must establish who
-approved the exact content and dependencies, and who may attach a resource to
-an offering. A CR write identifies its actual writer; a GitOps service account
-or controller identity is not proof that a human approved the content. These
-records bind the verified approver, resource UID, complete content and
-dependency digest, scope, and policy revision. Reference-use records also name
-the authorized maintainer and target UID. Dependency changes require fresh use
-grant checks, and team maintainers cannot edit either authority record.
+The proposed private management API in `mecak8s` accepts an authenticated
+publisher identity for candidate registration, policy synchronization, and
+activation (including preparation) and status only. The operator cannot approve
+its own candidate. The existing public client path stays unchanged; these new
+handlers require a compatibility design before implementation.
 
-Publication then resolves the whole reference graph, rejects cycles and
-incompatible required capabilities, and checks the approval and reference-use
-records. Only then does it publish an immutable revision. The runtime must
-acknowledge that revision before advertising it for new sessions. Session
-creation persists the exact revision in the database. Listing an offering and
-using it rely on the same resolution, but listing alone grants no authority.
-An explicitly optional dependency can remain unavailable with a clear reason;
-a failed required dependency blocks publication.
+A human platform approver reviews the candidate through a proposed Studio
+admin view or an admin API client. The view shows the content and dependency
+digest, affected offering, and changes. Studio's BFF passes the actual user's
+verified OIDC bearer token to separately authorized runtime admin operations;
+it cannot assert an identity of its own. Service transport authentication does
+not establish the human approver. The runtime checks approver permission in
+platform-owned `AccessPolicy` and stores approval bound to the verified
+approver, resource UID, full content/dependency digest, scope, and policy
+revision. Only the authenticated approval handler can create that record.
+Activation checks the stored record and the current approval policy.
+A writer's `approved: true` field or GitOps identity proves no
+approval. An admin API client needs private network access; the public Gateway
+exposes no publisher management route.
 
-Publication approval is different from a per-tool permission decision and from
-a learning acceptance decision. `AccessPolicy` runtime grants do not replace
-this publication API or Kubernetes RBAC for authoring.
+Platform-owned `AccessPolicy` grants attachment rights from selected profile
+UIDs in the installation namespace to selected resource UIDs. Kubernetes RBAC
+controls which maintainers can edit those profiles. Runtime consumer grants
+are distinct from attachment rights and write permissions. The runtime
+validates both attachment rights and publication approval. Content or
+dependency changes require reapproval; initial publication uses manual review.
+An explicit trusted-publisher policy would need separate platform approval.
+A per-tool Ask or learning acceptance never substitutes for publication approval.
+
+The delivery sequence is proposed:
+
+1. A team maintainer submits a profile or content PR to the team's GitOps repo.
+   GitOps applies the merged CRs to the Kubernetes API server. This stages a
+   candidate; it does not authorize publication.
+2. The operator reads the reference graph, rejects cycles, and starts a fetch
+   and validation Job. The Job writes source artifacts and normalized bundles
+   to the OCI registry by digest, with provenance and typed validation results.
+3. The operator registers that candidate through the runtime management API.
+   The runtime verifies its digest, required dependencies, and attachment
+   rights against synchronized platform policy. Missing or unsupported required
+   dependencies fail the candidate; optional omissions have explicit reasons.
+4. The platform approver reviews the candidate and submits approval to the
+   runtime admin API. The runtime verifies the human identity and current
+   permission, then persists the bound approval record.
+5. The operator requests preparation. The runtime rechecks approvals and
+   reference rights, reads the immutable bundle from OCI, and loads verified
+   logical sources. It acknowledges preparation of that specific revision.
+   Content is not a mutable mounted directory; skill assets never become
+   workspace or execution roots.
+6. The operator requests activation. The runtime checks current policy again
+   and atomically changes the active-profile pointer in its metadata store.
+   Only then, after the required runtime acknowledgements, does the operator
+   report the applied revision and readiness in CR status.
+7. New sessions atomically bind the active revision and record the current
+   entitlement decision. The maintainer sees a failed candidate's reason and
+   old active revision in CR conditions and the proposed admin view. An
+   unpublished profile is never offered; a failed update keeps the old active
+   revision only while current policy permits it.
+
+The proposed metadata capability uses the existing Redis backend first,
+subject to the transactions and compare-and-swap (CAS) needed for these
+operations. It adds publication and approval records, active pointers, session
+revision bindings, and garbage-collection references. These records are not
+shipped storage support. Artifact bytes stay in OCI; there is no proposed
+arbitrary-database abstraction. OCI adds registry availability and retention
+duties, but separates large immutable content from mutable authority records.
 
 The following YAML illustrates the incident offering's relationships. It is
 proposed syntax, not an installable API. The referenced resources are assumed
@@ -182,38 +306,77 @@ The example uses remote execution without specialist children. A later variant
 that requires both must be rejected while that combination is unsupported.
 The declaration does not itself establish availability.
 
-For a routine guidance update, new sessions receive the new acknowledged
-revision. Existing sessions keep their binding unless an authorized runtime
-operation migrates them after a compatibility check. A failed update leaves
-the last accepted revision usable only while current authority permits it.
-Credentials rotate independently, and memory and learning remain live data.
-The artifact store retains revisions while sessions, schedules, children, or
-execution allocations reference them. Durable reference indexes support
-collection without an unbounded history in CR status.
+## Starting and resuming a session
 
-Emergency permission changes follow a different path. The target runtime
-checks current grants before runs, model requests, tool calls, child admission,
-schedule fires, and approval continuation. It fails closed when authorization
-data expires, even for an older accepted revision. The maximum permitted age,
-authenticated update feed, and treatment of pending approvals need agreement
-before implementation. A rollout cannot provide bounded revocation or undo an
-external effect already admitted.
+The target user path needs no kubeconfig:
 
-This binding model requires runtime changes. An initial operator can mount
-existing configuration and restart the deployment, but resumed sessions then
-restore against deployment-wide configuration. That first release cannot
-promise independent profile selection or immutable per-session configuration.
+1. The engineer signs in with the platform IdP. Studio, `mecatui`, or an SDK
+   sends the user's OIDC token through the Gateway to the runtime client API.
+   The runtime verifies issuer and subject.
+2. The runtime lists only published offerings that current policy allows.
+   The proposed client profile selector appears only when a choice is needed;
+   one available default suppresses selection.
+3. On create, the runtime atomically binds the active revision in Redis with
+   the current entitlement decision. It loads and validates the OCI artifact
+   by digest, or verifies a cached copy, before serving that session. The
+   runtime also persists the allocated environment and template identity.
+4. The runtime checks live permissions before model requests, MCP calls, or
+   mTLS gRPC execution-provider calls. The incident offering uses its remote
+   workspace and read-only incident tools, without specialist children.
+5. On resume, the runtime reads the saved revision and exact execution
+   environment from the database. It reloads the retained artifact if needed
+   and reattaches that environment, or fails explicitly. It never substitutes
+   the latest profile or a new workspace. The engineer can inspect the bound
+   revision and environment; private memory remains independent of that binding.
+6. A pending Ask continuation requires fresh policy and current permission.
+   Missing tool enrollment produces an explicit re-enrollment prompt, not a
+   silent run restart. The current broker still needs re-enrollment after a
+   broker restart and remains limited to one runtime replica.
+
+Routine source updates leave existing session bindings intact. Credentials
+rotate independently; binding content never freezes credentials or grants.
+On startup or restart, the runtime uses a read-only output-registry identity
+to load retained artifacts, without Git source credentials. Database references
+from sessions, schedules, children, and execution allocations protect revisions
+from collection. Collection removes only unreferenced revisions under an
+explicit retention policy. Retained content permits resume, not continued
+authorization.
+
+The initial target has one runtime replica. An acknowledgement from it does
+not prove that every future replica is prepared. The database active pointer
+is authoritative, and any replica must load and validate a revision before
+serving a bound session. Multi-replica activation needs a routing and warming
+handshake; global high availability remains deferred.
+
+The installation-only release cannot provide this sequence. It mounts existing
+configuration and restarts the Deployment; resumed sessions use deployment-wide
+configuration, without independent profile selection or immutable bindings.
 
 ## Identity and current permission checks
 
-A shared production service needs verified caller OpenID Connect (OIDC) before
-it can provide caller isolation. The runtime identifies a person by issuer and
-subject. Kubernetes RBAC governs CR access; service mutual TLS (mTLS)
-identifies a connecting service. Neither replaces caller identity. A shared
-bearer token cannot distinguish users. Private memory further requires
-ownership checks and caller-partitioned storage. The separate [agent identity
-proposal](agent-identity-model.md) explores delegation; it is not an
-implemented guarantee.
+Platform CRs are authoritative desired policy. The operator sends a versioned,
+complete policy snapshot to the runtime management API; the runtime persists
+it in the metadata store. Freshness renews only after a fresh authoritative
+Kubernetes API read. A heartbeat from stale informer data cannot renew it.
+The protocol rejects stale or older policy revisions without treating opaque
+Kubernetes `resourceVersion` values as ordered numbers. Persisted freshness
+survives runtime restart; a restart cannot reset its age.
+
+The runtime checks synchronized current policy before runs, model requests,
+tool calls, child admission, schedule fires, and approval continuation. During
+operator or API outage, configured grants remain usable until the maximum
+freshness age. After that, new protected work fails closed, including pending
+Ask continuation. Previously admitted external effects are not undone. The
+initial design has no independent authority-service escape hatch: bounded
+revocation trades availability for fail-closed behavior. The exact maximum age
+is an operational decision required before production.
+
+A shared production service needs verified caller OpenID Connect (OIDC) for
+caller isolation. Kubernetes RBAC governs CR access; service mutual TLS (mTLS)
+identifies a service. Neither replaces caller identity, and a shared bearer
+token cannot distinguish users. Private memory needs ownership checks and
+caller-partitioned storage. The separate [agent identity
+proposal](agent-identity-model.md) explores delegation, not a shipped guarantee.
 
 The platform attaches `AccessPolicy` limits that a profile author cannot
 remove. A caller can use only capabilities allowed by every applicable policy.
@@ -294,73 +457,49 @@ lacks. These limits come from [runtime construction](../../internal/app/build.go
 
 ## Private memory and learning
 
-Memory is structured runtime data, not guidance in a CR. User and project
-memory use `tool.MemoryStore` keys and values with revision history. Local
-storage uses `memory.json` and `memory.lock` with atomic replacement. Creates
-are create-only; updates use compare-and-swap against the current revision.
-Forget writes a tombstone. Undo adds a compensating revision rather than
-erasing history. Retention limits history access and eventual removal. See
-the [memory contract](../architecture/memory.md).
+Memory is structured `tool.MemoryStore` data with revision history and CAS,
+not `MEMORY.md` or CR guidance. The [memory contract](../architecture/memory.md)
+defines tombstones, compensating undo, and retention. In the target, a verified
+issuer and subject identify private user state across profiles; project memory
+also binds the exact server-owned workspace. A profile cannot export or
+silently repartition it. Memory remains untrusted data, never authority.
 
-Within an installation, a verified issuer and subject identify the same user's
-memory across profiles. Project memory adds the exact server-owned workspace;
-it remains private to that caller. A profile neither silently repartitions nor
-exports memory. Stronger profile isolation needs a separate contract and
-migration. The runtime refreshes the user-memory projection before provider
-requests. Project context contains a bounded index without values; `Recall`
-retrieves values. Memory remains untrusted data, not instructions or authority.
+Runtime backing stores must enforce those caller boundaries. Session Redis
+does not make user-model and learning files durable. `mecak8s` supplies
+`UserModelDir`, but not project `MemoryDir`; scheduled-result delivery also
+has an in-memory queue. Owner-enforced configurations reject unsupported
+remote memory and learning combinations. An unpartitioned directory is not
+a safe substitute for a caller-scoped backend.
 
-Current storage needs work before this target is available. `mecak8s` supplies
-`UserModelDir`, but not project `MemoryDir`. User-model and learning files do
-not become durable merely because sessions use Redis. Scheduled-result
-delivery also has an in-memory queue. Owner-enforced runtime configurations
-reject unsupported remote memory and learning combinations. A CR alone cannot
-safely enable shared learning or substitute an unpartitioned directory.
-
-`LearningPolicy` selects `off`, `review`, or `auto`, with `off` as the default.
-Proposal, validation, evaluation, review, and acceptance remain separate.
-Review mode needs approval before acceptance. Auto mode accepts private learning
-only within approved limits. Automatic fact promotion needs supported explicit
-user intent and cannot overwrite conflicting or user-explicit facts. Evidence,
-decisions, and resource budgets remain with the private records.
-
-Learned skills have additional limits: changes affect the body only, with no
-new assets, tools, or authority. A learned skill may be accepted at the
-evaluated level only with `PASS`; validated-level acceptance can permit an
-evidence-backed `ABSTAIN` under policy. `FAIL` and errors reject that skill
-proposal.
-
-Organization-wide publication requires explicit owner consent, redaction,
-review, and publication approval. The operator never turns private records
-into shared instructions automatically. This is a separate publication path,
-not a side effect of selecting auto learning.
+The proposed `LearningPolicy` defaults to `off`; `review` requires approval,
+and `auto` accepts private learning only within approved limits. Validation,
+evaluation, and acceptance stay distinct, with evidence and resource budgets
+in private records. Learned skills can change their body, not add assets,
+tools, or authority. Automatic fact promotion requires supported explicit
+user intent and cannot overwrite conflicting or user-explicit facts.
+Organization-wide publication separately requires owner consent, redaction,
+review, and publication approval. Auto learning never publishes private
+records as shared instructions.
 
 ## Platform automation uses the runtime scheduler
 
-`Automation` declares a platform schedule and bridges the runtime's create,
-update, pause, and resume operations. Database claims and fire records remain
-authoritative. Reconciliation does not call `FireNow`, and there is no second
-CronJob scheduler. Personal schedules continue through runtime APIs; external
-workflow systems can call those APIs when they already own orchestration.
+`Automation` maps a platform definition to the existing runtime scheduler,
+never a second CronJob loop. Database claims and fire records stay authoritative;
+reconciliation never calls `FireNow`. Personal schedules use runtime APIs.
 
-The bridge derives a deterministic schedule key from installation identity
-and the CR UID. If a create response is lost, retry recovers that same schedule.
-A name match cannot authorize takeover. The runtime verifies an authenticated
-service principal and bridge management identity; a `spec.owner` string cannot
-impersonate a person. Safe definition updates need owned-field metadata,
-compare-and-swap, and concurrency fencing that current schedule APIs lack.
+The bridge derives a deterministic schedule key from installation identity and
+CR UID so a lost create response recovers the same schedule. The runtime
+verifies the service principal and bridge management identity; neither a name
+match nor `spec.owner` authorizes takeover. Owned-field metadata, CAS, and
+concurrency fencing require extensions to the current schedule APIs.
 
-Acceptance pins the schedule to an exact profile revision. A profile update
-does not migrate it; an authorized definition update can select a new revision.
-Active fires retain the old binding, and every fire uses current permissions.
-The initial defaults prohibit overlap, skip missed fires, and disable automatic
-retry, with an explicit time zone. These choices reduce ambiguity but do not
-promise exactly-once external effects.
-
-Suspension stops new fires, not active runs. Cancellation is a separate
-authorized operation. Deletion suspends first and resolves active or ambiguous
-fires before releasing management metadata. It preserves execution evidence.
-An active fire can finish under current authority unless cancellation succeeds.
+Acceptance pins an exact profile revision. Only an authorized definition
+update selects a new revision; active fires keep their binding and check live
+permissions. Proposed defaults prohibit overlap, skip missed fires, disable
+automatic retry, and require an explicit time zone. They do not guarantee
+exactly-once external effects. Suspension stops new fires; cancellation is
+separate. Deletion suspends first, resolves active or ambiguous fires, and
+preserves execution evidence before releasing management metadata.
 
 ## Installation, recovery, and operational visibility
 
@@ -378,12 +517,10 @@ loss. Backups, PVC reclaim policy, and restore procedures must independently
 cover sessions and approvals, publication indexes, private history, schedules,
 workspaces, and enrollment state. Secret recovery follows separate controls.
 
-During an operator outage, accepted configuration remains usable only while
-authority stays fresh, potentially through an independent authority service.
-Kubernetes API loss still affects Leases and allocation. Recovery fences old
-executors before admitting mutations. Restore checks include paused sessions
-and pending approvals. High availability depends on routing, storage,
-credentials, and feature state, not replica count alone.
+Kubernetes API loss also affects Leases and allocation, beyond the policy
+freshness limit described above. Recovery fences old executors before admitting
+mutations and checks paused sessions and pending approvals. Routing, storage,
+credentials, and process-local enrollment state constrain recovery.
 
 Controllers reconcile configuration idempotently, never each agent turn.
 Structural schemas and CEL validate local rules; external downloads and
@@ -405,17 +542,19 @@ compatibility and any required execution maintenance.
 
 ## Delivery and decisions still needed
 
-**Installation comes first.** Deliver `Harness`, dependency checks, status,
-and safe deployment maintenance for a trusted-team service. Qualify real OIDC
-login and denial of cross-caller session, schedule, and memory access before
-claiming isolation. This stage documents deployment-wide restoration.
+**Installation comes first.** Deliver `Harness`, dependency checks, drift
+repair, retention/status, and coordinated drain and maintenance for existing
+runtime configuration. Qualify OIDC login and cross-caller session, schedule,
+and memory denial before claiming isolation. This release keeps deployment-wide
+restoration and offers lifecycle control, not delegated profile self-service.
 
-**Approved offerings come next.** Add typed content, integrations, policies,
-and runtime revision binding after resolving the approval API. Demonstrate an
-incident session that survives an update and restart on its original revision.
-Reject unauthorized same-namespace references, all cross-namespace references,
-and content whose digest, approval scope, redirect, or archive paths fail checks.
-Exercise final-model checks, fallback, Ask, and expired authority.
+**Approved offerings form a second release.** Implement the proposed runtime
+management/admin schemas, policy snapshot protocol, Redis transactions, OCI
+package format, and compatible session binding before delegated publication.
+Then add typed content, integrations, and policies. Demonstrate an incident
+session that survives update and restart on its original revision. Reject
+unauthorized references, altered content, unsafe acquisition, and unsupported
+dependencies. Exercise final-model checks, fallback, Ask, and expired policy.
 
 **Execution lifecycle follows.** Qualify exact reattachment through upgrade,
 fencing after Lease loss, retained PVCs, and rejection of unsupported remote
@@ -429,19 +568,25 @@ concurrent writes cannot take over ownership. Prove that private memory or
 learned content cannot publish without owner consent and review. These are
 future acceptance scenarios, not completed qualification.
 
-Remaining decisions:
+The architecture choices above remain proposals. Scoped prerequisites still
+need review before their delivery phase:
 
-- **Publication authority:** Select the authority-record API and its independent
-  platform owner before delegated publication.
-- **Revocation:** Define authorization freshness, the authenticated update feed,
-  and pending-approval behavior before claiming bounded revocation.
-- **Storage:** Select artifact and reference-index storage plus caller-scoped
-  memory and learning backends before durable binding or private learning.
-- **Automation:** Define the runtime management and fencing contract before
-  automation manages schedules.
-- **Names and identity:** Confirm the API group and resource names, and define
-  delegation against the separate identity proposal. Financial quotas and
-  hostile tenancy need separate designs.
+- **Interfaces and approval UX:** Define management/admin schemas, token
+  forwarding, review/diff presentation, approval invalidation, and attachment
+  selectors. Implement runtime-verified approval
+  records rather than trusting CR metadata.
+- **Policy synchronization:** Specify monotonic snapshot acceptance, fresh-read
+  evidence, persisted expiry, and race handling at authorization boundaries.
+  Choose the maximum freshness age before production.
+- **Metadata and artifacts:** Prove Redis transaction/CAS semantics for approval,
+  activation, session binding, and GC references. Specify OCI manifests,
+  cache verification, retention/restore, and schema migrations. Select durable
+  caller-scoped memory and learning backends separately.
+- **Compatibility and later lifecycle:** Define protocol negotiation and safe
+  failure between runtime/operator versions, then schedule fencing and exact
+  execution reattachment. Multi-replica warming/routing remains deferred.
+- **Names and identity:** Confirm the API group and resource names. Delegation,
+  financial quotas, and hostile tenancy require separate designs.
 
 This document changes no current wire API, Go API, or stored data. Future
 profile selection and binding need capability negotiation and a
