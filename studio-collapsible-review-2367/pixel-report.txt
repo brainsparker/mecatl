@@ -1,0 +1,23 @@
+Before = 8b2328ce3 (head Daniel reviewed), After = 51e66b09c (review fixes). Changed pixels, Before vs After:
+memory-closed-desktop-dark: 0px 
+memory-closed-desktop-light: 0px 
+memory-closed-mobile-dark: 0px 
+memory-closed-mobile-light: 0px 
+memory-focus-desktop-dark: 0px 
+memory-focus-desktop-light: 0px 
+memory-open-desktop-dark: 0px 
+memory-open-desktop-light: 0px 
+memory-open-mobile-dark: 0px 
+memory-open-mobile-light: 0px 
+tools-closed-desktop-dark: 0px 
+tools-closed-desktop-light: 0px 
+tools-closed-mobile-dark: 6px (121, 25, 169, 27)
+tools-closed-mobile-light: 0px 
+tools-focus-desktop-dark: 13px (198, 278, 203, 304)
+tools-focus-desktop-light: 0px 
+tools-open-desktop-dark: 0px 
+tools-open-desktop-light: 0px 
+tools-open-mobile-dark: 6px (121, 25, 169, 27)
+tools-open-mobile-light: 0px 
+Box geometry (trigger, content) identical in all 16 measured states.
+Nonzero rows match the noise floor recorded on the original PR (6 px of the phone top bar, 13 px of focus-ring corner antialiasing), seen there between two captures of the same tree.
