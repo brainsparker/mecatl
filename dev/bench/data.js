@@ -347977,6 +347977,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792155923201,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ozz@stacklok.com",
+            "name": "Juan Antonio Osorio",
+            "username": "JAORMX"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1ce2981914b479015fc86f12329ee41ab52f1f9f",
+          "message": "fix(studio): keep conversation controls usable on phones (#2382)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-16T16:40:54+03:00",
+          "tree_id": "766465cceae5e768f7a0ba4bf27fa1a54af658d2",
+          "url": "https://github.com/stacklok/mecatl/commit/1ce2981914b479015fc86f12329ee41ab52f1f9f"
+        },
+        "date": 1792158777932,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16131,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12909,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -454491,6 +454530,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792158774768,
+  "lastUpdate": 1792158778788,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
