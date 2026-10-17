@@ -315434,6 +315434,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792265605968,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9a3297c191df9f2a0d7e573f4e7dbba32c12695",
+          "message": "test: add opt-in workspace verification and cross-module workflow (#2399)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-17T15:34:22-06:00",
+          "tree_id": "c564d62e4923dca8c4f20bfdbd7e7aabe6706a01",
+          "url": "https://github.com/stacklok/mecatl/commit/f9a3297c191df9f2a0d7e573f4e7dbba32c12695"
+        },
+        "date": 1792273579421,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -456501,6 +456535,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792273576415,
+  "lastUpdate": 1792273580231,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
