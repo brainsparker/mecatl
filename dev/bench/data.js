@@ -315076,6 +315076,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792165203383,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f1175e21de30f16fd544081bb4c6ac7d04dcbee",
+          "message": "feat(mecatui): add explicit queue and steer controls (#2397)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-17T13:20:43-06:00",
+          "tree_id": "8eb5e9a537e4c0b8ac5841e92196c4a67e4b8ad4",
+          "url": "https://github.com/stacklok/mecatl/commit/2f1175e21de30f16fd544081bb4c6ac7d04dcbee"
+        },
+        "date": 1792265605968,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -455990,6 +456024,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792265603230,
+  "lastUpdate": 1792265606698,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
