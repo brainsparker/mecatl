@@ -350359,6 +350359,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792351663656,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00acdb91d320d0aac2caf617d37f37a8a812a8a8",
+          "message": "fix(mecatui): normalize tabs before display layout (#2413)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-18T15:27:16-06:00",
+          "tree_id": "7e311ce4dc2c9a431b76b96c029270beebfb1cf5",
+          "url": "https://github.com/stacklok/mecatl/commit/00acdb91d320d0aac2caf617d37f37a8a812a8a8"
+        },
+        "date": 1792359541461,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16131,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12893,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -457557,6 +457596,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792359538640,
+  "lastUpdate": 1792359542103,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
