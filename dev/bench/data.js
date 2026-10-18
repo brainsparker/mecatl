@@ -316150,6 +316150,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792351660138,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00acdb91d320d0aac2caf617d37f37a8a812a8a8",
+          "message": "fix(mecatui): normalize tabs before display layout (#2413)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-18T15:27:16-06:00",
+          "tree_id": "7e311ce4dc2c9a431b76b96c029270beebfb1cf5",
+          "url": "https://github.com/stacklok/mecatl/commit/00acdb91d320d0aac2caf617d37f37a8a812a8a8"
+        },
+        "date": 1792359538022,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -457523,6 +457557,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792359535614,
+  "lastUpdate": 1792359538640,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
