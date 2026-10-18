@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -307,6 +308,7 @@ type Session struct {
 	// ID identifies this session.
 	ID                  SessionID
 	instructionSnapshot InstructionSnapshot
+	identityHold        *IdentityMigrationHold
 	// State is the current lifecycle state.
 	State State
 	// Mode is the permission posture.
@@ -555,6 +557,9 @@ func New(id SessionID, mode PermissionMode, ref EnvironmentRef, limits Limits, c
 // turn limit is already reached it returns ErrIllegalTransition is NOT used;
 // callers should consult StopReason before beginning a turn.
 func (s *Session) BeginTurn() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if err := s.rejectWhileWorkspaceEnrollmentPending("BeginTurn"); err != nil {
 		return err
 	}
@@ -567,10 +572,18 @@ func (s *Session) BeginTurn() error {
 }
 
 // RecordAssistant appends the assistant message produced by a model call to the
-// conversation. It is legal only while running.
+// conversation with independently owned message and carrier storage. Canonical
+// history and replay bindings are validated before any mutation. It is legal
+// only while running.
 func (s *Session) RecordAssistant(m Message) error {
 	if s.State != StateRunning {
 		return fmt.Errorf("%w: RecordAssistant from %q", ErrIllegalTransition, s.State)
+	}
+	if m.Role != RoleAssistant {
+		return fmt.Errorf("RecordAssistant: assistant role required")
+	}
+	if _, err := validateToolHistory(slices.Concat(s.Conversation.Messages, []Message{m})); err != nil {
+		return fmt.Errorf("RecordAssistant: %w", err)
 	}
 	s.Conversation.Append(m)
 	return nil
@@ -578,11 +591,19 @@ func (s *Session) RecordAssistant(m Message) error {
 
 // RecordToolResults appends tool-result messages to the conversation and updates
 // the tool-call and consecutive-failure counters. It is legal only while
-// running. Any successful result resets the consecutive-failure run; each error
-// result extends it.
+// running. The entire batch must answer distinct outstanding canonical calls
+// before history or counters change; unanswered siblings may remain pending.
+// Any successful result resets the consecutive-failure run; each error extends it.
 func (s *Session) RecordToolResults(results []ToolResult) error {
 	if s.State != StateRunning {
 		return fmt.Errorf("%w: RecordToolResults from %q", ErrIllegalTransition, s.State)
+	}
+	messages := make([]Message, len(results))
+	for i, result := range results {
+		messages[i] = NewToolMessage(result)
+	}
+	if _, err := validateToolHistory(slices.Concat(s.Conversation.Messages, messages)); err != nil {
+		return fmt.Errorf("RecordToolResults: %w", err)
 	}
 	for _, r := range results {
 		s.Conversation.Append(NewToolMessage(r))
@@ -659,6 +680,9 @@ func (s *Session) RecordHarnessPrompt(text string) error {
 }
 
 func (s *Session) recordUserPromptWithParts(text string, parts []Content, instructions []Message, provenance UserPromptProvenance) error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if err := s.rejectWhileWorkspaceEnrollmentPending("RecordUserPrompt"); err != nil {
 		return err
 	}
@@ -692,7 +716,7 @@ func (s *Session) ReplaceHistory(messages []Message) error {
 	if err := ValidateToolPairing(messages); err != nil {
 		return fmt.Errorf("ReplaceHistory: %w", err)
 	}
-	s.Conversation.Messages = messages
+	s.Conversation.Messages = CloneMessages(messages)
 	return nil
 }
 
@@ -715,7 +739,7 @@ func (s *Session) ReplaceHistoryAtBoundary(messages []Message) error {
 	if err := ValidateToolPairing(messages); err != nil {
 		return fmt.Errorf("ReplaceHistoryAtBoundary: %w", err)
 	}
-	s.Conversation.Messages = messages
+	s.Conversation.Messages = CloneMessages(messages)
 	return nil
 }
 
@@ -744,7 +768,7 @@ func (s *Session) SeedHistory(messages []Message) error {
 	if err := ValidateToolPairing(messages); err != nil {
 		return fmt.Errorf("SeedHistory: %w", err)
 	}
-	s.Conversation.Messages = messages
+	s.Conversation.Messages = CloneMessages(messages)
 	return nil
 }
 
@@ -777,8 +801,14 @@ func (s *Session) PendingAsk() (PendingAsk, bool) {
 // reconciles its own lifecycle, so it deliberately takes no governance type and
 // keeps session a clean domain leaf.
 func (s *Session) ResumeWith() (PendingAsk, error) {
+	if err := s.CheckIdentityReady(); err != nil {
+		return PendingAsk{}, err
+	}
 	if s.State != StateAwaiting || s.pending == nil {
 		return PendingAsk{}, ErrNoPendingAsk
+	}
+	if err := validatePendingApproval(s.Conversation.Messages, *s.pending); err != nil {
+		return PendingAsk{}, err
 	}
 	ask := *s.pending
 	s.pending = nil
@@ -790,6 +820,9 @@ func (s *Session) ResumeWith() (PendingAsk, error) {
 // non-terminal state except StateAuthorizing and records StopEndTurn unless a
 // stop reason is already set.
 func (s *Session) Complete() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if err := s.rejectWhileWorkspaceEnrollmentPending("Complete"); err != nil {
 		return err
 	}
@@ -809,6 +842,9 @@ func (s *Session) Complete() error {
 // limit was reached). It is legal from any non-terminal state except
 // StateAuthorizing.
 func (s *Session) Stop(reason StopReason) error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if err := s.rejectWhileWorkspaceEnrollmentPending("Stop"); err != nil {
 		return err
 	}
@@ -825,6 +861,9 @@ func (s *Session) Stop(reason StopReason) error {
 // Cancel transitions the session to StateCancelled. It is legal from any
 // non-terminal state except StateAuthorizing.
 func (s *Session) Cancel() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if err := s.rejectWhileWorkspaceEnrollmentPending("Cancel"); err != nil {
 		return err
 	}
@@ -863,6 +902,9 @@ func (s *Session) FailureMetadata() RetryMetadata {
 // per-run counters while preserving the failed attempt's typed retry facts.
 // Calling it again on an already-prepared idle session is idempotent.
 func (s *Session) PrepareFailedStepRetry() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if s.retryPending && s.State == StateIdle {
 		return nil
 	}
@@ -961,6 +1003,9 @@ func (s *Session) RunID() string {
 // snapping the kept-tail boundary past leading tool results and self-validating
 // via ValidateToolPairing.
 func (s *Session) Fail() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if err := s.rejectWhileWorkspaceEnrollmentPending("Fail"); err != nil {
 		return err
 	}
@@ -998,6 +1043,9 @@ func (s *Session) Fail() error {
 // enforce it separately. Conversation, Mode, Limits, EnvironmentRef, and Placement
 // are preserved.
 func (s *Session) Reopen() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if s.State != StateCompleted {
 		return fmt.Errorf("%w: Reopen from %q", ErrIllegalTransition, s.State)
 	}
@@ -1094,6 +1142,9 @@ func (s *Session) closeOutInterruptedTurn(message string) {
 // provider-valid (no dangling tool_use / function_call) before the next prompt.
 // Reopen stays completed-only; a FAILED session recovers through Recover.
 func (s *Session) Interrupt() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if s.State != StateCancelled {
 		return fmt.Errorf("%w: Interrupt from %q", ErrIllegalTransition, s.State)
 	}
@@ -1122,6 +1173,9 @@ func (s *Session) Interrupt() error {
 // same reset (resetToIdle), separate method because its precondition differs.
 // Reopen stays completed-only; Interrupt stays cancelled-only.
 func (s *Session) Recover() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if s.State != StateFailed {
 		return fmt.Errorf("%w: Recover from %q", ErrIllegalTransition, s.State)
 	}
@@ -1152,6 +1206,9 @@ func (s *Session) Recover() error {
 // process is actually still driving the session (e.g. an age-horizon-gated
 // staleness sweep) — Abandon itself performs no liveness check.
 func (s *Session) Abandon() error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if s.State != StateRunning {
 		return fmt.Errorf("%w: Abandon from %q", ErrIllegalTransition, s.State)
 	}
@@ -1195,6 +1252,9 @@ func (s *Session) Rehome(ref EnvironmentRef) error {
 // set_mode while running must defer it (apply on the next prompt). Setting the
 // mode it already has is a no-op success.
 func (s *Session) SetMode(mode PermissionMode) error {
+	if err := s.CheckIdentityReady(); err != nil {
+		return err
+	}
 	if s.State == StateRunning || s.State == StateAwaiting || s.State == StateAuthorizing {
 		return fmt.Errorf("%w: SetMode from %q", ErrIllegalTransition, s.State)
 	}
