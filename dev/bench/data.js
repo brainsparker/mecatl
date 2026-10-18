@@ -315792,6 +315792,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792273579421,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joe@stacklok.com",
+            "name": "Joe Beda",
+            "username": "jbeda"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4a043fd01eaa0f9649090a74d74ab3cee5f0e23",
+          "message": "fix(mecatui): connect reasoning and responses with assistant rail (#2402)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-18T13:14:53-06:00",
+          "tree_id": "7166853e2ebb1e060f96495b230eebb995da390a",
+          "url": "https://github.com/stacklok/mecatl/commit/c4a043fd01eaa0f9649090a74d74ab3cee5f0e23"
+        },
+        "date": 1792351660138,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -457012,6 +457046,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792351657366,
+  "lastUpdate": 1792351660850,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
