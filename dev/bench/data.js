@@ -351947,6 +351947,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792401408484,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7123ab68deb0b6f719636a633cc41dd6105455c9",
+          "message": "test(studio): keep native title tooltips off schedule controls (#2372)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-19T11:15:46+02:00",
+          "tree_id": "a26c88f4f51a9f3641a5dfdb4019d7125fce8774",
+          "url": "https://github.com/stacklok/mecatl/commit/7123ab68deb0b6f719636a633cc41dd6105455c9"
+        },
+        "date": 1792402115990,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16116,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12879,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -459601,6 +459640,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792402113486,
+  "lastUpdate": 1792402116811,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
