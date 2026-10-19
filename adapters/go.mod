@@ -3,7 +3,7 @@ module github.com/stacklok/mecatl/adapters
 go 1.27.2
 
 require (
-	github.com/alicebob/miniredis/v2 v2.39.0
+	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/gofrs/flock v0.13.1
 	github.com/redis/go-redis/v9 v9.23.0
@@ -12,7 +12,7 @@ require (
 	github.com/stacklok/mecatl/internal/adaptersupport v0.1.0
 	github.com/stacklok/toolhive-core/redisconn v0.0.4
 	go.uber.org/goleak v1.3.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -25,7 +25,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )
