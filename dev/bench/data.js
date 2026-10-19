@@ -317224,6 +317224,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792400701809,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3816f08b4637e3f9b4649cb82657d9a1c48d2f9b",
+          "message": "refactor(studio): move the last two hand-rolled disclosures to Collapsible (#2367)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-19T10:57:04+02:00",
+          "tree_id": "8384a4330640f2d87dbf5c0ade2ff701dfbe5a36",
+          "url": "https://github.com/stacklok/mecatl/commit/3816f08b4637e3f9b4649cb82657d9a1c48d2f9b"
+        },
+        "date": 1792401404540,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -459056,6 +459090,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792401401761,
+  "lastUpdate": 1792401405652,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
