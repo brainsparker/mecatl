@@ -317582,6 +317582,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792401404540,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7123ab68deb0b6f719636a633cc41dd6105455c9",
+          "message": "test(studio): keep native title tooltips off schedule controls (#2372)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-19T11:15:46+02:00",
+          "tree_id": "a26c88f4f51a9f3641a5dfdb4019d7125fce8774",
+          "url": "https://github.com/stacklok/mecatl/commit/7123ab68deb0b6f719636a633cc41dd6105455c9"
+        },
+        "date": 1792402112643,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -459567,6 +459601,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792402109961,
+  "lastUpdate": 1792402113486,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
