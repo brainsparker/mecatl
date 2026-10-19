@@ -316508,6 +316508,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792359538022,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jakub@stacklok.com",
+            "name": "Jakub Hrozek",
+            "username": "jhrozek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5532e9f2b1e6a289dfce1ad308ad9248b673ea9",
+          "message": "docs: describe agent authority, broker trust boundaries, and implementation gaps (#2121)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>\nCo-authored-by: Chris Burns <29541485+ChrisJBurns@users.noreply.github.com>\nCo-authored-by: Codex <noreply@openai.com>",
+          "timestamp": "2026-10-19T10:35:38+02:00",
+          "tree_id": "ce2cf9c4fdc812231ac07fd9f89a25b9ddd1ea4f",
+          "url": "https://github.com/stacklok/mecatl/commit/d5532e9f2b1e6a289dfce1ad308ad9248b673ea9"
+        },
+        "date": 1792399635917,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -458034,6 +458068,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792399632828,
+  "lastUpdate": 1792399637011,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
