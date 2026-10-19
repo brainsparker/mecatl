@@ -353932,6 +353932,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792414210591,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad822a1e215434522fb12e639b34c1c5eed282f8",
+          "message": "chore(deps): update go golang.org/x (#2249)\n\nCo-authored-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>\nCo-authored-by: Jakub Hrozek <jakub.hrozek@posteo.se>\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-19T14:38:10+02:00",
+          "tree_id": "f94e6c113b0e9eec319594dc4ec4104d88429a06",
+          "url": "https://github.com/stacklok/mecatl/commit/ad822a1e215434522fb12e639b34c1c5eed282f8"
+        },
+        "date": 1792414943617,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16124,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12890,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -462156,6 +462195,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792414940790,
+  "lastUpdate": 1792414944444,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
