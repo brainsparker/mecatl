@@ -352741,6 +352741,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792406438557,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a99282db3d50897fd4ccbcdb77d667123246e9d0",
+          "message": "chore(deps): update slack bot base images (#2243)\n\nCo-authored-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-19T12:35:22+02:00",
+          "tree_id": "30029d94e1cccb0d496e4a73a6d5c604f2cbe220",
+          "url": "https://github.com/stacklok/mecatl/commit/a99282db3d50897fd4ccbcdb77d667123246e9d0"
+        },
+        "date": 1792407226894,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16149,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12911.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -460623,6 +460662,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792407223829,
+  "lastUpdate": 1792407228001,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
