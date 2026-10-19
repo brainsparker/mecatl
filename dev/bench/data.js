@@ -319014,6 +319014,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792409309848,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4076d2c4c3de77d2ad96a32dcad7e07db0d2f02",
+          "message": "chore(deps): update go ginkgo and gomega (#2248)\n\nCo-authored-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>\nCo-authored-by: Jakub Hrozek <jakub.hrozek@posteo.se>\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-19T14:37:09+02:00",
+          "tree_id": "f68a4f6464d74642d294ce916f88cc77306203e8",
+          "url": "https://github.com/stacklok/mecatl/commit/c4076d2c4c3de77d2ad96a32dcad7e07db0d2f02"
+        },
+        "date": 1792414205932,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -461611,6 +461645,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792414202350,
+  "lastUpdate": 1792414206920,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
