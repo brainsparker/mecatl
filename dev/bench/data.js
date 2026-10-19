@@ -316866,6 +316866,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792399635917,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b8fc23f8ab2d827bd2a8158919b4ab847e98efe",
+          "message": "feat(studio): align the schedule inventory and detail page with the prototype (#2369)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-19T10:52:57+02:00",
+          "tree_id": "273c9141fe37a78176faa528f34240729b8590f9",
+          "url": "https://github.com/stacklok/mecatl/commit/8b8fc23f8ab2d827bd2a8158919b4ab847e98efe"
+        },
+        "date": 1792400701809,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -458545,6 +458579,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792400698384,
+  "lastUpdate": 1792400704132,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
