@@ -351153,6 +351153,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792399640134,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "peppescg@gmail.com",
+            "name": "Giuseppe Scuglia",
+            "username": "peppescg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b8fc23f8ab2d827bd2a8158919b4ab847e98efe",
+          "message": "feat(studio): align the schedule inventory and detail page with the prototype (#2369)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-19T10:52:57+02:00",
+          "tree_id": "273c9141fe37a78176faa528f34240729b8590f9",
+          "url": "https://github.com/stacklok/mecatl/commit/8b8fc23f8ab2d827bd2a8158919b4ab847e98efe"
+        },
+        "date": 1792400707634,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16151,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12913,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -458579,6 +458618,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792400704132,
+  "lastUpdate": 1792400708773,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
