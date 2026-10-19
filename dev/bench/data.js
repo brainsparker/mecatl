@@ -317940,6 +317940,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792402112643,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b161168088c190143907a9d5b99968e13aa54ade",
+          "message": "chore(deps): update go dependencies (#1950)\n\nCo-authored-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>\nCo-authored-by: Jakub Hrozek <jakub.hrozek@posteo.se>\nCo-authored-by: mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-19T12:27:40+02:00",
+          "tree_id": "96a430afb3b79acdcc2a9c9560b46d6a24745acc",
+          "url": "https://github.com/stacklok/mecatl/commit/b161168088c190143907a9d5b99968e13aa54ade"
+        },
+        "date": 1792406435236,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -460078,6 +460112,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792406432325,
+  "lastUpdate": 1792406435807,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
