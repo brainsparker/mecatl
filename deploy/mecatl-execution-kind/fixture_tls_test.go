@@ -246,7 +246,7 @@ phase_done() { printf 'done=%s\n' "$1"; }
 	}
 	input, ok := workflow.On.Dispatch.Inputs["natural_expiry"]
 	job := workflow.Jobs["execution-production-e2e"]
-	if !ok || input.Type != "boolean" || input.Default || job.Timeout != "${{ github.event_name == 'workflow_dispatch' && inputs.natural_expiry && 210 || 100 }}" {
+	if !ok || input.Type != "boolean" || input.Default || job.Timeout != "${{ github.event_name == 'workflow_dispatch' && inputs.natural_expiry && 210 || 75 }}" {
 		t.Fatal("natural expiry must be explicit manual opt-in with separate job budgets")
 	}
 	found := false

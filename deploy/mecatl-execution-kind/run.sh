@@ -12,7 +12,7 @@ if [ "${MECATL_EXECUTION_QUAL_CLEAN_ENV:-}" != 1 ]; then
     MECATL_EXECUTION_QUAL_OUTPUT="${MECATL_EXECUTION_QUAL_OUTPUT:-}" MECATL_EXECUTION_QUAL_RESUME_STATE="${MECATL_EXECUTION_QUAL_RESUME_STATE:-}" \
     MECATL_EXECUTION_QUAL_NATURAL_EXPIRY="${MECATL_EXECUTION_QUAL_NATURAL_EXPIRY-0}" MECATL_EXECUTION_QUAL_HANDOFF="${MECATL_EXECUTION_QUAL_HANDOFF-0}" \
     GITHUB_ACTIONS="${GITHUB_ACTIONS:-}" GITHUB_RUN_ID="${GITHUB_RUN_ID:-}" GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-}" GITHUB_SHA="${GITHUB_SHA:-}" GITHUB_OUTPUT="${GITHUB_OUTPUT:-}" \
-    MECATL_EXECUTION_HANDOFF_SHA="${MECATL_EXECUTION_HANDOFF_SHA:-}" TMPDIR="${TMPDIR:-}" \
+    MECATL_EXECUTION_HANDOFF_SHA="${MECATL_EXECUTION_HANDOFF_SHA:-}" TMPDIR="${TMPDIR:-}" MECATL_EXECUTION_QUAL_SHARD="${MECATL_EXECUTION_QUAL_SHARD:-}" \
     MECATL_EXECUTION_QUAL_CLEAN_ENV=1 "$0" "$@"
 fi
 
@@ -37,6 +37,19 @@ if [ "$handoff" = 1 ]; then
   [ -n "${GITHUB_OUTPUT:-}" ] && [ "${MECATL_EXECUTION_QUAL_OUTPUT:-}" = "$GITHUB_OUTPUT" ] || { echo "handoff requires fresh retained production CI state and GitHub output" >&2; exit 2; }
   . "$root/deploy/mecatl-execution-kind/handoff.sh"
   handoff_ci_identity || { echo "handoff requires the exact reviewed same-run checkout" >&2; exit 2; }
+fi
+# A CI shard runs only its rows of shards.txt plus every unlisted test, on its
+# own cluster. Empty runs the complete serial suite.
+shard=${MECATL_EXECUTION_QUAL_SHARD:-}
+inflight_renewal=1
+if [ -n "$shard" ]; then
+  [ "$handoff" = 0 ] || { echo "handoff requires the complete unsharded suite" >&2; exit 2; }
+  shards="$root/deploy/mecatl-execution-kind/shards.txt"
+  case "$shard" in none|*[!0-9]*) echo "MECATL_EXECUTION_QUAL_SHARD must name a shard in shards.txt" >&2; exit 2 ;; esac
+  shard_owns() { awk -v s="$shard" -v t="$1" '!/^#/ && $1 == s && (t == "" || $2 == t) {found = 1} END {exit !found}' "$shards"; }
+  shard_owns "" || { echo "MECATL_EXECUTION_QUAL_SHARD must name a shard in shards.txt" >&2; exit 2; }
+  shard_owns TestKindExecutionAutomaticCertificateRenewal || natural_expiry=0
+  shard_owns TestKindExecutionInFlightAutomaticRenewal || inflight_renewal=0
 fi
 run_id=$(date -u +%Y%m%d%H%M%S)-$$
 cluster="mecatl-execution-qual-$run_id"
@@ -227,6 +240,29 @@ image_step_done oidc_build
 netprobe_tag=$(dev env GOFLAGS=-tags=kind_execution_e2e KO_DOCKER_REPO=ko.local/mecatl-netprobe-fixture ko build --local --bare ./e2e/k8s_execution/fixture/netprobe | tail -n 1)
 image_step_done netprobe_build
 
+# Compile the test binary while the remaining images are built and loaded and
+# the fixture is deployed. It is run only after the owned cluster is ready; no
+# test starts in the background. Host-side compiles use ko's CGO_ENABLED=0
+# -trimpath configuration so they reuse the packages ko just compiled.
+test_build_start=$(date +%s)
+(
+  compile_child=
+  trap 'kill "$compile_child" 2>/dev/null || :; wait "$compile_child" 2>/dev/null || :; exit 143' TERM
+  set -- env -i HOME="$HOME" PATH="$PATH" CGO_ENABLED=0 timeout --kill-after=5s 8m \
+    go test -c -trimpath -tags kind_execution_e2e -o "$state/qualification.test" ./e2e/k8s_execution
+  if [ -n "$MECATL_EXECUTION_DEV_TOOLBOX" ]; then
+    (cd "$root" && exec toolbox run -c "$MECATL_EXECUTION_DEV_TOOLBOX" "$@") &
+  else
+    (cd "$root" && exec "$@") &
+  fi
+  compile_child=$!
+  wait "$compile_child"
+  compile_child=
+  trap - TERM
+  printf 'qualification test_build=compiled elapsed=%ss\n' "$(( $(date +%s) - test_build_start))"
+) &
+test_build_pid=$!
+
 # Resolve the public Go base from the local OCI store, then feed its observed
 # digest to the production workload recipe without weakening its pin check.
 if [ "$runtime" = podman ]; then
@@ -262,13 +298,21 @@ incompatible_tag="localhost/mecatl-execution-incompatible:e2e"
 image_step_done incompatible_derivative_build
 
 load_index=0
-for item in "$provider_tag" "$agent_tag" "$oidc_tag" "$netprobe_tag" "$workload_tag" "$derivative_tag" "$incompatible_tag"; do
+for item in "$provider_tag" "$agent_tag" "$oidc_tag" "$netprobe_tag"; do
   archive="$state/images/$(printf '%s' "$item" | sha256sum | cut -c1-16).tar"
   "$runtime" save "$item" -o "$archive" >/dev/null
   kind load image-archive "$archive" --name "$cluster"
   load_index=$((load_index + 1))
   image_step_done "archive_load_$load_index"
 done
+# The workload and both derivatives share the Go base layers. One archive
+# carries and imports those layers once instead of three times.
+multi_archive=
+[ "$runtime" = docker ] || multi_archive=--multi-image-archive
+archive="$state/images/$(printf '%s\n' "$workload_tag" "$derivative_tag" "$incompatible_tag" | sha256sum | cut -c1-16).tar"
+"$runtime" save ${multi_archive:+"$multi_archive"} "$workload_tag" "$derivative_tag" "$incompatible_tag" -o "$archive" >/dev/null
+kind load image-archive "$archive" --name "$cluster"
+image_step_done archive_load_workload_family
 . "$root/deploy/mecatl-execution-kind/images.sh"
 provider_image=$(pin_loaded "$provider_tag")
 agent_image=$(pin_loaded "$agent_tag")
@@ -280,27 +324,6 @@ incompatible_image=$(pin_loaded "$incompatible_tag")
 printf 'provider=%s\nagent=%s\noidc=%s\nnetprobe=%s\nworkload=%s\nderivative=%s\nincompatible=%s\ngo_base=%s\n' "$provider_image" "$agent_image" "$oidc_image" "$netprobe_image" "$workload_image" "$derivative_image" "$incompatible_image" "$go_image" >"$state/images/proof"
 image_step_done pin_loaded
 phase_done images
-
-# Compile the test binary while the already-built images are deployed. It is
-# run only after the owned cluster is ready; no test starts in the background.
-test_build_start=$(date +%s)
-(
-  compile_child=
-  trap 'kill "$compile_child" 2>/dev/null || :; wait "$compile_child" 2>/dev/null || :; exit 143' TERM
-  set -- env -i HOME="$HOME" PATH="$PATH" timeout --kill-after=5s 5m \
-    go test -c -tags kind_execution_e2e -o "$state/qualification.test" ./e2e/k8s_execution
-  if [ -n "$MECATL_EXECUTION_DEV_TOOLBOX" ]; then
-    (cd "$root" && exec toolbox run -c "$MECATL_EXECUTION_DEV_TOOLBOX" "$@") &
-  else
-    (cd "$root" && exec "$@") &
-  fi
-  compile_child=$!
-  wait "$compile_child"
-  compile_child=
-  trap - TERM
-  printf 'qualification test_build=compiled elapsed=%ss\n' "$(( $(date +%s) - test_build_start))"
-) &
-test_build_pid=$!
 
 kube create namespace execution-qualification --dry-run=client -o yaml | kube apply -f -
 kube label namespace execution-qualification pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/audit=restricted pod-security.kubernetes.io/warn=restricted --overwrite
@@ -432,7 +455,7 @@ fi
 # Render one operator-approved revision per fixture recipe using the provider's
 # canonical encoding and validate the result with its real loader before install.
 template_values="$state/templates-values-$run_id.yaml"
-go_revision=$(dev go run ./deploy/execution-templates \
+go_revision=$(dev env CGO_ENABLED=0 go run -trimpath ./deploy/execution-templates \
   "$root/deploy/mecatl-execution-kind/template-recipes.yaml" "$workload_image" "$derivative_image" "$incompatible_image" "$template_values")
 case "$go_revision" in v1-*) ;; *) echo "missing generated go template revision" >&2; exit 1 ;; esac
 printf '%s\n' "$go_revision" >"$state/go-template-revision"
@@ -464,6 +487,19 @@ if [ -n "$resume" ]; then
   kube -n execution-qualification scale deployment/mecatl-execution --replicas=2
   kube -n execution-qualification rollout status deployment/mecatl-execution --timeout=4m
 fi
+# The API server refuses creates under a ResourceQuota until the quota controller
+# has computed both its hard limits and its usage for every listed resource; for
+# the custom ExecutionEnvironment count that waits on CRD discovery. A test that
+# starts right after install would otherwise see Forbidden. Wait (bounded) until
+# no quota reports a pending resource.
+quota_wait_start=$(date +%s)
+while :; do
+  quota_pending=$(kube -n execution-qualification get resourcequota -o go-template='{{range .items}}{{$h := .status.hard}}{{$u := .status.used}}{{if and $h $u}}{{range $k, $v := .spec.hard}}{{if or (ne (printf "%v" (index $h $k)) (printf "%v" $v)) (not (index $u $k))}}{{$k}} {{end}}{{end}}{{else}}{{.metadata.name}} {{end}}{{end}}')
+  [ -n "$quota_pending" ] || break
+  [ $(( $(date +%s) - quota_wait_start )) -lt 180 ] || { echo "execution ResourceQuota status not computed: $quota_pending" >&2; exit 1; }
+  sleep 2
+done
+printf 'qualification quota_status=ready elapsed=%ss\n' "$(( $(date +%s) - quota_wait_start ))"
 
 kube -n execution-qualification create configmap execution-mock --from-file=mock-script.json="$root/deploy/mecatl-execution-kind/mock-script.json" --dry-run=client -o yaml | kube apply -f -
 helm_kube upgrade --install mecak8s "$root/deploy/helm/mecak8s" \
@@ -482,6 +518,13 @@ printf 'qualification test_build=wait elapsed=%ss\n' "$(( $(date +%s) - test_bui
 
 set --
 if [ "${handoff:-0}" = 1 ]; then set -- -test.skip '^TestKindExecutionQualification$'; fi
+if [ -n "${shard:-}" ]; then
+  # Skip only listed tests this shard does not own, so a test listed under two
+  # shards runs on both rather than on neither.
+  shard_skip=$(awk -v s="$shard" '!/^#/ && NF {if ($1 == s) own[$2] = 1; else other[$2] = 1} END {for (t in other) if (!(t in own)) {printf "%s%s", sep, t; sep = "|"}}' "$root/deploy/mecatl-execution-kind/shards.txt")
+  printf 'qualification shard=%s skip=%s\n' "$shard" "$shard_skip"
+  set -- -test.skip "^(${shard_skip})\$"
+fi
 dev env -i HOME="$HOME" PATH="$PATH" TOOLBOX_PATH="${TOOLBOX_PATH:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
   KUBECONFIG="$kubeconfig" MECATL_KUBE_CONTEXT="$context" MECATL_EXECUTION_K8S_TOOLBOX="${MECATL_EXECUTION_K8S_TOOLBOX:-}" MECATL_EXECUTION_TEMPLATE_REVISION="$go_revision" MECATL_EXECUTION_QUAL_STATE="$state" MECATL_EXECUTION_QUAL_PROFILE="${MECATL_EXECUTION_QUAL_PROFILE:-development}" \
   sh -c 'cd e2e/k8s_execution && exec "$@"' sh "$state/qualification.test" "$@" -test.v -test.count=1 -test.timeout=45m
@@ -497,11 +540,15 @@ if [ "${MECATL_EXECUTION_QUAL_PROFILE:-development}" = production ]; then
   else
     printf 'qualification phase=automatic_certificate_renewal skipped selector=0 elapsed=0s\n'
   fi
-  printf 'qualification phase=inflight_controlled_renewal starting (test ceiling=8m; outer ceiling=10m)\n'
-  dev env -i HOME="$HOME" PATH="$PATH" TOOLBOX_PATH="${TOOLBOX_PATH:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
-    KUBECONFIG="$kubeconfig" MECATL_KUBE_CONTEXT="$context" MECATL_EXECUTION_K8S_TOOLBOX="${MECATL_EXECUTION_K8S_TOOLBOX:-}" MECATL_EXECUTION_TEMPLATE_REVISION="$go_revision" MECATL_EXECUTION_QUAL_STATE="$state" MECATL_EXECUTION_QUAL_PROFILE=production MECATL_EXECUTION_QUAL_RENEWAL=1 \
-    timeout --kill-after=5s 10m sh -c 'cd e2e/k8s_execution && exec "$@"' sh "$state/qualification.test" -test.v -test.count=1 -test.run '^TestKindExecutionInFlightAutomaticRenewal$' -test.timeout=8m
-  phase_done inflight_controlled_renewal
+  if [ "${inflight_renewal:-1}" = 1 ]; then
+    printf 'qualification phase=inflight_controlled_renewal starting (test ceiling=8m; outer ceiling=10m)\n'
+    dev env -i HOME="$HOME" PATH="$PATH" TOOLBOX_PATH="${TOOLBOX_PATH:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+      KUBECONFIG="$kubeconfig" MECATL_KUBE_CONTEXT="$context" MECATL_EXECUTION_K8S_TOOLBOX="${MECATL_EXECUTION_K8S_TOOLBOX:-}" MECATL_EXECUTION_TEMPLATE_REVISION="$go_revision" MECATL_EXECUTION_QUAL_STATE="$state" MECATL_EXECUTION_QUAL_PROFILE=production MECATL_EXECUTION_QUAL_RENEWAL=1 \
+      timeout --kill-after=5s 10m sh -c 'cd e2e/k8s_execution && exec "$@"' sh "$state/qualification.test" -test.v -test.count=1 -test.run '^TestKindExecutionInFlightAutomaticRenewal$' -test.timeout=8m
+    phase_done inflight_controlled_renewal
+  else
+    printf 'qualification phase=inflight_controlled_renewal skipped shard=%s elapsed=0s\n' "${shard:-}"
+  fi
 fi
 
 if [ "${handoff:-0}" = 1 ]; then

@@ -12,6 +12,11 @@
 # Trigger model:
 #   - push to main, pull_request — both gated by a `paths:` filter so an unrelated
 #     doc-only or engine-only PR never pays the kind spin-up cost.
+#   - pull_request omits Taskfile.yml (most edits touch unrelated tasks) and the
+#     untracked go.work.sum; push to main still covers both. go.mod/go.sum stay:
+#     dependency bumps can change in-cluster behaviour.
+#   - Release PRs (head branch release/*) skip both jobs: they only bump version
+#     strings on a commit main has already qualified.
 #
 # Deliberately uses `pull_request` (NOT `pull_request_target`): this job checks out
 # and executes untrusted PR code, so it must run WITHOUT access to repo secrets —
@@ -77,7 +82,6 @@ on:
       - internal/adaptersupport/**
       - contracts/gen/go/mecatl/driver/**
       - go.work
-      - go.work.sum
       - internal/adapter/server/authn.go
       - internal/adapter/server/service.go
       - internal/adapter/server/errors.go
@@ -100,7 +104,6 @@ on:
       - go.mod
       - go.sum
       - .ko.yaml
-      - Taskfile.yml
       - .github/workflows/k8s-e2e.yml
 
 # Least-privilege: the job only reads source. The suite is fully offline; no
@@ -121,6 +124,7 @@ env:
 jobs:
   k8s-e2e:
     name: k8s e2e (kind)
+    if: ${{ !startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-24.04
     # `task e2e:k8s` has a 30m `go test -timeout`; setup and build consume this
     # job budget too. Leave the suite enough outer-deadline margin to emit its
@@ -212,26 +216,44 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+  # Sharded across independent Kind clusters; deploy/mecatl-execution-kind/shards.txt
+  # assigns every cluster test to one shard, and shards_test.go keeps that table,
+  # the test functions, and this matrix in agreement.
   execution-production-e2e:
-    name: execution provider production profile (kind)
+    name: execution provider production profile (kind, shard ${{ matrix.shard }})
+    if: ${{ !startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-24.04
-    # Serial tests (45m) + mandatory in-flight renewal (30m) + setup/cleanup.
-    # Only explicit manual qualification adds natural expiry (80m).
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.natural_expiry && 210 || 100 }}
+    strategy:
+      # Every shard's result is independent evidence; don't cancel siblings.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    # Per shard: ~10m provisioning + serial tests (45m ceiling) + the in-flight
+    # renewal phase (10m ceiling, owning shard only) + cleanup. Only explicit
+    # manual qualification adds natural expiry (80m) on its owning shard.
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.natural_expiry && 210 || 75 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      # The shared setup-go entry (same key as ci.yml and the job above) holds
+      # non-trimpath compiles and is saved by whichever job wins the race, so
+      # it never warms ko's -trimpath builds. This job owns its own entry:
+      # restored everywhere, saved once per go.sum by shard 1 outside PRs.
+      - id: setup-go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
-          cache-dependency-path: |
-            go.sum
-            engine/go.sum
-            adapters/go.sum
-            internal/adaptersupport/go.sum
-            contracts/gen/go/mecatl/driver/go.sum
+          cache: false
+      - id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: k8s-execution-go-${{ runner.os }}-${{ runner.arch }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum', 'engine/go.sum', 'adapters/go.sum', 'internal/adaptersupport/go.sum', 'contracts/gen/go/mecatl/driver/go.sum') }}
+          restore-keys: |
+            k8s-execution-go-${{ runner.os }}-${{ runner.arch }}-go${{ steps.setup-go.outputs.go-version }}-
       - uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
         with:
           version: 3.x
@@ -248,13 +270,25 @@ jobs:
         env:
           CONTAINER_ENGINE: docker
           MECATL_EXECUTION_QUAL_CI: "1"
+          MECATL_EXECUTION_QUAL_SHARD: ${{ matrix.shard }}
           MECATL_EXECUTION_QUAL_NATURAL_EXPIRY: ${{ github.event_name == 'workflow_dispatch' && inputs.natural_expiry && '1' || '0' }}
         run: task e2e:k8s:execution:production
+      # Build outputs are content-addressed, so a failed qualification still
+      # leaves a valid cache. PR refs never save: their entries are visible only
+      # to the same PR and would churn the repository's 10GB cache budget.
+      - name: Save Go caches
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && matrix.shard == 1 && steps.go-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
       - name: Upload bounded failure artifact
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: execution-e2e-artifacts-${{ github.run_id }}
+          name: execution-e2e-artifacts-${{ github.run_id }}-shard-${{ matrix.shard }}
           path: .scratch/k8s-execution/*/production-failure-artifact.txt
           retention-days: 7
           if-no-files-found: warn
