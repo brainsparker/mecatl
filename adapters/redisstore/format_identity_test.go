@@ -117,7 +117,7 @@ func TestIdentityFormatRejectionDoesNotRewriteStreamOrCursor(t *testing.T) {
 }
 
 func TestIdentitySnapshotPrivateStateAndLocalSchema(t *testing.T) {
-	for _, name := range []string{"legacy-authorizing", "legacy-ambiguous-pending"} {
+	for _, name := range []string{"legacy-authorizing", "legacy-unproven-authorizing", "legacy-ambiguous-pending", "candidate-held", "candidate-held-event"} {
 		t.Run(name, func(t *testing.T) {
 			mr := miniredis.RunT(t)
 			st, err := redisstore.New(mr.Addr())
@@ -127,7 +127,14 @@ func TestIdentitySnapshotPrivateStateAndLocalSchema(t *testing.T) {
 			t.Cleanup(func() { _ = st.Close() })
 			client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 			t.Cleanup(func() { _ = client.Close() })
-			old, err := os.ReadFile("../../engine/adapter/sessnap/testdata/" + name + ".json")
+			fixture := name
+			if name == "legacy-unproven-authorizing" {
+				fixture = "legacy-authorizing"
+			}
+			old, err := os.ReadFile("../../engine/adapter/sessnap/testdata/" + fixture + ".json")
+			if name == "legacy-unproven-authorizing" {
+				old = bytes.Replace(old, []byte(`"id": "provider-auth-call"`), []byte(`"id": "missing"`), 1)
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -136,6 +143,10 @@ func TestIdentitySnapshotPrivateStateAndLocalSchema(t *testing.T) {
 				t.Fatal(err)
 			}
 			if err := st.Save(t.Context(), s); err != nil {
+				t.Fatal(err)
+			}
+			key := "mecatl:session:" + string(s.ID)
+			if err := client.HSet(t.Context(), key, "blob", old).Err(); err != nil {
 				t.Fatal(err)
 			}
 			got, err := st.Load(t.Context(), s.ID)
@@ -147,10 +158,33 @@ func TestIdentitySnapshotPrivateStateAndLocalSchema(t *testing.T) {
 				t.Fatal(err)
 			}
 			data, err := sessnap.Marshal(got)
-			if err != nil || !bytes.Equal(want, data) || !reflect.DeepEqual(s.IdentityHoldSnapshot(), got.IdentityHoldSnapshot()) {
+			if err != nil || !bytes.Equal(want, data) {
 				t.Fatal("local snapshot dropped private continuation or replay")
 			}
-			key := "mecatl:session:" + string(s.ID)
+			unchanged, err := client.HGet(t.Context(), key, "blob").Bytes()
+			if err != nil || !bytes.Equal(old, unchanged) {
+				t.Fatal("load rewrote legacy snapshot")
+			}
+			for range 2 {
+				if name == "legacy-authorizing" {
+					if _, ok := got.PendingAuthorization(); !ok || got.State != session.StateAuthorizing {
+						t.Fatal("provable authorization was abandoned")
+					}
+				} else if _, ok := got.PendingAsk(); ok || got.State != session.StateIdle || got.Conversation.Messages[len(got.Conversation.Messages)-1].Text != "The prior continuation was abandoned during upgrade. Prior tool effects and completion may be unknown." {
+					t.Fatal("abandoned continuation or notice did not survive load")
+				}
+				if err := st.Save(t.Context(), got); err != nil {
+					t.Fatal(err)
+				}
+				got, err = st.Load(t.Context(), s.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				data, err = sessnap.Marshal(got)
+				if err != nil || !bytes.Equal(want, data) || bytes.Contains(data, []byte("identity_hold")) {
+					t.Fatal("save/reload resurrected authority or changed history")
+				}
+			}
 			stored, err := client.HGet(t.Context(), key, "blob").Bytes()
 			if err != nil {
 				t.Fatal(err)
