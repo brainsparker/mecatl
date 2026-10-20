@@ -354329,6 +354329,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792414943617,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62367810a85d8980ed13aaa43a53774254e6cd3f",
+          "message": "build(release): publish mecatl to Homebrew as a cask (#2428)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T02:30:50-04:00",
+          "tree_id": "fe06f8714aa2293e29e2eed7fbb2b7742c33de1d",
+          "url": "https://github.com/stacklok/mecatl/commit/62367810a85d8980ed13aaa43a53774254e6cd3f"
+        },
+        "date": 1792478616718,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16154,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12916,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -462667,6 +462706,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792478613411,
+  "lastUpdate": 1792478617642,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
