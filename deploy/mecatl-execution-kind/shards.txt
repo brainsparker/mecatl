@@ -1,0 +1,47 @@
+# CI shards for the production execution qualification (k8s-e2e.yml matrix).
+#
+# Format: <shard> <test> [<seconds measured on main>]. Every TestKindExecution*
+# function in e2e/k8s_execution must appear exactly once; shards_test.go enforces
+# that and that the shard ids match the workflow matrix. Cluster-free unit tests
+# (any other Test* name) are not listed and run on every shard. `none` marks a
+# test no CI shard runs (live.sh owns it).
+#
+# Each shard provisions its own Kind cluster, and run.sh selects a shard by
+# skipping every listed test owned elsewhere, so an unlisted test runs rather
+# than silently dropping out. Tests create their own environments and restore
+# what they change; the only ordering constraints are:
+#   - TestKindExecutionProductionHelmLifetime uninstalls and re-adopts the
+#     release, so it must be the last cluster test in its shard. Its zz_ file
+#     name keeps it last in Go's file-order execution.
+#   - TestKindExecutionProductionSecurityRotation shares that throwaway release;
+#     keep them together so the lifetime test still runs after a rotation, as
+#     it does in the unsharded serial suite.
+#   - The renewal phases (InFlight, and AutomaticCertificateRenewal on manual
+#     dispatch) run after the serial tests, only on the shard that owns them.
+#
+# Rebalance from a main run's `--- PASS` durations when a shard drifts; aim for
+# equal sums, since every shard also pays ~10 minutes of provisioning.
+
+1 TestKindExecutionBorrowedSchedule 340
+1 TestKindExecutionProductionHolderLossFencesActiveOperation 53
+1 TestKindExecutionProductionNetworkPolicyEnforced 46
+1 TestKindExecutionExpiredRunAllowsFinalReferenceRetireAndDelete 45
+1 TestKindExecutionServiceExplicitIDRetriesReuseOneAllocation 16
+1 TestKindExecutionProductionFailureArtifactBoundary 1
+
+2 TestKindExecutionQualification 222
+2 TestKindExecutionTUIClientMockJourney 135
+2 TestKindExecutionProductionQuotaSaturation 43
+2 TestKindExecutionDerivativeUtility 40
+2 TestKindExecutionRevocationStopsActiveWriterAndRetainsFenceUncertainty 32
+2 TestKindExecutionProductionPendingDeleteOutageRecovery 28
+
+3 TestKindExecutionProductionHelmLifetime 186
+3 TestKindExecutionProductionClearForkLifecycle 124
+3 TestKindExecutionProductionSecurityRotation 121
+3 TestKindExecutionProductionReplicaLifecycle 37
+3 TestKindExecutionProductionScopedAdministrator 30
+3 TestKindExecutionInFlightAutomaticRenewal 23
+3 TestKindExecutionAutomaticCertificateRenewal
+
+none TestKindExecutionLiveQualification

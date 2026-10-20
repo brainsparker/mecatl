@@ -173,10 +173,13 @@ provisioning. The long test runs once with an 80-minute ceiling (78-minute
 context), before the mandatory in-flight test. The runner logs each renewal
 phase's start and elapsed completion, or an explicit natural-expiry skip.
 In the secret-free `k8s-e2e.yml` workflow, dispatch with `natural_expiry: true`
-for this proof; the boolean defaults to false. Production job budgets are 100
-minutes normally and 210 minutes for explicit long mode, including setup and
-cleanup. Including the in-flight outer process deadline, the normal 100-minute
-budget leaves 45 minutes beyond the test/process ceilings; long mode leaves
+for this proof; the boolean defaults to false. That workflow splits the suite
+across independent Kind clusters: `deploy/mecatl-execution-kind/shards.txt`
+assigns each cluster test, including both renewal proofs, to exactly one shard,
+and `MECATL_EXECUTION_QUAL_SHARD` selects a shard locally. Per-shard job budgets
+are 75 minutes normally and 210 minutes for explicit long mode, including setup
+and cleanup. Including the in-flight outer process deadline, the normal 75-minute
+budget leaves 20 minutes beyond the test/process ceilings; long mode leaves
 75 minutes beyond all three.
 
 The manual native job always sets the selector to `0`: its production step has

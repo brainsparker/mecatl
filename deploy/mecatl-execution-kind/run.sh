@@ -12,7 +12,7 @@ if [ "${MECATL_EXECUTION_QUAL_CLEAN_ENV:-}" != 1 ]; then
     MECATL_EXECUTION_QUAL_OUTPUT="${MECATL_EXECUTION_QUAL_OUTPUT:-}" MECATL_EXECUTION_QUAL_RESUME_STATE="${MECATL_EXECUTION_QUAL_RESUME_STATE:-}" \
     MECATL_EXECUTION_QUAL_NATURAL_EXPIRY="${MECATL_EXECUTION_QUAL_NATURAL_EXPIRY-0}" MECATL_EXECUTION_QUAL_HANDOFF="${MECATL_EXECUTION_QUAL_HANDOFF-0}" \
     GITHUB_ACTIONS="${GITHUB_ACTIONS:-}" GITHUB_RUN_ID="${GITHUB_RUN_ID:-}" GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-}" GITHUB_SHA="${GITHUB_SHA:-}" GITHUB_OUTPUT="${GITHUB_OUTPUT:-}" \
-    MECATL_EXECUTION_HANDOFF_SHA="${MECATL_EXECUTION_HANDOFF_SHA:-}" TMPDIR="${TMPDIR:-}" \
+    MECATL_EXECUTION_HANDOFF_SHA="${MECATL_EXECUTION_HANDOFF_SHA:-}" TMPDIR="${TMPDIR:-}" MECATL_EXECUTION_QUAL_SHARD="${MECATL_EXECUTION_QUAL_SHARD:-}" \
     MECATL_EXECUTION_QUAL_CLEAN_ENV=1 "$0" "$@"
 fi
 
@@ -37,6 +37,19 @@ if [ "$handoff" = 1 ]; then
   [ -n "${GITHUB_OUTPUT:-}" ] && [ "${MECATL_EXECUTION_QUAL_OUTPUT:-}" = "$GITHUB_OUTPUT" ] || { echo "handoff requires fresh retained production CI state and GitHub output" >&2; exit 2; }
   . "$root/deploy/mecatl-execution-kind/handoff.sh"
   handoff_ci_identity || { echo "handoff requires the exact reviewed same-run checkout" >&2; exit 2; }
+fi
+# A CI shard runs only its rows of shards.txt plus every unlisted test, on its
+# own cluster. Empty runs the complete serial suite.
+shard=${MECATL_EXECUTION_QUAL_SHARD:-}
+inflight_renewal=1
+if [ -n "$shard" ]; then
+  [ "$handoff" = 0 ] || { echo "handoff requires the complete unsharded suite" >&2; exit 2; }
+  shards="$root/deploy/mecatl-execution-kind/shards.txt"
+  case "$shard" in none|*[!0-9]*) echo "MECATL_EXECUTION_QUAL_SHARD must name a shard in shards.txt" >&2; exit 2 ;; esac
+  shard_owns() { awk -v s="$shard" -v t="$1" '!/^#/ && $1 == s && (t == "" || $2 == t) {found = 1} END {exit !found}' "$shards"; }
+  shard_owns "" || { echo "MECATL_EXECUTION_QUAL_SHARD must name a shard in shards.txt" >&2; exit 2; }
+  shard_owns TestKindExecutionAutomaticCertificateRenewal || natural_expiry=0
+  shard_owns TestKindExecutionInFlightAutomaticRenewal || inflight_renewal=0
 fi
 run_id=$(date -u +%Y%m%d%H%M%S)-$$
 cluster="mecatl-execution-qual-$run_id"
@@ -211,21 +224,18 @@ if [ ! -s "$state/pki/ca.crt" ]; then
 fi
 image_step_done pki
 
-# Build the three static Go images in the development toolbox. ko emits a
-# content tag; after loading, the fixture resolves the node's actual manifest
-# digest and creates a matching digest alias for Kubernetes.
+# Build the four static Go images in the development toolbox, concurrently with
+# each other and with the container builds below. ko emits a content tag; after
+# loading, the fixture resolves the node's actual manifest digest and creates a
+# matching digest alias for Kubernetes.
 build_ko() {
-  package=$1 repo=$2
-  dev env KO_DOCKER_REPO="$repo" ko build --local --bare "$package" | tail -n 1
+  name=$1 package=$2 repo=$3 goflags=${4:-}
+  dev env GOFLAGS="$goflags" KO_DOCKER_REPO="$repo" ko build --local --bare "$package" >"$state/images/$name.ko"
 }
-provider_tag=$(build_ko ./cmd/mecatl-execution-provider ko.local/mecatl-execution-provider)
-image_step_done provider_build
-agent_tag=$(build_ko ./cmd/mecak8s ko.local/mecak8s)
-image_step_done agent_build
-oidc_tag=$(dev env GOFLAGS=-tags=kind_execution_e2e KO_DOCKER_REPO=ko.local/mecatl-oidc-fixture ko build --local --bare ./e2e/k8s_execution/fixture/oidcissuer | tail -n 1)
-image_step_done oidc_build
-netprobe_tag=$(dev env GOFLAGS=-tags=kind_execution_e2e KO_DOCKER_REPO=ko.local/mecatl-netprobe-fixture ko build --local --bare ./e2e/k8s_execution/fixture/netprobe | tail -n 1)
-image_step_done netprobe_build
+build_ko provider ./cmd/mecatl-execution-provider ko.local/mecatl-execution-provider & provider_pid=$!
+build_ko agent ./cmd/mecak8s ko.local/mecak8s & agent_pid=$!
+build_ko oidc ./e2e/k8s_execution/fixture/oidcissuer ko.local/mecatl-oidc-fixture -tags=kind_execution_e2e & oidc_pid=$!
+build_ko netprobe ./e2e/k8s_execution/fixture/netprobe ko.local/mecatl-netprobe-fixture -tags=kind_execution_e2e & netprobe_pid=$!
 
 # Resolve the public Go base from the local OCI store, then feed its observed
 # digest to the production workload recipe without weakening its pin check.
@@ -260,6 +270,16 @@ image_step_done derivative_build
 incompatible_tag="localhost/mecatl-execution-incompatible:e2e"
 "$runtime" build "$pull_policy" --target incompatible --build-arg EXECUTOR_BASE="$executor_base" -f "$root/deploy/mecatl-execution-kind/fixture/derivative/Dockerfile" -t "$incompatible_tag" "$root/deploy/mecatl-execution-kind/fixture/derivative" >/dev/null
 image_step_done incompatible_derivative_build
+ko_failed=
+for pid in "$provider_pid" "$agent_pid" "$oidc_pid" "$netprobe_pid"; do
+  wait "$pid" || ko_failed=1
+done
+[ -z "$ko_failed" ] || { echo "ko image build failed" >&2; exit 1; }
+provider_tag=$(tail -n 1 "$state/images/provider.ko")
+agent_tag=$(tail -n 1 "$state/images/agent.ko")
+oidc_tag=$(tail -n 1 "$state/images/oidc.ko")
+netprobe_tag=$(tail -n 1 "$state/images/netprobe.ko")
+image_step_done ko_builds
 
 load_index=0
 for item in "$provider_tag" "$agent_tag" "$oidc_tag" "$netprobe_tag" "$workload_tag" "$derivative_tag" "$incompatible_tag"; do
@@ -482,6 +502,11 @@ printf 'qualification test_build=wait elapsed=%ss\n' "$(( $(date +%s) - test_bui
 
 set --
 if [ "${handoff:-0}" = 1 ]; then set -- -test.skip '^TestKindExecutionQualification$'; fi
+if [ -n "${shard:-}" ]; then
+  shard_skip=$(awk -v s="$shard" '!/^#/ && NF && $1 != s {printf "%s%s", sep, $2; sep = "|"}' "$root/deploy/mecatl-execution-kind/shards.txt")
+  printf 'qualification shard=%s skip=%s\n' "$shard" "$shard_skip"
+  set -- -test.skip "^(${shard_skip})\$"
+fi
 dev env -i HOME="$HOME" PATH="$PATH" TOOLBOX_PATH="${TOOLBOX_PATH:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
   KUBECONFIG="$kubeconfig" MECATL_KUBE_CONTEXT="$context" MECATL_EXECUTION_K8S_TOOLBOX="${MECATL_EXECUTION_K8S_TOOLBOX:-}" MECATL_EXECUTION_TEMPLATE_REVISION="$go_revision" MECATL_EXECUTION_QUAL_STATE="$state" MECATL_EXECUTION_QUAL_PROFILE="${MECATL_EXECUTION_QUAL_PROFILE:-development}" \
   sh -c 'cd e2e/k8s_execution && exec "$@"' sh "$state/qualification.test" "$@" -test.v -test.count=1 -test.timeout=45m
@@ -497,11 +522,15 @@ if [ "${MECATL_EXECUTION_QUAL_PROFILE:-development}" = production ]; then
   else
     printf 'qualification phase=automatic_certificate_renewal skipped selector=0 elapsed=0s\n'
   fi
-  printf 'qualification phase=inflight_controlled_renewal starting (test ceiling=8m; outer ceiling=10m)\n'
-  dev env -i HOME="$HOME" PATH="$PATH" TOOLBOX_PATH="${TOOLBOX_PATH:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
-    KUBECONFIG="$kubeconfig" MECATL_KUBE_CONTEXT="$context" MECATL_EXECUTION_K8S_TOOLBOX="${MECATL_EXECUTION_K8S_TOOLBOX:-}" MECATL_EXECUTION_TEMPLATE_REVISION="$go_revision" MECATL_EXECUTION_QUAL_STATE="$state" MECATL_EXECUTION_QUAL_PROFILE=production MECATL_EXECUTION_QUAL_RENEWAL=1 \
-    timeout --kill-after=5s 10m sh -c 'cd e2e/k8s_execution && exec "$@"' sh "$state/qualification.test" -test.v -test.count=1 -test.run '^TestKindExecutionInFlightAutomaticRenewal$' -test.timeout=8m
-  phase_done inflight_controlled_renewal
+  if [ "${inflight_renewal:-1}" = 1 ]; then
+    printf 'qualification phase=inflight_controlled_renewal starting (test ceiling=8m; outer ceiling=10m)\n'
+    dev env -i HOME="$HOME" PATH="$PATH" TOOLBOX_PATH="${TOOLBOX_PATH:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+      KUBECONFIG="$kubeconfig" MECATL_KUBE_CONTEXT="$context" MECATL_EXECUTION_K8S_TOOLBOX="${MECATL_EXECUTION_K8S_TOOLBOX:-}" MECATL_EXECUTION_TEMPLATE_REVISION="$go_revision" MECATL_EXECUTION_QUAL_STATE="$state" MECATL_EXECUTION_QUAL_PROFILE=production MECATL_EXECUTION_QUAL_RENEWAL=1 \
+      timeout --kill-after=5s 10m sh -c 'cd e2e/k8s_execution && exec "$@"' sh "$state/qualification.test" -test.v -test.count=1 -test.run '^TestKindExecutionInFlightAutomaticRenewal$' -test.timeout=8m
+    phase_done inflight_controlled_renewal
+  else
+    printf 'qualification phase=inflight_controlled_renewal skipped shard=%s elapsed=0s\n' "${shard:-}"
+  fi
 fi
 
 if [ "${handoff:-0}" = 1 ]; then
