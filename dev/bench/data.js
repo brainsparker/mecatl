@@ -357902,6 +357902,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792500740772,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aponcedeleonch@stacklok.com",
+            "name": "Alejandro Ponce de Leon",
+            "username": "aponcedeleonch"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa79be7d498bb157347e578c61628573a8241d63",
+          "message": "feat(permissions): one named permission-mode vocabulary and two admission gates (#1935)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-20T15:57:57+03:00",
+          "tree_id": "f6165f2fa34448a75e013d11527d0bfa41d4075a",
+          "url": "https://github.com/stacklok/mecatl/commit/fa79be7d498bb157347e578c61628573a8241d63"
+        },
+        "date": 1792501879819,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16148,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12911,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -467266,6 +467305,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792501876002,
+  "lastUpdate": 1792501880906,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
