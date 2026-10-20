@@ -109,10 +109,27 @@ func TestFrozenLegacyEventCannotRebindToLaterIdenticalRun(t *testing.T) {
 				t.Fatalf("direct preview lost original: %s", status)
 			}
 			before := promotions
-			if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); err != nil || promotions != before+1 {
-				t.Fatalf("original approval: %v promotions=%d", err, promotions)
+			if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); !errors.Is(err, ErrFailedPrecondition) || promotions != before {
+				t.Fatalf("historical display authorized promotion: %v promotions=%d", err, promotions)
 			}
 		})
+	}
+	// A complete, unambiguous source can establish a canonical occurrence while
+	// retaining the frozen evidence coordinate and digest.
+	completed := decode(`{"Type":"tool.result","RunID":"original-run","Seq":78,"Turn":1,"ToolResult":{"CallID":"provider-event-id","Content":"original result"}}`, "byte:200", 1)
+	projected, err := eventcodec.Project([]session.Event{original, completed}, source.Incarnation())
+	if err != nil || projected.Events[0].ToolCall == nil {
+		t.Fatalf("proven original did not attach: %v", err)
+	}
+	attached := memstore.NewEventLog()
+	for _, event := range projected.Events {
+		if err := attached.Append(ctx, source.ID, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc.cfg.EventLog = attached
+	if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); err != nil || promotions != 1 {
+		t.Fatalf("proven original approval: %v promotions=%d", err, promotions)
 	}
 	promotions = 0
 	for _, ordinal := range []int{-1, 1} {

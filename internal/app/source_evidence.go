@@ -75,7 +75,6 @@ func (l *learningEvidenceLoader) loadForExecution(ctx context.Context, partition
 
 	sess, err := l.sessions.Load(ctx, provenance.Source.SessionID)
 	if err != nil || sess == nil || sess.ID != provenance.Source.SessionID ||
-		sess.CheckIdentityReady() != nil ||
 		sess.Owner != nil && !sess.Owner.IdentityWellFramed() {
 		return unavailable()
 	}
@@ -200,7 +199,11 @@ func (l *learningEvidenceLoader) readExactRun(ctx context.Context, source learni
 		if err != nil {
 			return false, false
 		}
-		event = projected
+		// Sparse display projection must not erase persisted occurrence bindings
+		// before the complete run is projected below.
+		if projected.CompactionArchive != nil {
+			event.CompactionArchive = projected.CompactionArchive
+		}
 		if event.RunID != string(source.RunID) {
 			if seenRun && event.RunID != "" {
 				leftRun = true

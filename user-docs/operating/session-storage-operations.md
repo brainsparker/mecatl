@@ -287,12 +287,13 @@ misinterpret identity, so these tags do not make old readers safe.
 
 ### Retained sessions and historical records
 
-Valid old sessions and pending continuations remain readable and resumable.
-When an old continuation cannot be uniquely associated with its invocation,
-Mecatl keeps it available for ownership-checked inspection but blocks execution,
-authorization claims, and continuation consumption. Saves preserve its private
-continuation data. There is no automatic repair or recovery UI; preserve the
-state for diagnosis rather than guessing an association or editing the snapshot.
+Valid old sessions and provable pending continuations remain readable and
+resumable. When a continuation cannot be uniquely associated with its invocation,
+Mecatl abandons it during decoding and clears its runnable controls. The session
+accepts a separate new prompt, and its history includes an upgrade notice that
+prior tool effects and completion may be unknown. Check any external effects
+before asking the agent to repeat interrupted work. Abandonment does not roll
+back tool effects or revoke an external authorization.
 
 History with a proven call/result association renders normally. Unsupported
 associations render as standalone historical text/media with an unavailable

@@ -117,11 +117,14 @@ canonical occurrence and ordered deferred suffix; provider item IDs are replay
 metadata, not execution identity. The authorization owner retains the effective
 argument bytes, token, binding, expiry, and existing claim/save/compensation order.
 
-Unprovable legacy continuation identity is held privately rather than guessed.
-Ownership-checked inspection and snapshot save/reload remain available, but held
-sessions cannot resume, learn approval rules, claim external authorization,
-prepare execution, terminalize, or destructively rewrite their pending state.
-Missing runnable pending data on a held session is not an ordinary awaiting error.
+Legacy snapshot and complete-event codecs preserve provable continuations and
+abandon unprovable ones during load. They clear the old runnable controls and
+return ordinary promptable history with a durable upgrade notice: prior tool
+effects and completion may be unknown. Only proven outstanding calls receive
+interruption results; ambiguous records retain historical content and provenance
+without guessed invocation links. Loading executes no continuation or external
+authorization action. Current-format event folds still require private state to
+resume an open external authorization.
 
 ## Plan-approval gate
 

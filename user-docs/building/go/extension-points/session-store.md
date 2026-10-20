@@ -207,9 +207,12 @@ wrapper is not compatible with an old harness reader. The `session-store/1`
 capability marker does not negotiate these formats, and event drivers have no
 startup format handshake.
 
-Store private message replay, occurrence bindings, and held legacy continuation
-data with the aggregate. Keep opaque provider bytes and unknown private replay
-versions intact; never expose them through public transcript projections. Use
+Store private message replay and occurrence bindings with the aggregate. Keep
+opaque provider bytes and unknown private replay versions intact; never expose
+them through public transcript projections. Legacy decoding preserves provable
+continuations. If a continuation cannot be proven, decoding abandons it and
+returns promptable history with an upgrade notice that prior tool effects and
+completion may be unknown. Use
 the coordinated [API-major-2 upgrade procedure](/operating/session-storage-operations.md#upgrade-to-api-major-2)
 for decoding drivers and local stores.
 

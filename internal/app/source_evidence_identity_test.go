@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"iter"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -250,21 +249,26 @@ func TestRecoveredLegacyAttemptRetainsIdentityAndVerifiesSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A held source cannot acquire even a recovery claim or mutate an attempt.
-	held, err := sessnap.Unmarshal([]byte(`{"id":"legacy-attempt-source","state":"awaiting","mode":"default","environment_ref":{"kind":"local","id":"/fixture","revision":"v1"},"messages":[{"role":"assistant","tool_calls":[{"ID":"duplicate","Name":"Read"},{"ID":"duplicate","Name":"Read"}]}],"pending":{"ask_id":"ask","call":"duplicate","tool":"Read"}}`))
+	// Unattached historical content cannot substitute for a verified run source.
+	abandoned, err := sessnap.Unmarshal([]byte(`{"id":"legacy-attempt-source","state":"awaiting","mode":"default","environment_ref":{"kind":"local","id":"/fixture","revision":"v1"},"messages":[{"role":"assistant","tool_calls":[{"ID":"duplicate","Name":"Read"},{"ID":"duplicate","Name":"Read"}]}],"pending":{"ask_id":"ask","call":"duplicate","tool":"Read"}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, pending := held.PendingAsk(); pending || !errors.Is(held.CheckIdentityReady(), session.ErrMigrationHeld) {
-		t.Fatal("fixture is not held without runnable pending state")
+	if _, pending := abandoned.PendingAsk(); pending || abandoned.State != session.StateIdle {
+		t.Fatal("fixture retained continuation authority")
 	}
-	if err := store.Save(ctx, held); err != nil {
+	if err := store.Save(ctx, abandoned); err != nil {
 		t.Fatal(err)
 	}
-	if _, failure := loader.Load(ctx, partition, record, ""); failure != learning.FailureEvidenceUnavailable {
-		t.Fatal("held evidence reached reflector")
+	if _, failure := loader.Load(ctx, partition, record, ""); failure != learning.FailureNone {
+		t.Fatal("independently proven prior run was blocked by abandoned continuation")
 	}
-	beforeHeld, err := sessnap.Marshal(held)
+	unproven := legacyEvidenceReadView{events: append(append([]session.Event(nil), durable[:2]...), durable[3:]...)}
+	loader = newLearningEvidenceLoader(store, unproven)
+	if _, failure := loader.Load(ctx, partition, record, ""); failure != learning.FailureEvidenceUnavailable {
+		t.Fatal("unattached snapshot history substituted for pruned run evidence")
+	}
+	beforeMigrated, err := sessnap.Marshal(abandoned)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,20 +277,20 @@ func TestRecoveredLegacyAttemptRetainsIdentityAndVerifiesSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := recoverAttempt(ctx, cfg, nil, store, events, freshAttempts, proposals, catalogAssets{}, appTestPlacementProvider{}, "legacy-local", learning.AttemptWork{Partition: partition, Record: queued}); !errors.Is(err, session.ErrMigrationHeld) {
-		t.Fatalf("held recovery: %v", err)
+	if err := recoverAttempt(ctx, cfg, nil, store, unproven, freshAttempts, proposals, catalogAssets{}, nil, "legacy-local", learning.AttemptWork{Partition: partition, Record: queued}); err != nil {
+		t.Fatalf("unavailable recovery: %v", err)
 	}
 	unchanged, _, err := freshAttempts.Get(ctx, partition, id)
-	if err != nil || !reflect.DeepEqual(queued, unchanged) {
-		t.Fatalf("held attempt mutated: %+v %v", unchanged, err)
+	if err != nil || unchanged.State != learning.AttemptFailed || unchanged.Outcome != learning.AttemptOutcomeFailed || unchanged.FailureCode != learning.FailureEvidenceUnavailable {
+		t.Fatalf("unproven attempt executed: %+v %v", unchanged, err)
 	}
-	reloaded, err := store.Load(ctx, held.ID)
+	reloaded, err := store.Load(ctx, abandoned.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	afterHeld, err := sessnap.Marshal(reloaded)
-	if err != nil || string(beforeHeld) != string(afterHeld) {
-		t.Fatalf("held source mutated: %v", err)
+	afterMigrated, err := sessnap.Marshal(reloaded)
+	if err != nil || string(beforeMigrated) != string(afterMigrated) {
+		t.Fatalf("abandoned source mutated: %v", err)
 	}
 	foreign, _ := learning.DeriveAttemptPartition("foreign")
 	if _, failure := loader.Load(ctx, foreign, record, ""); failure != learning.FailureEvidenceUnavailable {

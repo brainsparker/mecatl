@@ -89,40 +89,43 @@ func TestLegacyProposalMaterializationPreviewAndApproval(t *testing.T) {
 	if list.Proposals[0].Evidence[0].ToolCallId != "" || !list.Proposals[0].Evidence[0].AttachmentUnavailable || list.Proposals[0].Evidence[0].Protocol != string(learning.ReflectionEvidenceV1) {
 		t.Fatal("metadata-only list exposed unverified attachment")
 	}
-	heldJSON := strings.Replace(string(snapshot), `"state":"completed"`, `"state":"awaiting","pending":{"ask_id":"held-ask","call":"missing","tool":"Read"}`, 1)
-	held, err := sessnap.Unmarshal([]byte(heldJSON))
+	// An abandoned continuation does not invalidate independently proven history.
+	migratedJSON := strings.Replace(string(snapshot), `"state":"completed"`, `"state":"awaiting","pending":{"ask_id":"obsolete-ask","call":"missing","tool":"Read"}`, 1)
+	migrated, err := sessnap.Unmarshal([]byte(migratedJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, pending := held.PendingAsk(); pending || !errors.Is(held.CheckIdentityReady(), session.ErrMigrationHeld) {
-		t.Fatal("fixture is not held awaiting without pending authority")
+	if _, pending := migrated.PendingAsk(); pending || migrated.State != session.StateIdle {
+		t.Fatal("migration retained continuation authority")
 	}
-	if err := store.Save(ctx, held); err != nil {
-		t.Fatal(err)
-	}
-	heldBefore, err := sessnap.Marshal(held)
-	if err != nil {
+	if err := store.Save(ctx, migrated); err != nil {
 		t.Fatal(err)
 	}
 	if preview, err := svc.GetLearningProposal(ctx, string(records[0].ID), ""); err != nil || !preview.Evidence[0].Available {
-		t.Fatalf("safe held preview lost: %+v %v", preview, err)
+		t.Fatalf("verified migrated preview lost: %+v %v", preview, err)
 	}
-	if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); !errors.Is(err, ErrFailedPrecondition) {
-		t.Fatalf("held approval: %v", err)
+	for _, defect := range []string{"pruned", "substituted"} {
+		changed, err := sessnap.Unmarshal([]byte(migratedJSON))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if defect == "pruned" {
+			changed.Conversation.Messages = nil
+		} else {
+			changed.Conversation.Messages[1].ToolCalls[0].Name = "tampered"
+		}
+		if err := store.Save(ctx, changed); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); !errors.Is(err, ErrFailedPrecondition) {
+			t.Fatalf("%s source authorized promotion: %v", defect, err)
+		}
+		unchanged, _, err := repo.Get(ctx, part, records[0].ID)
+		if err != nil || unchanged.Version != records[0].Version || unchanged.Status != records[0].Status || promotions != 0 {
+			t.Fatalf("invalid evidence mutated proposal: %+v %v promotions=%d", unchanged, err, promotions)
+		}
 	}
-	unchanged, _, err := repo.Get(ctx, part, records[0].ID)
-	if err != nil || unchanged.Version != records[0].Version || unchanged.Status != records[0].Status || promotions != 0 {
-		t.Fatalf("held approval mutated proposal: %+v %v promotions=%d", unchanged, err, promotions)
-	}
-	heldReloaded, err := store.Load(ctx, held.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	heldAfter, err := sessnap.Marshal(heldReloaded)
-	if err != nil || string(heldBefore) != string(heldAfter) {
-		t.Fatalf("held source mutated: %v", err)
-	}
-	if err := store.Save(ctx, source); err != nil {
+	if err := store.Save(ctx, migrated); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); err != nil {
@@ -160,7 +163,21 @@ func TestLegacyV0PublicCitationWithoutCanonicalAttachment(t *testing.T) {
 	if err := store.Save(ctx, source); err != nil {
 		t.Fatal(err)
 	}
-	svc := &Service{cfg: Config{Store: store}}
+	repo := memproposal.New()
+	part := learning.ProposalPartition{Principal: "principal"}
+	candidate, err := learning.NewCandidate(fixture.Input, learning.Candidate{Kind: learning.CandidateOperatorFact, Key: "user/output", Value: "concise", Evidence: []learning.EvidenceRef{fixture.Ref}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, err := repo.StageBatch(ctx, part, strings.Repeat("a", 64), []learning.Candidate{candidate}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	promotions := 0
+	svc := &Service{cfg: Config{Store: store, Proposals: repo, ProposalPrincipal: func(*session.Principal) string { return "principal" }, PromoteProposal: func(context.Context, learning.ProposalPartition, learning.ProposalID, learning.ProposalVersion, bool) (learning.ProposalRecord, error) {
+		promotions++
+		return learning.ProposalRecord{}, nil
+	}}}
 	citation, status := svc.learningEvidenceCitation(ctx, fixture.Ref)
 	if status != "available" || citation.ToolCallID != "" || !strings.Contains(citation.Preview, "Read") || strings.Contains(citation.Preview, "provider-call-legacy") {
 		t.Fatalf("citation %+v status=%q", citation, status)
@@ -169,6 +186,22 @@ func TestLegacyV0PublicCitationWithoutCanonicalAttachment(t *testing.T) {
 	public := projection.Evidence[0]
 	if !public.Available || !public.AttachmentUnavailable || public.ToolCallId != "" || public.Protocol != string(learning.ReflectionEvidenceLegacyV0) || !strings.Contains(public.Preview, "Read") {
 		t.Fatalf("old citation availability depends on invocation attachment: %+v", public)
+	}
+	if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); !errors.Is(err, ErrFailedPrecondition) || promotions != 0 {
+		t.Fatalf("unattached display authorized promotion: %v promotions=%d", err, promotions)
+	}
+	withoutLink := fixture.Ref
+	withoutLink.ToolCallID = ""
+	if _, status := svc.learningEvidenceCitation(ctx, withoutLink); status != "available" {
+		t.Fatal("historical display fixture without an invocation reference did not verify")
+	}
+	candidate.Evidence = []learning.EvidenceRef{withoutLink}
+	records, err = repo.StageBatch(ctx, part, strings.Repeat("b", 64), []learning.Candidate{candidate}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.DecideLearningProposal(ctx, string(records[0].ID), string(records[0].Version), "approve", "", ""); !errors.Is(err, ErrFailedPrecondition) || promotions != 0 {
+		t.Fatalf("omitting invocation link authorized historical evidence: %v promotions=%d", err, promotions)
 	}
 	source.Conversation.Messages = nil
 	if err := store.Save(ctx, source); err != nil {

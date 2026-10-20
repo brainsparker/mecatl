@@ -18,6 +18,8 @@ import (
 	"github.com/stacklok/mecatl/internal/adapter/memory"
 )
 
+const evidenceAvailabilityAvailable = "available"
+
 // ReflectionReceipt is the bounded result of an explicit reflection request.
 type ReflectionReceipt struct {
 	ID          string
@@ -232,23 +234,23 @@ func (s *Service) DecideLearningProposal(ctx context.Context, id, expected, deci
 		} else if available, reason := s.proposalActionAvailable(project); !available {
 			return nil, fmt.Errorf("%w: %s", ErrFailedPrecondition, reason)
 		}
-		for _, evidence := range current.Candidate.Evidence {
-			source, sourceErr := s.GetSession(ctx, evidence.SessionID)
-			if sourceErr != nil || source.CheckIdentityReady() != nil {
-				return nil, fmt.Errorf("%w: proposal source is unavailable or held", ErrFailedPrecondition)
-			}
-		}
 		input, manifestBacked, verifyErr := s.rematerializeProposal(ctx, part, current)
 		if verifyErr != nil {
 			return nil, verifyErr
 		}
 		if manifestBacked {
 			verified = &input
-		} else {
-			for _, evidence := range current.Candidate.Evidence {
-				if available, _ := s.learningEvidenceAvailable(ctx, evidence); !available {
-					return nil, fmt.Errorf("%w: proposal evidence is unavailable or changed", ErrFailedPrecondition)
-				}
+		}
+		for _, evidence := range current.Candidate.Evidence {
+			citation, status := s.learningEvidenceSourceCitation(ctx, evidence, true)
+			if status != evidenceAvailabilityAvailable {
+				return nil, fmt.Errorf("%w: proposal evidence is historical, unavailable, or changed", ErrFailedPrecondition)
+			}
+			if verified != nil {
+				citation, err = learning.CanonicalEvidenceCitation(*verified, evidence)
+			}
+			if err != nil || evidence.ToolCallID != "" && citation.ToolCallID == "" {
+				return nil, fmt.Errorf("%w: proposal invocation evidence is unattached", ErrFailedPrecondition)
 			}
 		}
 		record, err = s.cfg.PromoteProposal(ctx, part, learning.ProposalID(id), learning.ProposalVersion(expected), true)
@@ -483,13 +485,13 @@ func (s *Service) toProtoLearningProposal(ctx context.Context, r learning.Propos
 			citation, previewErr := learning.CanonicalEvidenceCitation(*verified, ref)
 			preview, callID = citation.Preview, citation.ToolCallID
 			if previewErr == nil {
-				available, availability = true, "available"
+				available, availability = true, evidenceAvailabilityAvailable
 			} else {
 				availability = "evidence changed"
 			}
 		} else if detail {
 			citation, status := s.learningEvidenceCitation(ctx, ref)
-			available, availability, preview, callID = status == "available", status, citation.Preview, citation.ToolCallID
+			available, availability, preview, callID = status == evidenceAvailabilityAvailable, status, citation.Preview, citation.ToolCallID
 		}
 		eventSeq := int64(0)
 		if ref.EventSeq != nil {
@@ -509,18 +511,20 @@ func (s *Service) toProtoLearningProposal(ctx context.Context, r learning.Propos
 	return out
 }
 
-func (s *Service) learningEvidenceAvailable(ctx context.Context, ref learning.EvidenceRef) (bool, string) {
-	available, availability, _ := s.learningEvidenceStatus(ctx, ref)
-	return available, availability
-}
-
-//nolint:gocyclo // legacy and manifest-backed message/event evidence share one closed availability projection
 func (s *Service) learningEvidenceStatus(ctx context.Context, ref learning.EvidenceRef) (bool, string, string) {
 	citation, availability := s.learningEvidenceCitation(ctx, ref)
-	return availability == "available", availability, citation.Preview
+	return availability == evidenceAvailabilityAvailable, availability, citation.Preview
 }
 
 func (s *Service) learningEvidenceCitation(ctx context.Context, ref learning.EvidenceRef) (learning.EvidenceCitation, string) {
+	return s.learningEvidenceSourceCitation(ctx, ref, false)
+}
+
+// Promotion cannot use display-only historical rows, even if their frozen digest
+// verifies and the citation does not request a tool-call attachment.
+//
+//nolint:gocyclo // legacy and manifest-backed message/event evidence share one closed availability projection
+func (s *Service) learningEvidenceSourceCitation(ctx context.Context, ref learning.EvidenceRef, promotion bool) (learning.EvidenceCitation, string) {
 	unavailable := learning.EvidenceCitation{}
 	if s.cfg.Store == nil {
 		return unavailable, "source unavailable"
@@ -528,6 +532,20 @@ func (s *Service) learningEvidenceCitation(ctx context.Context, ref learning.Evi
 	sess, err := s.GetSession(ctx, ref.SessionID)
 	if err != nil {
 		return unavailable, "source unavailable"
+	}
+	if promotion && ref.Locator == learning.EvidenceMessage {
+		ordinal := ref.Ordinal
+		if ref.OriginalMessage != nil {
+			ordinal = *ref.OriginalMessage
+		}
+		index, err := learning.SourceMessageIndex(sess.Conversation.Messages, sess.Incarnation(), ordinal, ref.ResolvedProtocol())
+		if err != nil {
+			return unavailable, "source unavailable"
+		}
+		message := sess.Conversation.Messages[index]
+		if message.Historical != nil || message.Legacy != nil && len(message.Legacy.Unsupported) != 0 {
+			return unavailable, "historical evidence is unattached"
+		}
 	}
 	stop, _ := sess.StopReason()
 	workspace, ok := s.learningWorkspace(ctx, sess)
@@ -558,6 +576,9 @@ func (s *Service) learningEvidenceCitation(ctx context.Context, ref learning.Evi
 				return unavailable, "evidence changed"
 			}
 			if coordinate >= 0 && coordinate == wanted {
+				if promotion && event.Type == session.EvHistorical {
+					return unavailable, "historical evidence is unattached"
+				}
 				if len(events) != 0 {
 					return unavailable, "evidence changed"
 				}
@@ -571,7 +592,7 @@ func (s *Service) learningEvidenceCitation(ctx context.Context, ref learning.Evi
 	if err != nil {
 		return unavailable, "evidence changed"
 	}
-	return citation, "available"
+	return citation, evidenceAvailabilityAvailable
 }
 
 func (s *Service) learningWorkspace(ctx context.Context, sess *session.Session) (string, bool) {
