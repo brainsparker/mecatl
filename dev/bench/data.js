@@ -320804,6 +320804,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792482685157,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0d022112f9ded8dc3d4210ac254a58d14c54d47a",
+          "message": "test(oidc): make the Kubernetes token-rotation check deterministic (#2436)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T06:59:27-04:00",
+          "tree_id": "d54ab81efa6eba9f04eafcc1e6457dfb4ae80123",
+          "url": "https://github.com/stacklok/mecatl/commit/0d022112f9ded8dc3d4210ac254a58d14c54d47a"
+        },
+        "date": 1792494677012,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -464166,6 +464200,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792494674327,
+  "lastUpdate": 1792494677779,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
