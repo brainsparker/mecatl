@@ -322236,6 +322236,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792498533118,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ac90c4d551d21909adcb279914dcd90ac57d3b8",
+          "message": "ci(k8s-e2e): shard execution qualification and cut provisioning time (#2432)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T08:19:32-04:00",
+          "tree_id": "e4c70e0aae58a0f210611b6caf23d6fbc2f533e7",
+          "url": "https://github.com/stacklok/mecatl/commit/7ac90c4d551d21909adcb279914dcd90ac57d3b8"
+        },
+        "date": 1792499483386,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -466210,6 +466244,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792499480455,
+  "lastUpdate": 1792499484188,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
