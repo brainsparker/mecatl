@@ -358299,6 +358299,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792501879819,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8ae7d901b7f4d61b77ab3cd1c96b6ea42a3fc1c2",
+          "message": "ci: save Go caches only from main and stop cancelled Test runs (#2440)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T11:23:41-04:00",
+          "tree_id": "b153f337d87e24982c7355563674b0842f45a1d7",
+          "url": "https://github.com/stacklok/mecatl/commit/8ae7d901b7f4d61b77ab3cd1c96b6ea42a3fc1c2"
+        },
+        "date": 1792510609740,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16149.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12912.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -467777,6 +467816,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792510604971,
+  "lastUpdate": 1792510610673,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
