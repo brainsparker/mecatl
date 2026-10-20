@@ -477,6 +477,16 @@ if [ -n "$resume" ]; then
   kube -n execution-qualification scale deployment/mecatl-execution --replicas=2
   kube -n execution-qualification rollout status deployment/mecatl-execution --timeout=4m
 fi
+# The API server refuses creates under a ResourceQuota until the quota controller
+# has computed its status, so a test that starts right after install would see
+# Forbidden. Wait (bounded) until every quota's status matches its spec.
+quota_wait_start=$(date +%s)
+while :; do
+  quota_rows=$(kube -n execution-qualification get resourcequota -o jsonpath='{range .items[*]}{.spec.hard}{"|"}{.status.hard}{"\n"}{end}')
+  printf '%s\n' "$quota_rows" | awk -F'|' 'NF && $1 != $2 {pending = 1} END {exit pending}' && break
+  [ $(( $(date +%s) - quota_wait_start )) -lt 120 ] || { echo "execution ResourceQuota status was not computed" >&2; exit 1; }
+  sleep 2
+done
 
 kube -n execution-qualification create configmap execution-mock --from-file=mock-script.json="$root/deploy/mecatl-execution-kind/mock-script.json" --dry-run=client -o yaml | kube apply -f -
 helm_kube upgrade --install mecak8s "$root/deploy/helm/mecak8s" \
