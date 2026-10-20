@@ -221,6 +221,7 @@ func TestKindExecutionQualification(t *testing.T) {
 	stepStarted = time.Now()
 	lookup := environmentForBinding(t, ctx, kubeconfig, sessionID)
 	attached := waitReady(t, ctx, providerClient, owner, sessionID, lookup)
+	waitAgentRunReleased(t, ctx, kubeconfig, lookup.ID)
 	rc, releaseVerification := acquireRun(t, ctx, providerClient, owner, sessionID, attached, fmt.Sprintf("independent-verify-%d", time.Now().UnixNano()))
 	proof, err := providerClient.File(ctx, executionenv.FileRequest{Context: rc, Operation: executionenv.OpFileRead, Path: "proof.txt"})
 	if err != nil || string(proof.Data) != "beta\n" {
@@ -595,6 +596,28 @@ func waitReady(t *testing.T, ctx context.Context, c *executionclient.Client, own
 	}
 	t.Fatalf("execution environment %q did not become ready: last_code=%s last_ready=%t", ref.ID, lastCode, lastReady)
 	return executionenv.AttachEnvironmentResponse{}
+}
+
+// waitAgentRunReleased waits until the agent's run claim on name is released or
+// expired. The agent releases it only after its turn's event stream has ended,
+// so a caller that reads that stream to completion can otherwise race the
+// release and see AcquireRun conflict with "environment has an active run".
+func waitAgentRunReleased(t *testing.T, ctx context.Context, kubeconfig, name string) {
+	t.Helper()
+	deadline := time.Now().Add(45 * time.Second)
+	for {
+		expires := strings.TrimSpace(string(runKubectl(t, ctx, kubeconfig, "get", "executionenvironment", name, "-n", namespace, "-o", "jsonpath={.status.activeRun.expiresAt}")))
+		if expires == "" {
+			return
+		}
+		if at, err := time.Parse(time.RFC3339Nano, expires); err == nil && time.Now().After(at) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("agent run claim on %q was not released: expires_at=%s", name, expires)
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }
 func isRemoteCode(err error, code executionenv.ErrorCode) bool {
 	var remote *executionenv.Error
