@@ -323668,6 +323668,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792510603922,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29541485+ChrisJBurns@users.noreply.github.com",
+            "name": "Chris Burns",
+            "username": "ChrisJBurns"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea1018789422fd689be0c4b09ab517716ff818cc",
+          "message": "feat(identitybroker): add validated startup foundation for the agent identity broker (#2442)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-20T19:39:54+01:00",
+          "tree_id": "e3aa22583145cf10127be9110b9ec97146a98118",
+          "url": "https://github.com/stacklok/mecatl/commit/ea1018789422fd689be0c4b09ab517716ff818cc"
+        },
+        "date": 1792522324043,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -468254,6 +468288,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792522320679,
+  "lastUpdate": 1792522325099,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
