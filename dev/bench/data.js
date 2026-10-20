@@ -357505,6 +357505,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792499487116,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc34286a1b2719332fc8fc272b89d3e89fca80e5",
+          "message": "fix(ci): restrict Kubernetes release skips to the release App (#2439)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-20T08:40:15-04:00",
+          "tree_id": "38153a32bdd8b431977abdfe4147efdb18c8f1a3",
+          "url": "https://github.com/stacklok/mecatl/commit/cc34286a1b2719332fc8fc272b89d3e89fca80e5"
+        },
+        "date": 1792500740772,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16144,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12907,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -466755,6 +466794,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792500737837,
+  "lastUpdate": 1792500741539,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
