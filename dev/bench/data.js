@@ -322952,6 +322952,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792500737069,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aponcedeleonch@stacklok.com",
+            "name": "Alejandro Ponce de Leon",
+            "username": "aponcedeleonch"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa79be7d498bb157347e578c61628573a8241d63",
+          "message": "feat(permissions): one named permission-mode vocabulary and two admission gates (#1935)\n\nCo-authored-by: Claude Opus 5.5 (1M context) <noreply@anthropic.com>\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-20T15:57:57+03:00",
+          "tree_id": "f6165f2fa34448a75e013d11527d0bfa41d4075a",
+          "url": "https://github.com/stacklok/mecatl/commit/fa79be7d498bb157347e578c61628573a8241d63"
+        },
+        "date": 1792501874919,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -467232,6 +467266,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792501871234,
+  "lastUpdate": 1792501876002,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
