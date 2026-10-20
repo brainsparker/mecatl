@@ -319730,6 +319730,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792414940132,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62367810a85d8980ed13aaa43a53774254e6cd3f",
+          "message": "build(release): publish mecatl to Homebrew as a cask (#2428)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T02:30:50-04:00",
+          "tree_id": "fe06f8714aa2293e29e2eed7fbb2b7742c33de1d",
+          "url": "https://github.com/stacklok/mecatl/commit/62367810a85d8980ed13aaa43a53774254e6cd3f"
+        },
+        "date": 1792478612520,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -462633,6 +462667,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792478609556,
+  "lastUpdate": 1792478613411,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
