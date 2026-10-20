@@ -321520,6 +321520,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792496852374,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c9caf0dd689cafba7f92b0378f5b29b669e3b928",
+          "message": "ci: share one compile across microVM release stamp builds (#2433)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T07:51:11-04:00",
+          "tree_id": "d51f112c55e45279e75e842a30e661a1467654e6",
+          "url": "https://github.com/stacklok/mecatl/commit/c9caf0dd689cafba7f92b0378f5b29b669e3b928"
+        },
+        "date": 1792497762477,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -465188,6 +465222,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792497759297,
+  "lastUpdate": 1792497763163,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
