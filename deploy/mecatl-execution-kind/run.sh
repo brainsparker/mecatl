@@ -478,15 +478,18 @@ if [ -n "$resume" ]; then
   kube -n execution-qualification rollout status deployment/mecatl-execution --timeout=4m
 fi
 # The API server refuses creates under a ResourceQuota until the quota controller
-# has computed its status, so a test that starts right after install would see
-# Forbidden. Wait (bounded) until every quota's status matches its spec.
+# has computed both its hard limits and its usage for every listed resource; for
+# the custom ExecutionEnvironment count that waits on CRD discovery. A test that
+# starts right after install would otherwise see Forbidden. Wait (bounded) until
+# no quota reports a pending resource.
 quota_wait_start=$(date +%s)
 while :; do
-  quota_rows=$(kube -n execution-qualification get resourcequota -o jsonpath='{range .items[*]}{.spec.hard}{"|"}{.status.hard}{"\n"}{end}')
-  printf '%s\n' "$quota_rows" | awk -F'|' 'NF && $1 != $2 {pending = 1} END {exit pending}' && break
-  [ $(( $(date +%s) - quota_wait_start )) -lt 120 ] || { echo "execution ResourceQuota status was not computed" >&2; exit 1; }
+  quota_pending=$(kube -n execution-qualification get resourcequota -o go-template='{{range .items}}{{$h := .status.hard}}{{$u := .status.used}}{{if and $h $u}}{{range $k, $v := .spec.hard}}{{if or (ne (printf "%v" (index $h $k)) (printf "%v" $v)) (not (index $u $k))}}{{$k}} {{end}}{{end}}{{else}}{{.metadata.name}} {{end}}{{end}}')
+  [ -n "$quota_pending" ] || break
+  [ $(( $(date +%s) - quota_wait_start )) -lt 180 ] || { echo "execution ResourceQuota status not computed: $quota_pending" >&2; exit 1; }
   sleep 2
 done
+printf 'qualification quota_status=ready elapsed=%ss\n' "$(( $(date +%s) - quota_wait_start ))"
 
 kube -n execution-qualification create configmap execution-mock --from-file=mock-script.json="$root/deploy/mecatl-execution-kind/mock-script.json" --dry-run=client -o yaml | kube apply -f -
 helm_kube upgrade --install mecak8s "$root/deploy/helm/mecak8s" \
