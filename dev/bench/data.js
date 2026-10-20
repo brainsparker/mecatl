@@ -323310,6 +323310,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792501874919,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8ae7d901b7f4d61b77ab3cd1c96b6ea42a3fc1c2",
+          "message": "ci: save Go caches only from main and stop cancelled Test runs (#2440)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T11:23:41-04:00",
+          "tree_id": "b153f337d87e24982c7355563674b0842f45a1d7",
+          "url": "https://github.com/stacklok/mecatl/commit/8ae7d901b7f4d61b77ab3cd1c96b6ea42a3fc1c2"
+        },
+        "date": 1792510603922,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -467743,6 +467777,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792510600296,
+  "lastUpdate": 1792510604971,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
