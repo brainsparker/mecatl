@@ -224,18 +224,21 @@ if [ ! -s "$state/pki/ca.crt" ]; then
 fi
 image_step_done pki
 
-# Build the four static Go images in the development toolbox, concurrently with
-# each other and with the container builds below. ko emits a content tag; after
-# loading, the fixture resolves the node's actual manifest digest and creates a
-# matching digest alias for Kubernetes.
+# Build the three static Go images in the development toolbox. ko emits a
+# content tag; after loading, the fixture resolves the node's actual manifest
+# digest and creates a matching digest alias for Kubernetes.
 build_ko() {
-  name=$1 package=$2 repo=$3 goflags=${4:-}
-  dev env GOFLAGS="$goflags" KO_DOCKER_REPO="$repo" ko build --local --bare "$package" >"$state/images/$name.ko"
+  package=$1 repo=$2
+  dev env KO_DOCKER_REPO="$repo" ko build --local --bare "$package" | tail -n 1
 }
-build_ko provider ./cmd/mecatl-execution-provider ko.local/mecatl-execution-provider & provider_pid=$!
-build_ko agent ./cmd/mecak8s ko.local/mecak8s & agent_pid=$!
-build_ko oidc ./e2e/k8s_execution/fixture/oidcissuer ko.local/mecatl-oidc-fixture -tags=kind_execution_e2e & oidc_pid=$!
-build_ko netprobe ./e2e/k8s_execution/fixture/netprobe ko.local/mecatl-netprobe-fixture -tags=kind_execution_e2e & netprobe_pid=$!
+provider_tag=$(build_ko ./cmd/mecatl-execution-provider ko.local/mecatl-execution-provider)
+image_step_done provider_build
+agent_tag=$(build_ko ./cmd/mecak8s ko.local/mecak8s)
+image_step_done agent_build
+oidc_tag=$(dev env GOFLAGS=-tags=kind_execution_e2e KO_DOCKER_REPO=ko.local/mecatl-oidc-fixture ko build --local --bare ./e2e/k8s_execution/fixture/oidcissuer | tail -n 1)
+image_step_done oidc_build
+netprobe_tag=$(dev env GOFLAGS=-tags=kind_execution_e2e KO_DOCKER_REPO=ko.local/mecatl-netprobe-fixture ko build --local --bare ./e2e/k8s_execution/fixture/netprobe | tail -n 1)
+image_step_done netprobe_build
 
 # Resolve the public Go base from the local OCI store, then feed its observed
 # digest to the production workload recipe without weakening its pin check.
@@ -270,16 +273,6 @@ image_step_done derivative_build
 incompatible_tag="localhost/mecatl-execution-incompatible:e2e"
 "$runtime" build "$pull_policy" --target incompatible --build-arg EXECUTOR_BASE="$executor_base" -f "$root/deploy/mecatl-execution-kind/fixture/derivative/Dockerfile" -t "$incompatible_tag" "$root/deploy/mecatl-execution-kind/fixture/derivative" >/dev/null
 image_step_done incompatible_derivative_build
-ko_failed=
-for pid in "$provider_pid" "$agent_pid" "$oidc_pid" "$netprobe_pid"; do
-  wait "$pid" || ko_failed=1
-done
-[ -z "$ko_failed" ] || { echo "ko image build failed" >&2; exit 1; }
-provider_tag=$(tail -n 1 "$state/images/provider.ko")
-agent_tag=$(tail -n 1 "$state/images/agent.ko")
-oidc_tag=$(tail -n 1 "$state/images/oidc.ko")
-netprobe_tag=$(tail -n 1 "$state/images/netprobe.ko")
-image_step_done ko_builds
 
 load_index=0
 for item in "$provider_tag" "$agent_tag" "$oidc_tag" "$netprobe_tag" "$workload_tag" "$derivative_tag" "$incompatible_tag"; do
