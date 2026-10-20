@@ -322594,6 +322594,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792499483386,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc34286a1b2719332fc8fc272b89d3e89fca80e5",
+          "message": "fix(ci): restrict Kubernetes release skips to the release App (#2439)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-20T08:40:15-04:00",
+          "tree_id": "38153a32bdd8b431977abdfe4147efdb18c8f1a3",
+          "url": "https://github.com/stacklok/mecatl/commit/cc34286a1b2719332fc8fc272b89d3e89fca80e5"
+        },
+        "date": 1792500737069,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -466721,6 +466755,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792500734120,
+  "lastUpdate": 1792500737837,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
