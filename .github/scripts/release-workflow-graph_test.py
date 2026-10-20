@@ -98,6 +98,9 @@ def test_release_workflow_graph_and_contract(release_path: Path, release_pr_path
     assert "timeout-minutes: 10" in release_tag
     assert release_tag.index("name: Decide whether to tag") < release_tag.index("name: Validate execution base images before tagging") < release_tag.index("name: Mint the release app token")
     assert "if: steps.decide.outputs.should_tag == 'true'\n        run: " + validator in release_tag
+    # The checks gate covers the released code before any tagging authority exists.
+    assert release_tag.index("name: Decide whether to tag") < release_tag.index("name: Require passing checks on the released code") < release_tag.index("name: Mint the release app token")
+    assert "commits/${parent}/check-runs?filter=latest" in release_tag
     assert "Build execution images before tagging" not in release_tag
     assert 'docker buildx build --platform linux/amd64,linux/arm64 --file "$dockerfile" --output=type=cacheonly .' not in release_tag
 

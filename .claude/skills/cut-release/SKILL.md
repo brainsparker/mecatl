@@ -92,8 +92,10 @@ Run from the repo root.
    gh pr list --head "release/vX.Y.Z" --json number,url,files
    gh pr diff <number>
    ```
-   Wait for CI to go green. The PR is opened by the release GitHub App, so it triggers checks
-   normally.
+   The PR is opened by the release GitHub App, so it triggers checks normally, but a
+   release PR that changes only `VERSION` and the chart version files skips CI, perf, and
+   k8s-e2e: `main` already ran them on the same code, and step 5 refuses to tag unless
+   they passed. If the PR changes anything else, CI runs; wait for it to go green.
 
 4. **Squash-merge it.** A human does this — it is the approval gate, and it is the only way
    `VERSION` changes on `main`:
@@ -112,6 +114,12 @@ Run from the repo root.
    gh run watch "$(gh run list --workflow=create-release-tag.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
    git fetch --tags && git tag --sort=-v:refname --list 'v*' | head -1
    ```
+   Before tagging, the workflow requires every check on the merge commit's parent, the code
+   being released, to have passed, including CI's `Lint`. That parent may be newer than the
+   `main` you reviewed in step 1. If those checks are still running or failed, the run fails
+   without tagging: wait for them, or fix or re-run them, then re-run the failed tag run with
+   `gh run rerun <run-id>`. A new dispatch would run on the current `main` instead of the
+   release commit.
 
 6. **Confirm the release run started, then wait for every publishing job.** A
    successful CLI archive or one green image is not a complete release. In

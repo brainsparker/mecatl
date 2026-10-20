@@ -48,6 +48,8 @@ jobs:
     permissions:
       contents: read # checkout
       pull-requests: read # resolve the PR that produced this commit
+      actions: read # workflow runs on the released code
+      checks: read # check runs on the released code
     steps:
       # fetch-depth: 0 so `git rev-parse <tag>` can see existing tags for the idempotency check.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -179,6 +181,36 @@ jobs:
 
       # Revalidate the merged release commit immediately before tagging: a
       # checked-in base pin can change between PR dispatch and human merge.
+      # release.yml does not wait for CI, so this is where a release is tied to
+      # validated code: the parent of the release commit, which main may have
+      # moved to after the release PR was opened. Any API failure refuses.
+      - name: Require passing checks on the released code
+        if: steps.decide.outputs.should_tag == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          parent="$(git rev-parse HEAD^)"
+          if git diff --name-only --no-renames HEAD^ HEAD \
+            | grep -vxE 'VERSION|deploy/helm/mecak8s/(Chart|values)\.yaml|deploy/helm/mecatl-studio/Chart\.yaml'; then
+            echo "::error::the release commit changes more than release metadata; refusing to tag"
+            exit 1
+          fi
+          # Runs not triggered on main itself (continuous.yml's workflow_run, comment bots)
+          # do not validate the commit; their check suites are excluded.
+          ignored="$(gh api --paginate "repos/${REPOSITORY}/actions/runs?head_sha=${parent}&per_page=100" \
+            --jq '.workflow_runs[] | select(.event != "push" and .event != "workflow_dispatch") | .check_suite_id' | jq -s .)"
+          checks="$(gh api --paginate "repos/${REPOSITORY}/commits/${parent}/check-runs?filter=latest&per_page=100" \
+            --jq '.check_runs[]' | jq -s --argjson ignored "${ignored}" '[.[] | select(.check_suite.id as $s | $ignored | index($s) | not)]')"
+          bad="$(printf '%s' "${checks}" | jq -r '.[] | select(.status != "completed" or (.conclusion | IN("success", "skipped", "neutral") | not)) | "  \(.name): \(.status)/\(.conclusion)"')"
+          if [ -n "${bad}" ] || ! printf '%s' "${checks}" | jq -e 'any(.[]; .name == "Lint" and .conclusion == "success")' >/dev/null; then
+            echo "::error::checks on ${parent}, the code being released, have not all passed (CI's Lint must succeed); fix or re-run them, then re-run this workflow"
+            printf '%s\n' "${bad}"
+            exit 1
+          fi
+          echo "Checks passed on ${parent}."
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         if: steps.decide.outputs.should_tag == 'true'
         with:

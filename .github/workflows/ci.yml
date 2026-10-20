@@ -19,6 +19,14 @@ on:
     branches: [main]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+    # Release PRs change only these files. GitHub skips the workflow only when every
+    # changed file matches, and create-release-tag.yml requires the released code's
+    # checks to pass before tagging. This is the one workflow-level filter: main has
+    # no required checks, so a skipped release PR blocks nothing.
+    paths-ignore:
+      - VERSION
+      - 'deploy/helm/*/Chart.yaml'
+      - deploy/helm/mecak8s/values.yaml
   workflow_dispatch:
 
 # Least-privilege default for the whole workflow. The CI jobs only read source.
@@ -41,9 +49,10 @@ env:
   GOPROXY: https://proxy.golang.org|direct
 
 jobs:
-  # Do not use workflow-level path filters: required checks must exist on every
-  # push/PR. This job instead classifies the exact compare range and fail-closes
-  # to full validation whenever Git cannot prove a narrow docs-only change.
+  # Apart from the release-PR paths-ignore above, do not use workflow-level path
+  # filters: checks must exist on every other push/PR. This job instead classifies
+  # the exact compare range and fail-closes to full validation whenever Git cannot
+  # prove a narrow docs-only change.
   changes:
     name: Changes
     runs-on: ubuntu-24.04

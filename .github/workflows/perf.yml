@@ -84,6 +84,12 @@ on:
       - 'user-docs/**/*.mdx'
       - 'user-docs/_category_.json'
       - 'user-docs/**/_category_.json'
+      # Not documentation: release PRs change only these files. GitHub skips the
+      # workflow only when every changed file matches, and create-release-tag.yml
+      # requires the released code's checks to pass before tagging.
+      - VERSION
+      - 'deploy/helm/*/Chart.yaml'
+      - deploy/helm/mecak8s/values.yaml
 
 # Least-privilege default; each job narrows or widens as needed.
 permissions:
