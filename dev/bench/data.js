@@ -321878,6 +321878,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792497762477,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0a2f25730ad1c31886d9d98e8f64ab66e7fea411",
+          "message": "ci: restore the race test cache by prefix and save it only from main (#2437)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T07:58:37-04:00",
+          "tree_id": "18583514eef1646d88ec446360118bb655581563",
+          "url": "https://github.com/stacklok/mecatl/commit/0a2f25730ad1c31886d9d98e8f64ab66e7fea411"
+        },
+        "date": 1792498533118,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -465699,6 +465733,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792498530190,
+  "lastUpdate": 1792498533897,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
