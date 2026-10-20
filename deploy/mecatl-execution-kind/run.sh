@@ -509,7 +509,9 @@ printf 'qualification test_build=wait elapsed=%ss\n' "$(( $(date +%s) - test_bui
 set --
 if [ "${handoff:-0}" = 1 ]; then set -- -test.skip '^TestKindExecutionQualification$'; fi
 if [ -n "${shard:-}" ]; then
-  shard_skip=$(awk -v s="$shard" '!/^#/ && NF && $1 != s {printf "%s%s", sep, $2; sep = "|"}' "$root/deploy/mecatl-execution-kind/shards.txt")
+  # Skip only listed tests this shard does not own, so a test listed under two
+  # shards runs on both rather than on neither.
+  shard_skip=$(awk -v s="$shard" '!/^#/ && NF {if ($1 == s) own[$2] = 1; else other[$2] = 1} END {for (t in other) if (!(t in own)) {printf "%s%s", sep, t; sep = "|"}}' "$root/deploy/mecatl-execution-kind/shards.txt")
   printf 'qualification shard=%s skip=%s\n' "$shard" "$shard_skip"
   set -- -test.skip "^(${shard_skip})\$"
 fi

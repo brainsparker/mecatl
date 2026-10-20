@@ -7,9 +7,10 @@
 # test no CI shard runs (live.sh owns it).
 #
 # Each shard provisions its own Kind cluster, and run.sh selects a shard by
-# skipping every listed test owned elsewhere, so an unlisted test runs rather
-# than silently dropping out. Tests create their own environments and restore
-# what they change; the only ordering constraints are:
+# skipping only listed tests the shard does not own, so an unlisted test runs on
+# every shard and a doubly listed one on both, rather than silently dropping out.
+# Tests create their own environments and restore what they change; the only
+# ordering constraints are:
 #   - TestKindExecutionProductionHelmLifetime uninstalls and re-adopts the
 #     release, so it must be the last cluster test in its shard. Its zz_ file
 #     name keeps it last in Go's file-order execution.
