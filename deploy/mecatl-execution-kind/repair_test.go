@@ -235,7 +235,7 @@ func TestTemplateFixtureNeverSeedsLegacyAllocations(t *testing.T) {
 }
 
 func TestQualificationTestBinaryWaitAndWorkingDirectory(t *testing.T) {
-	build := scriptRange(t, "run.sh", "test_build_start=$(date +%s)", "\nkube create namespace execution-qualification")
+	build := scriptRange(t, "run.sh", "test_build_start=$(date +%s)", "\n# Resolve the public Go base")
 	run := scriptRange(t, "run.sh", "test_build_wait_start=$(date +%s)", "\nphase_done tests")
 	for _, failed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "compiled", true: "build-failed"}[failed], func(t *testing.T) {
@@ -251,7 +251,8 @@ func TestQualificationTestBinaryWaitAndWorkingDirectory(t *testing.T) {
 			writeFixture(t, filepath.Join(root, "fresh.test"), "#!/bin/sh\nprintf 'cwd=%s args=%s profile=%s\\n' \"$PWD\" \"$*\" \"$MECATL_EXECUTION_QUAL_PROFILE\"\n", 0o700)
 			builder := `#!/bin/sh
 set -eu
-test "$*" = "test -c -tags kind_execution_e2e -o $HOME/state/qualification.test ./e2e/k8s_execution"
+test "$*" = "test -c -trimpath -tags kind_execution_e2e -o $HOME/state/qualification.test ./e2e/k8s_execution"
+test "$CGO_ENABLED" = 0
 `
 			if failed {
 				builder += "exit 17\n"
@@ -279,7 +280,7 @@ dev() { (cd "$root" && "$@"); }
 
 func TestQualificationEarlyFailureStopsBuildBeforeDiagnostics(t *testing.T) {
 	cleanup := scriptRange(t, "run.sh", "test_build_pid=\ncleanup_test_build()", "\nexport KUBECONFIG")
-	build := scriptRange(t, "run.sh", "test_build_start=$(date +%s)", "\nkube create namespace execution-qualification")
+	build := scriptRange(t, "run.sh", "test_build_start=$(date +%s)", "\n# Resolve the public Go base")
 	root := t.TempDir()
 	for _, dir := range []string{"bin", "state", "deploy/mecatl-execution-kind"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o700); err != nil {
@@ -635,7 +636,7 @@ func TestProductionThenLiveImageAlias(t *testing.T) {
 				writeFixture(t, filepath.Join(root, "bin", runtime), `#!/bin/sh
 set -eu
 case "$1" in
-save) : > "$4" ;;
+save) while [ "$1" != -o ]; do shift; done; : > "$2" ;;
 exec)
   test "$2" = owned-control-plane
   shift 5

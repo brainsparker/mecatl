@@ -236,16 +236,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      # The shared setup-go entry (same key as ci.yml and the job above) holds
+      # non-trimpath compiles and is saved by whichever job wins the race, so
+      # it never warms ko's -trimpath builds. This job owns its own entry:
+      # restored everywhere, saved once per go.sum by shard 1 outside PRs.
+      - id: setup-go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          cache: true
-          cache-dependency-path: |
-            go.sum
-            engine/go.sum
-            adapters/go.sum
-            internal/adaptersupport/go.sum
-            contracts/gen/go/mecatl/driver/go.sum
+          cache: false
+      - id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: k8s-execution-go-${{ runner.os }}-${{ runner.arch }}-go${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.sum', 'engine/go.sum', 'adapters/go.sum', 'internal/adaptersupport/go.sum', 'contracts/gen/go/mecatl/driver/go.sum') }}
+          restore-keys: |
+            k8s-execution-go-${{ runner.os }}-${{ runner.arch }}-go${{ steps.setup-go.outputs.go-version }}-
       - uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
         with:
           version: 3.x
@@ -265,6 +273,17 @@ jobs:
           MECATL_EXECUTION_QUAL_SHARD: ${{ matrix.shard }}
           MECATL_EXECUTION_QUAL_NATURAL_EXPIRY: ${{ github.event_name == 'workflow_dispatch' && inputs.natural_expiry && '1' || '0' }}
         run: task e2e:k8s:execution:production
+      # Build outputs are content-addressed, so a failed qualification still
+      # leaves a valid cache. PR refs never save: their entries are visible only
+      # to the same PR and would churn the repository's 10GB cache budget.
+      - name: Save Go caches
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && matrix.shard == 1 && steps.go-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
       - name: Upload bounded failure artifact
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
