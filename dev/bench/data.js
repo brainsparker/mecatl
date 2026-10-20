@@ -358696,6 +358696,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792510609740,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29541485+ChrisJBurns@users.noreply.github.com",
+            "name": "Chris Burns",
+            "username": "ChrisJBurns"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea1018789422fd689be0c4b09ab517716ff818cc",
+          "message": "feat(identitybroker): add validated startup foundation for the agent identity broker (#2442)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-20T19:39:54+01:00",
+          "tree_id": "e3aa22583145cf10127be9110b9ec97146a98118",
+          "url": "https://github.com/stacklok/mecatl/commit/ea1018789422fd689be0c4b09ab517716ff818cc"
+        },
+        "date": 1792522328564,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16155,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12916.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -468288,6 +468327,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792522325099,
+  "lastUpdate": 1792522329375,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
