@@ -137,6 +137,10 @@ type ScheduleTool struct {
 	mgr port.ScheduleManager
 }
 
+// readsSessionMode marks the tool as a sessionModeReader: a mutating create
+// records the executing session's mode.
+func (*ScheduleTool) readsSessionMode() {}
+
 // NewScheduleTool constructs the mutating Schedule tool over the injected
 // port.ScheduleManager. mgr must be non-nil; NewScheduleTool panics otherwise
 // (a composition-root programming error — the tool has nothing to drive without
@@ -271,6 +275,10 @@ type planAwareScheduleTool struct {
 // the SCHEMA would make the model guess why its create was refused).
 func (t *planAwareScheduleTool) Spec() tool.ToolSpec { return t.base.Spec() }
 
+// readsSessionMode forwards the base's sessionModeReader marker, so a create
+// passed through to the base still sees the executing session's mode.
+func (*planAwareScheduleTool) readsSessionMode() {}
+
 // ReadOnly reports true so the plan-mode catalog projection advertises the tool
 // (see NewPlanAwareScheduleTool for the soundness argument).
 func (*planAwareScheduleTool) ReadOnly() bool { return true }
@@ -370,9 +378,22 @@ func (t *ScheduleTool) create(ctx context.Context, call session.ToolCall, args s
 	if err != nil {
 		return session.NewToolError(call.ID, "Schedule create: "+err.Error())
 	}
-	mode := session.ModeDefault
-	if !args.Mutating {
-		mode = session.ModePlan
+	// A read-leaning schedule always fires in plan (the Mutating/Mode
+	// invariant). A mutating one fires in the CREATING session's mode, read
+	// from the run context and never from args: a yolo session's schedule must
+	// not fire into a default session whose writes ask with no approver. The
+	// fire re-admits that mode against the server's ceiling, so a server
+	// tightened after creation refuses the fire rather than escalating it. An
+	// unbound context (no executing session) keeps the conservative default.
+	mode := session.ModePlan
+	if args.Mutating {
+		mode = sessionModeFromContext(ctx)
+		if mode == "" {
+			mode = session.ModeDefault
+		}
+		if mode == session.ModePlan {
+			return session.NewToolError(call.ID, "Schedule create: plan mode is active: a mutating Schedule create is not permitted; present a plan and exit plan mode first")
+		}
 	}
 	origin := sessionOriginFromContext(ctx)
 	spec := port.ScheduleSpec{

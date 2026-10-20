@@ -437,17 +437,21 @@ func lookupModelAlias(cfg Config, sel string) (id string, known bool) {
 
 // resolvePermissionMode maps a def's frontmatter permissionMode string to a
 // domain session.PermissionMode, in the composition layer (the domain never sees
-// the raw string). "default"/empty/unknown => "" (the caller's default — for a team
-// member that means the team-wide WithTeamMode). "plan" and "acceptEdits" map to
-// their domain constants. An unrecognised value warns and falls back to the default.
+// the raw string). Empty => "" (the caller's default — for a team member that
+// means the team-wide WithTeamMode, which inherits an auto or yolo parent).
+// "default", "plan", and "acceptEdits" map to their domain constants, so an
+// explicit default stays default under an auto or yolo parent. An unrecognised
+// value warns and falls back to session.ModeDefault rather than inheriting.
 //
 // Note (critique B2): plan mode hard-denies mutations (existing invariant), so a
 // plan member is effectively read-only even if Mutating. acceptEdits is meaningful
 // only for a Mutating member (a read-only member has no mutating tools to accept).
 func resolvePermissionMode(d port.Diagnostics, def agents.AgentDef) session.PermissionMode {
 	switch strings.TrimSpace(def.PermissionMode) {
-	case "", "default":
+	case "":
 		return "" // caller's default
+	case string(session.ModeDefault):
+		return session.ModeDefault
 	case string(session.ModePlan):
 		return session.ModePlan
 	case string(session.ModeAccept):
@@ -455,7 +459,7 @@ func resolvePermissionMode(d port.Diagnostics, def agents.AgentDef) session.Perm
 	default:
 		d.Log(context.Background(), port.LevelWarn, "agent def references an unknown permissionMode; using the default",
 			"agent", def.Name, "mode", def.PermissionMode, "origin", string(def.Origin))
-		return ""
+		return session.ModeDefault
 	}
 }
 
@@ -521,24 +525,6 @@ func tightenLimitField(defCap, request int) int {
 	return defCap
 }
 
-// permissionModeRank is ADR 0353's small LOCAL ordinal table for
-// PermissionMode's tighten-only ordering (plan < default < acceptEdits) —
-// Human decision (resolved): define this now rather than block on PR
-// #1730/ADR 0365's still-unmerged operator-tier permission-mode vocabulary;
-// reconcile later if that lands a different shape. It is used ONLY by
-// clampPermissionMode (the agent-bound session-root clamp, AC1.13); nothing
-// else in the composition layer needs a PermissionMode ordering today.
-func permissionModeRank(mode session.PermissionMode) int {
-	switch mode {
-	case session.ModePlan:
-		return 0
-	case session.ModeAccept:
-		return 2
-	default: // session.ModeDefault (and any unrecognised value) ranks as default.
-		return 1
-	}
-}
-
 // clampPermissionMode applies ADR 0353's tighten-only PermissionMode rule
 // (AC1.13): a request mode looser than the def's configured permissionMode is
 // silently clamped DOWN to the def's value — never rejected, never raised.
@@ -547,12 +533,14 @@ func permissionModeRank(mode session.PermissionMode) int {
 // default" sentinel every other resolvePermissionMode call site already
 // honours), so an empty defMode is not itself a rank — it means "no ceiling,"
 // leaving requestMode untouched exactly as an ordinary (non-agent-bound) main
-// session behaves. A non-empty defMode IS a real ceiling.
+// session behaves. A non-empty defMode IS a real ceiling, compared with
+// session.PermissionMode.Rank across all five modes; an unrecognised request
+// mode is clamped to defMode rather than passed through.
 func clampPermissionMode(defMode, requestMode session.PermissionMode) session.PermissionMode {
 	if defMode == "" {
 		return requestMode
 	}
-	if permissionModeRank(requestMode) > permissionModeRank(defMode) {
+	if requestMode.Rank() == 0 || requestMode.Rank() > defMode.Rank() {
 		return defMode
 	}
 	return requestMode
@@ -1546,7 +1534,7 @@ func resolveAgentRegistry(ctx context.Context, cfg Config) *agents.Registry {
 	// (projectIngestionAdmitted). The user-tier + explicit defs stay active
 	// regardless ("ask the human" mode, not "do nothing").
 	if cfg.AgentsConventional && cfg.Workspace != "" && !projectIngestionAdmitted(cfg) {
-		cfg.diag().Log(ctx, port.LevelWarn, "agent definitions: project-tier defs WITHHELD (untrusted workspace or project ingestion not granted); user-tier and explicit defs stay active. Pass --trust-project (on a headless root) or run --posture auto on an interactive root to admit its project agent defs",
+		cfg.diag().Log(ctx, port.LevelWarn, "agent definitions: project-tier defs WITHHELD (untrusted workspace or project ingestion not granted); user-tier and explicit defs stay active. Pass --trust-project, add the workspace to trustedWorkspaces, or remember trust for it to admit its project agent defs",
 			"workspace", cfg.Workspace, "dirs", ".mecatl/agents,.claude/agents")
 	}
 	sources := agents.ResolveSources(agents.ResolveOptions{

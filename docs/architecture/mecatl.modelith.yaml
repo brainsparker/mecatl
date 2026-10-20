@@ -575,16 +575,18 @@ entities:
 
   PermissionMode:
     definition: >
-      A `Session`'s permission posture — default, plan, or acceptEdits — governing
+      A `Session`'s permission posture — plan, default, acceptEdits, auto, or yolo — governing
       which `Tools` may run and, through the plan model slot, the effective `Model`: in
       plan mode the `Session` re-resolves the plan slot to a strong-reasoning
       `Model` within the same `Provider`. Plan mode is enforced at two layers
       (catalog filter hides mutating `Tools`; evaluator gate hard-denies
       mutations). `acceptEdits` auto-allows Edit and Write where only the
       built-in approval floor would ask; configured asks and denies still win,
-      and Shell and every other `Tool` resolve as in `default`. It is a value object
+      and Shell and every other `Tool` resolve as in `default`. `auto` and `yolo`
+      allow calls without asking: `auto` replaces human approval with an enforcing
+      guardrails checker, `yolo` runs with no enforcing checker. It is a value object
       owned by exactly one `Session`; a control surface switches it out of band
-      (e.g. ACP session/set_mode).
+      (e.g. ACP session/set_mode), up to the deployment's mode ceiling.
     relationships:
       - entity: Session
         cardinality: "1:1"
@@ -601,7 +603,10 @@ entities:
       - id: mode-switch-rejected-mid-turn
         statement: >
           A `PermissionMode` change is rejected while a turn is in flight (running
-          or awaiting); a control surface defers it to the next turn boundary.
+          or awaiting); a control surface defers it to the next turn boundary. The
+          one exception: for a stored `Session` awaiting an approval in a mode the
+          server no longer admits, a change to an admitted, strictly lower mode
+          cancels the pending turn without running it and applies the mode.
       - id: mode-model-same-provider
         statement: >
           A mode-driven `Model` re-resolution stays within the `Session`'s bound
@@ -616,6 +621,17 @@ entities:
           floor, so it loosens only the built-in ask for those two `Tools`. It never
           overrides a configured deny or ask, and every other `Tool`, including
           Shell, resolves exactly as in `default`.
+      - id: autonomous-modes-keep-configured-rules
+        statement: >
+          `auto` and `yolo` loosen only the built-in approval floor. A configured
+          deny or ask still wins, and `auto` is admitted only when an enforcing
+          guardrails checker is configured.
+      - id: mode-admitted-against-deployment
+        statement: >
+          A `Session` runs only in a `PermissionMode` the current deployment admits.
+          A stored `Session` whose mode exceeds the ceiling, or is `auto` without an
+          enforcing checker, is refused before any provider or `Tool` work until its
+          mode is switched to an admitted one.
 
   PermissionRule:
     definition: >

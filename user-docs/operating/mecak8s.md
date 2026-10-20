@@ -99,6 +99,8 @@ endpoints and filenames with values for your environment.
 
    defaultProvider: openai
    model: gpt-5
+   guardrails:
+     model: gpt-5-mini
    extraEnv:
      - name: OPENAI_API_KEY
        valueFrom:
@@ -106,6 +108,11 @@ endpoints and filenames with values for your environment.
            name: mecak8s-openai
            key: OPENAI_API_KEY
    ```
+
+   `guardrails.model` names the checker that the default `auto` permission
+   mode requires. To run every tool without a checker, remove it and set
+   `permissionMode: yolo`. For the other options, see
+   [Choose a guardrails checker](#choose-a-guardrails-checker).
 
 1. Install the chart and wait for both replicas:
 
@@ -128,7 +135,7 @@ the values file if you need a fixed name.
 |Setting|Default|
 |-|-|
 |Replicas|Two|
-|Posture|Headless with `auto` permissions|
+|Permission mode|Headless `auto`, which needs an enforcing guardrails checker|
 |Session state|Redis|
 |Session ownership|Kubernetes Leases|
 |Filesystem|No filesystem access|
@@ -138,6 +145,46 @@ the values file if you need a fixed name.
 Project-provided instructions, skills, agents, and read-only child Shell access
 still require explicit project trust. `mecak8s` does not include ACP, local
 JSONL storage, or the `mecated` operator subcommands.
+
+### Choose a guardrails checker
+
+`auto` allows every tool without asking, so `mecak8s` refuses to start it
+without an enforcing guardrails checker, and the chart refuses to render `auto`
+until you choose one. The chart renders `--permission-mode=<permissionMode>`,
+which defaults to `auto`. Configure the checker in one of two ways:
+
+- Set `guardrails.model`, which renders `--guardrails-model=<MODEL>`:
+
+  ```yaml
+  guardrails:
+    model: <MODEL>
+  ```
+
+- Configure the checker in mounted settings, with a `guardrails:` model or the
+  `guardrail` model slot, and set `guardrails.fromSettings: true`. The chart
+  then passes no guardrails flag, and `mecak8s` uses the settings checker. It
+  still refuses to start if the settings don't bind an enforcing checker.
+
+To run every tool with no checker, set `permissionMode: yolo`.
+`guardrails.disabled: true` renders the `--guardrails=off` kill-switch, which
+also disables a checker in mounted settings, and fails rendering with `auto`.
+Set at most one of `guardrails.model`, `guardrails.fromSettings`, and
+`guardrails.disabled`.
+
+The chart owns the permission mode and the checker. Rendering fails if
+`extraArgs` contains `--posture`, `--permission-mode`, `--yolo`,
+`--guardrails`, or `--guardrails-model`; move that choice to `permissionMode`
+or `guardrails`. `--posture=strict` becomes `permissionMode: default`.
+
+Earlier chart versions always ran `auto` with no guardrails flag. Before you
+upgrade such a release, configure a checker or set `permissionMode: yolo`, or
+the upgrade fails to render.
+
+Because `mecak8s` is headless, the subagent ask reviewer is on by default. It
+uses the `ask-reviewer` model slot or the session model to decide subagent
+permission requests, and each decision spends tokens. Add
+`--subagent-ask-reviewer=off` to `extraArgs` to keep it off. See
+[Subagents under auto](/features/security-and-execution/permissions-and-posture.md#subagents-under-auto).
 
 ## Production Helm chart
 

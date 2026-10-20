@@ -880,7 +880,11 @@ type Config struct {
 	guardrailConfigured bool
 	guardrailDetails    *server.ReviewDetailRegistry
 	guardrailHealth     *guardrailRouteHealth
-	planApprovals       *planApprovalReceipts
+	// guardrailSessionMode is the session mode an engine's guardrail rules are
+	// compiled for (set per session by the session-engine factories). Empty means
+	// the shared engine, whose rules follow the server's default session mode.
+	guardrailSessionMode session.PermissionMode
+	planApprovals        *planApprovalReceipts
 
 	// Slash commands: directory of <name>.md templates; EnableCommands turns on the
 	// default directories when CommandsDir is empty.
@@ -1041,16 +1045,11 @@ type Config struct {
 	// mecatui defaults false.
 	Headless bool
 
-	// AllowAllTools, when set, injects a single ScopeCLI allow-all rule into BOTH
-	// the MAIN engine's static ruleset (mainRules, AudienceMain) AND the
-	// child/member ruleset (childRules, AudienceSubagent) via the shared
-	// yoloAllowAllRule. The RULE binds main AND children — it loosens the built-in
-	// mutate-ask floor for both. The built-in substitution Ask floor is
-	// additionally loosened ONLY for the main engine (mainEvaluatorOptions'
-	// WithLooseSubstitution; childEvaluatorOptions deliberately omits it), so a
-	// child's $()/backtick command still resolves through the child-ask model. A
-	// Deny in any scope and any CONFIGURED Ask still win (see
-	// docs/architecture/governance.md).
+	// AllowAllTools, when set by the cmd layer (--yolo flag), is the input that
+	// resolvePosture uses as the `yolo` alias to MAX-fold the posture to PostureYolo.
+	// It is NOT used for rule injection (that is now mode-driven: Policy.Evaluate
+	// injects allowAllCLIRules for ModeAuto/ModeYolo at call time). Setting it
+	// directly in Config maps to ModeYolo behavior via applyPosture's fallback.
 	AllowAllTools bool
 
 	// Posture is the graduated operator trust/automation tier (strict < trusted <
@@ -1068,19 +1067,44 @@ type Config struct {
 	// choose is a leak with no consenting author. Set via mecated --deployment-id,
 	// which bounds and validates it before it reaches here.
 	DeploymentID string
-	// LooseChildSubstitution loosens the built-in substitution Ask floor for
-	// CHILD/subagent/branch engines (childEvaluatorOptions adds WithLooseSubstitution
-	// when set), turning OFF the child prompt-injection defense so a $()/backtick/
-	// heredoc command auto-runs in a subagent. Derived by applyPosture: TRUE only
-	// under PostureYolo. strict/trusted/auto leave it false (the child substitution
-	// floor stands; a child's substitution still resolves through the child-ask
-	// model). NEVER set directly — it is a posture-derived knob.
+	// LooseChildSubstitution is now mode-driven: a child session in ModeYolo uses
+	// Policy's evalLoose evaluator (built with WithLooseSubstitution=true) rather
+	// than a startup-time evaluator option. This field is no longer set by
+	// applyPosture and is no longer consulted by childEvaluatorOptions.
+	// It is kept for backward compat with existing test fixtures; production code
+	// should use ModeYolo instead.
 	LooseChildSubstitution bool
 	// PostureFlagSet records whether the operator passed an explicit --posture flag.
 	// When true, foldOperatorPosture leaves the operator-YAML posture: value alone
 	// (CLI out-ranks YAML) and resolvePosture WARNs if an alias raised above the
 	// explicit value. Set by the cmd mains alongside Posture.
 	PostureFlagSet bool
+	// PermissionMode is the raw --permission-mode token, meaningful only
+	// when PermissionModeFlagSet. foldPermissionMode resolves it (or the
+	// operator-tier permissionMode: key) into Posture + DefaultSessionMode; an
+	// unknown token is a Build error naming the valid set.
+	PermissionMode string
+	// PermissionModeFlagSet records an explicit --permission-mode. It out-ranks
+	// the operator-tier permissionMode: and the deprecated posture: keys.
+	PermissionModeFlagSet bool
+	// DefaultSessionMode is the session half of a permission-mode token: the mode
+	// a CreateSession request that leaves mode unspecified starts in
+	// (server.Config.DefaultMode). Empty means session.ModeDefault. It is only a
+	// starting point; a session may later change its own mode.
+	DefaultSessionMode session.PermissionMode
+	// MaxAllowedMode is the server ceiling: the most-permissive mode a session on
+	// this server is allowed to enter. SetMode rejects a mode above this ceiling.
+	// It is set by foldPermissionMode from the permission-mode token. Empty means
+	// no ceiling (all modes reachable). See internal/adapter/server/service.go SetMode.
+	MaxAllowedMode session.PermissionMode
+	// permissionModeName is the token the operator chose, for messages. Set by
+	// foldPermissionMode; empty when only the deprecated surface was used.
+	permissionModeName string
+	// askReviewerDefaultOn is set by resolveAskReviewerDefault when the headless
+	// allow-all default engages the subagent ask reviewer.
+	askReviewerDefaultOn bool
+	// askReviewerOptOut records an explicit --subagent-ask-reviewer off.
+	askReviewerOptOut bool
 	// ReasoningEffort is the OPERATOR-TIER reasoning-effort default: the
 	// neutral vocabulary "" / "auto" (unset — provider default) / "low" / "medium" /
 	// "high" / "xhigh" / "max". It is folded from the operator-YAML reasoning-effort:
@@ -1507,8 +1531,10 @@ type Built struct {
 	MCPBroker             *mcpbroker.Runtime
 	MCPBrokerHandlers     mcpbroker.HandlerBundle
 	MCPBrokerCallbackPath string
-	GuardrailsAdvisory    bool
-	Close                 func()
+	// GuardrailsAdvisory reports a configured checker demoted to advisory for
+	// sessions in the server's default mode (yolo); other modes keep it enforcing.
+	GuardrailsAdvisory bool
+	Close              func()
 }
 
 // MountMCPBrokerHandlers mounts the complete fixed broker bundle on a
@@ -1674,15 +1700,27 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	// scalar (read at construction from the user-global/CLI tiers) is taken here. The
 	// REAL cfg.permResolver is built below with the final (posture-raised)
 	// TrustProject. Aliases (--yolo ⇒ yolo, --trust-project ⇒ ≥trusted) raise the tier
-	// MAX-fold; applyPosture then derives AllowAllTools / LooseChildSubstitution /
-	// the TrustProject floor.
+	// MAX-fold; applyPosture then derives the TrustProject floor.
+	// AllowAllTools and LooseChildSubstitution are no longer derived by applyPosture;
+	// allow-all and loose-substitution behavior is now mode-driven (Policy.Evaluate
+	// injects allowAllCLIRules for ModeAuto/ModeYolo at evaluation time).
 	cfg.permResolver = buildPermResolver(cfg)
-	cfg = foldOperatorPosture(cfg)
+	var modeErr error
+	if cfg, modeErr = foldPermissionMode(cfg); modeErr != nil {
+		return nil, modeErr
+	}
 	cfg = foldOperatorReasoningEffort(cfg)
 	cfg = foldOperatorPlanModeAutoApprove(cfg)
 	cfg = foldOperatorSteer(cfg)
 	cfg.Posture = resolvePosture(cfg, postureNoCeiling)
 	cfg = applyPosture(cfg)
+	// Deprecated surface (--posture, --yolo, --trust-project, the posture: key):
+	// derive the session mode and ceiling from the posture AFTER the full alias
+	// fold, so a combination such as --posture strict --yolo lands on the same
+	// pair as the raised tier alone. A permission-mode token already set both.
+	if cfg.permissionModeName == "" {
+		cfg.DefaultSessionMode, cfg.MaxAllowedMode = postureToSessionModes(cfg.Posture)
+	}
 	// AUTHORITATIVE root/no-sandbox refusal: applied HERE, after the full posture fold,
 	// so an allow-all tier set ONLY via the operator-global settings.yaml `posture:`
 	// key (which the cmd-layer CLI-only pre-check never sees) cannot escape the refusal
@@ -1701,6 +1739,12 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	cfg.TrustProject = trust.Trusted
 	narratePosture(cfg.diag(), cfg.Posture, cfg.TrustProject)
 	narrateTrust(cfg.diag(), trust, cfg.Workspace)
+	// Headless admission gate: after the trust fold, so every
+	// legitimate trust source satisfies it.
+	if err := headlessTrustRefusal(cfg); err != nil {
+		return nil, err
+	}
+	narrateWithheldTrust(cfg)
 
 	// File-based permission config (issues #13/#32): construct the resolver
 	// EXACTLY ONCE here, right after the trust fold (it consumes the effective
@@ -2039,6 +2083,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	cfg.SubagentModel = subagentModel
 	// SubagentAskReviewerModel (issue #31): the same fail-fast normalization
 	// posture as SubagentModel — validate the alias once here; empty = reviewer off.
+	cfg.askReviewerOptOut = isAskReviewerOptOut(cfg.SubagentAskReviewerModel)
 	reviewerModel, err := normalizeAskReviewerModel(cfg)
 	if err != nil {
 		return nil, err
@@ -2061,6 +2106,17 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	cfg.guardrailModel = guardrailModel
 	cfg.guardrailSource = guardrailSrc
 	cfg.guardrailConfigured = guardrailConfigured
+	// Allow-all admission gate: the checker truth is the SAME the
+	// posture line and the live checker use (the binding, else the resolver).
+	checkerConfigured := guardrailConfigured
+	if !checkerConfigured {
+		_, _, checkerConfigured = resolveGuardrailsCheckerModel(cfg)
+	}
+	if err := checkerRefusal(cfg, checkerConfigured); err != nil {
+		return nil, err
+	}
+	cfg = resolveAskReviewerDefault(cfg)
+	narratePermissionMode(cfg, checkerConfigured)
 	// Emit the build-once composition facts (token counter / compaction strategy /
 	// slash commands) EXACTLY ONCE here, through the injected Diagnostics — keyed to
 	// the resolved MAIN model. The per-derivation builders do not log these (they
@@ -2335,7 +2391,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	}()
 	cfg.storageMaintenance = &storageMaintenanceState{}
 	dreamReviewer, dreamCapabilities := buildDreamReview(cfg, assets, provider != nil)
-	workspaceFactory := osfsWorkspaceFactory(cfg.diag(), cfg.Posture)
+	workspaceFactory := osfsWorkspaceFactory(cfg.diag())
 	placementScope := cfg.PlacementScope
 	if placementScope == "" {
 		placementScope = defaultPlacementScope
@@ -2406,8 +2462,14 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		mcpStatus = assets.mcpReconciler.statusSnapshot
 	}
 	svcCfg := server.Config{
-		BuildID:              buildinfo.BuildID,
-		ServerImplementation: cfg.ServerImplementation,
+		// The session half of the permission-mode token: the mode a
+		// CreateSession that leaves mode unspecified starts in. Empty keeps the
+		// server's own ModeDefault.
+		DefaultMode:                cfg.DefaultSessionMode,
+		MaxAllowedMode:             cfg.MaxAllowedMode,
+		EnforcingCheckerConfigured: autoCheckerEnforcing(cfg, checkerConfigured),
+		BuildID:                    buildinfo.BuildID,
+		ServerImplementation:       cfg.ServerImplementation,
 		// GetServerInfo looks up only a caller-selected, already-known provider
 		// in this immutable composition registry. It intentionally does not
 		// inspect session selectors, discover providers, or re-read configuration.
@@ -2531,10 +2593,17 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		ResolveSessionModel: func(sel server.ProviderSelector, mode session.PermissionMode) server.ResolvedModel {
 			return resolvedSessionProjection(cfg, reg, sel, mode)
 		},
-		// Posture: the resolved server-wide posture tier as a string, projected into the
-		// ServerCapabilities echo as CHROME (a client renders a "⚠ auto"/"⚠ yolo" badge).
+		// Posture: the resolved server-wide tier as a string, projected into the
+		// ServerCapabilities echo. It tracks the server ceiling (strict/trusted =
+		// accept-edits, auto, yolo), which bounds the modes a client may cycle to.
 		// NOT session state — see server.Config.Posture.
 		Posture: cfg.Posture.String(),
+		// ProjectTrusted: the effective trust fold for the launch workspace (flag,
+		// declared, remembered, or the interactive posture floor), CHROME ONLY.
+		ProjectTrusted: &cfg.TrustProject,
+		// SubagentAskReviewer: the reviewer state from the same reviewerStatus the
+		// startup line narrates, so the echo and the diagnostics cannot drift.
+		SubagentAskReviewer: subagentAskReviewerCapability(cfg),
 		// DeploymentID: the operator-set, opaque deployment label surfaced on
 		// GetCompatibilityInfo. It is passed through VERBATIM and is never
 		// derived here from hostname, pod name, or environment — an inferred label
@@ -3016,7 +3085,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		diag.Log(ctx, port.LevelWarn, "durable automatic reservation reconciliation unavailable")
 	})
 	attempts = startAttemptRecovery(ctx, cfg, reg, store, eventLog, assets.attemptRepository, assets.reflectionRepository, assets, placementProvider, placementScope)
-	return &Built{Service: svc, MCPBroker: brokerRuntime, MCPBrokerHandlers: brokerHandlers, MCPBrokerCallbackPath: brokerCallbackPath, GuardrailsAdvisory: guardrailConfigured && cfg.Posture >= PostureYolo, Close: closeAll}, nil
+	return &Built{Service: svc, MCPBroker: brokerRuntime, MCPBrokerHandlers: brokerHandlers, MCPBrokerCallbackPath: brokerCallbackPath, GuardrailsAdvisory: guardrailConfigured && guardrailsDemoted(cfg), Close: closeAll}, nil
 }
 
 // resolveAgentSeam resolves the agent-definition registry from cfg: the
@@ -3372,6 +3441,7 @@ func sessionEngineFactoryWithTools(
 ) server.SessionEngineWithToolsFactory {
 	build := func(ctx context.Context, sel server.ProviderSelector, specs []mcp.ServerConfig, profile server.SessionProfile, workspace string, mode session.PermissionMode, sessionTools []tool.Tool, sessionToolKeys []string) (server.SessionEngineResult, error) {
 		cfg := cfg // Permission resolver overrides belong to this invocation, not the shared closure.
+		cfg.guardrailSessionMode = mode
 		runtimeAssets := mcpCatalogAssets(ctx, assets)
 		runtimeRevision := mcpRuntimeRevision(ctx)
 		// Pin the CHILD permission resolver to THIS session's base root (issue
@@ -4195,7 +4265,7 @@ func escapePolicyForConfig(cfg Config, reg *providerRegistry, provider port.LLMP
 		// host paths and could relax the inner decision on that false basis.
 		return inner
 	}
-	return newEscapePolicy(inner, cfg.Posture,
+	return newEscapePolicy(inner,
 		withEscapeGuardrailRoute(buildGuardrailsEscapeChecker(cfg, reg, provider)))
 }
 
@@ -4674,7 +4744,7 @@ func resolveRulesSeam(ctx context.Context, cfg Config) prompt.RulesSource {
 	// same gate as agents/skills): untrusted, or the ingestion grant withheld. The
 	// user-tier lanes stay active regardless.
 	if cfg.Workspace != "" && !projectIngestionAdmitted(cfg) {
-		cfg.diag().Log(ctx, port.LevelWarn, "rules: project-tier rules WITHHELD (untrusted workspace or project ingestion not granted); user-tier rules stay active. Pass --trust-project (on a headless root) or run --posture auto on an interactive root to admit its project rules",
+		cfg.diag().Log(ctx, port.LevelWarn, "rules: project-tier rules WITHHELD (untrusted workspace or project ingestion not granted); user-tier rules stay active. Pass --trust-project, add the workspace to trustedWorkspaces, or remember trust for it to admit its project rules",
 			"workspace", cfg.Workspace, "dirs", ".mecatl/rules,.claude/rules")
 	}
 	sources := rules.ResolveSources(rules.ResolveOptions{
@@ -5056,7 +5126,7 @@ func slashCommandDecision(cfg Config) diagFact {
 	if cfg.Workspace != "" && !projectIngestionAdmitted(cfg) {
 		return diagFact{
 			level: port.LevelWarn,
-			msg:   "slash commands: project-tier command dirs WITHHELD (untrusted workspace or project ingestion not granted); raw text passes through. Pass --trust-project (on a headless root) or run --posture auto on an interactive root, or pass --commands-dir to enable project slash commands",
+			msg:   "slash commands: project-tier command dirs WITHHELD (untrusted workspace or project ingestion not granted); raw text passes through. Pass --trust-project, add the workspace to trustedWorkspaces, or remember trust for it; or pass --commands-dir to enable project slash commands",
 			args:  []any{"dirs", ".mecatl/commands,.claude/commands"},
 		}
 	}
@@ -5216,8 +5286,8 @@ func normalizeSubagentModel(cfg Config) (string, error) {
 // the build-once ACTIVE fact.
 func normalizeAskReviewerModel(cfg Config) (string, error) {
 	sel := strings.TrimSpace(cfg.SubagentAskReviewerModel)
-	if sel == "" {
-		return sel, nil
+	if sel == "" || isAskReviewerOptOut(sel) {
+		return "", nil
 	}
 	// FAIL-FAST validation runs FIRST, regardless of reachability: the alias
 	// lookup is free and catches a typo'd --subagent-ask-reviewer at config time
@@ -5320,11 +5390,7 @@ func normalizeGuardrailsModel(cfg Config) (string, error) {
 func logGuardrailsPosture(cfg Config) {
 	ctx := context.Background()
 	if cfg.GuardrailsDisabled {
-		message := "guardrails: OFF (kill-switch active via --guardrails=off); the LLM content checker is forced off regardless of --guardrails-model / the `guardrail` model slot"
-		if cfg.Posture == PostureAuto {
-			message += " — UNSUPERVISED: posture auto changes permission defaults but does not enable the independent guardrail checker"
-		}
-		cfg.diag().Log(ctx, port.LevelInfo, message)
+		cfg.diag().Log(ctx, port.LevelInfo, "guardrails: OFF (kill-switch active via --guardrails=off); the LLM content checker is forced off regardless of --guardrails-model / the `guardrail` model slot")
 		return
 	}
 	model, src, configured := cfg.guardrailModel, cfg.guardrailSource, cfg.guardrailConfigured
@@ -5332,11 +5398,7 @@ func logGuardrailsPosture(cfg Config) {
 		model, src, configured = resolveGuardrailsCheckerModel(cfg)
 	}
 	if !configured {
-		message := "guardrails: OFF (no checker model configured; bind the `guardrail` model slot or set --guardrails-model to enable)"
-		if cfg.Posture == PostureAuto {
-			message += " — UNSUPERVISED: posture auto changes permission defaults but does not enable the independent guardrail checker"
-		}
-		cfg.diag().Log(ctx, port.LevelInfo, message)
+		cfg.diag().Log(ctx, port.LevelInfo, "guardrails: OFF (no checker model configured; bind the `guardrail` model slot or set --guardrails-model to enable)")
 		return
 	}
 	specs, usedDefaults := effectiveGuardrailSpecs(cfg)
@@ -5375,11 +5437,11 @@ func guardrailsPostureLine(cfg Config, model string, src guardrailSource, specs 
 	if usedDefaults {
 		out += " (default set: WebSearch, WebFetch, FetchMcpResource, CallMcpWithQuery, mcp__*)"
 	}
-	// Posture coupling: under yolo every rule was demoted to advisory at
-	// compile time (demoteForPosture). Surface that SECURITY DOWNGRADE at startup so an
-	// operator sees it in the log, not only in the docs — `mode=` already reflects the
-	// demoted specs for explicit rules; the note states WHY it is advisory.
-	if cfg.Posture >= PostureYolo {
+	// Mode coupling: when sessions start in yolo every rule was demoted to
+	// advisory at compile time (demoteForPosture). Surface that SECURITY DOWNGRADE at
+	// startup so an operator sees it in the log, not only in the docs — `mode=` already
+	// reflects the demoted specs for explicit rules; the note states WHY it is advisory.
+	if guardrailsDemoted(cfg) {
 		out += " — YOLO: AI safety checks are advisory only."
 	}
 	return out
@@ -7438,10 +7500,12 @@ func buildAskAdjudicator(cfg Config, provReg *providerRegistry, provider port.LL
 // reviewer is not configured.
 func askAdjudicatorDeps(cfg Config, provReg *providerRegistry, provider port.LLMProvider, parentProviderID, parentModel string) (agent.Deps, bool) {
 	sel := strings.TrimSpace(cfg.SubagentAskReviewerModel)
-	if sel == "" {
+	if sel == "" && !cfg.askReviewerDefaultOn {
 		// The --subagent-ask-reviewer flag STAYS the enable gate: a slot alone does
 		// NOT turn the reviewer on (a slot only chooses the model for a reviewer the
-		// operator already enabled). Empty flag ⇒ reviewer off, byte-identical.
+		// operator already enabled). Empty flag ⇒ reviewer off, byte-identical —
+		// except the headless allow-all default (askReviewerDefaultOn),
+		// which resolves through the slot, then the parent model, below.
 		return agent.Deps{}, false
 	}
 	// ASK-REVIEWER SLOT: a configured `ask-reviewer` slot
@@ -7451,11 +7515,13 @@ func askAdjudicatorDeps(cfg Config, provReg *providerRegistry, provider port.LLM
 	reviewerProvider, reviewerProviderID := provider, parentProviderID
 	if slotProvider, slotProviderID, slotModel, ok := resolveAuxiliarySlotTarget(cfg, provReg, slotAskReviewer, provider, parentProviderID, parentModel); ok {
 		reviewerProvider, reviewerProviderID, model = slotProvider, slotProviderID, slotModel
-	} else if target, err := resolveModelTarget(cfg, parentProviderID, "", sel); err == nil {
-		model = target.Model
-		if target.ProviderID != parentProviderID && provReg != nil {
-			if entry, found := provReg.Lookup(target.ProviderID); found {
-				reviewerProvider, reviewerProviderID = entry.provider, target.ProviderID
+	} else if sel != "" {
+		if target, err := resolveModelTarget(cfg, parentProviderID, "", sel); err == nil {
+			model = target.Model
+			if target.ProviderID != parentProviderID && provReg != nil {
+				if entry, found := provReg.Lookup(target.ProviderID); found {
+					reviewerProvider, reviewerProviderID = entry.provider, target.ProviderID
+				}
 			}
 		}
 	}
@@ -9074,21 +9140,26 @@ const (
 	// no path to trust, which is false.
 	// The "Three SEPARATE safety axes" substring is a stable test key.
 	selfKnowledgePostureAxes = "Three SEPARATE safety axes, never conflated. (1) SESSION PERMISSION MODE: " +
-		"exactly three, one per session, in your <env> as `permission-mode`. `default` resolves each call " +
+		"exactly five, one per session, in your <env> as `permission-mode`. `default` resolves each call " +
 		"deny→ask→allow; `plan` denies mutations and expects a plan presented for approval; `acceptEdits` " +
 		"(accept-edits in mecatui) auto-allows Edit and Write only, leaving Shell and every other mutating " +
-		"tool on the normal rules. mecatui shows the mode in its header, takes `--mode` at launch, and " +
-		"cycles default → plan → accept-edits on shift+tab. (2) OPERATOR POSTURE: deployment-wide via " +
-		"--posture, rising strict < trusted < auto < yolo. auto and yolo widen what a call is authorized " +
-		"to do, not only how much runs without asking: both set an allow-all rule for every tool call. " +
-		"Posture raises project trust on INTERACTIVE roots only: a HEADLESS deployment does NOT trust the " +
+		"tool on the normal rules; `auto` and `yolo` widen what a call is authorized to do, not only how " +
+		"much runs without asking: both set an allow-all rule for every tool call. `auto` requires an " +
+		"enforcing guardrails checker; `yolo` runs without a preventive checker. The operator's " +
+		"--permission-mode token (plan, default, accept-edits, auto, yolo) sets the mode new sessions start " +
+		"in and the most permissive mode a session may switch to; switching applies the chosen mode's full " +
+		"behaviour, so leaving yolo for default restores ordinary approvals. mecatui shows the mode in its " +
+		"header, takes --permission-mode at launch, and cycles the modes on shift+tab. (2) WORKSPACE TRUST: " +
+		"a separate yes/no decision about whether the workspace's project instructions and configuration " +
+		"are adopted; an untrusted workspace can still be read and searched as data. An explicit " +
+		"--trust-project flag, a declared trusted workspace, or remembered trust grant it on any root. A " +
+		"--permission-mode token never grants trust; only the deprecated --posture ladder (strict < trusted " +
+		"< auto < yolo) still raises it, on INTERACTIVE roots only: a HEADLESS deployment does NOT trust the " +
 		"checkout by posture alone. Project ingestion and the read-only child shell follow from project " +
-		"trust however it was granted — an explicit --trust-project flag, a declared trusted workspace, or " +
-		"remembered trust grant it on any root, while posture alone grants it only on an interactive one. " +
-		"(3) GUARDRAILS: an optional model-backed checker over selected " +
-		"tool arguments and results, independent of permissions and inert until an operator configures a " +
-		"checker model. Under every mode and posture a matching deny wins and a configured ask is never " +
-		"suppressed."
+		"trust. (3) GUARDRAILS: an optional model-backed checker over selected tool arguments and results, " +
+		"independent of permissions and inert until an operator configures a checker model; it enforces in " +
+		"every mode except yolo, where it is advisory. Under every mode a matching deny wins and a configured " +
+		"ask is never suppressed."
 
 	// selfKnowledgePostureMap is the doc-tree shape, so a lookup lands on the right
 	// page instead of the site root. Every path here is pinned by the drift gate.
@@ -9705,57 +9776,20 @@ func defaultRules() []governance.Rule {
 	}
 }
 
-// yoloAllowAllRule returns the single ScopeCLI allow-all rule the --yolo posture
-// (cfg.AllowAllTools) injects, pinned to the given audience. It is the ONE
-// definition shared by mainRules (AudienceMain) and childRules (AudienceSubagent)
-// so the main and child rulesets cannot drift: under --yolo the SAME blanket
-// allow-all rule binds BOTH the main engine and its children, loosening the
-// built-in mutate-ask floor for both. A Deny in any scope and any CONFIGURED
-// Ask still win (deny-dominance + the configured-ask floor are unaffected). The
-// substitution-floor LOOSENING (WithLooseSubstitution) is separate from this rule: it
-// rides mainEvaluatorOptions always, and childEvaluatorOptions only under posture yolo
-// (the tier-dependent child loosening) — see internal/app/posture.go and
-// docs/architecture/governance.md.
-func yoloAllowAllRule(audience governance.Audience) governance.Rule {
-	return governance.Rule{Scope: governance.ScopeCLI, Effect: governance.Allow, Audience: audience}
-}
-
-// mainRules returns the main engine's static ruleset: the built-in floor, plus
-// — when cfg.AllowAllTools — a single ScopeCLI allow-all rule (AudienceMain)
-// that loosens that floor (a Deny in any scope and any configured Ask still
-// win). The SAME rule (with AudienceSubagent) is injected into childRules under
-// allow-all (posture auto/yolo), so the allow-all RULE binds both main and children;
-// the substitution-floor LOOSENING is separate and tier-dependent (mainEvaluatorOptions
-// always; childEvaluatorOptions only under posture yolo).
-func mainRules(cfg Config) []governance.Rule {
-	base := defaultRules()
-	if cfg.AllowAllTools {
-		base = append([]governance.Rule{yoloAllowAllRule(governance.AudienceMain)}, base...)
-	}
-	return base
+// mainRules returns the main engine's static ruleset. The built-in mutate-ask
+// floor (defaultRules) applies to all modes; auto/yolo allow-all is injected
+// at evaluation time by Policy.Evaluate based on the session's current mode,
+// not baked in here at startup. This lets mode switches actually change behavior.
+func mainRules(_ Config) []governance.Rule {
+	return defaultRules()
 }
 
 // mainEvaluatorOptions returns the governance.Evaluator construction options for the
-// MAIN engine's policy. It ALWAYS pins the audience to AudienceMain (issue #32):
-// without it, subagent-tagged resolver extras (the permconfig `subagent:` block)
-// would bind the main engine too — the audience pin is what keeps a child-scoped
-// rule from leaking into the interactive engine. When cfg.AllowAllTools (posture
-// auto OR yolo) it additionally loosens the built-in substitution Ask floor
-// (WithLooseSubstitution) — consistent with the mutate-ask floor the ScopeCLI
-// allow-all rule already loosens, so a substitution command does not prompt on the
-// MAIN engine. A configured Deny/Ask in any scope still wins (deny-dominance and the
-// configured-ask floor are unaffected). The CHILD substitution loosening is
-// TIER-DEPENDENT, not main-only: childEvaluatorOptions(cfg) ALSO adds
-// WithLooseSubstitution under posture yolo (cfg.LooseChildSubstitution) — so at auto
-// the main loosens but children still resolve their substitution through the child-ask
-// model, while at yolo children loosen too (child prompt-injection defense OFF). See
-// childEvaluatorOptions and internal/app/posture.go.
-func mainEvaluatorOptions(cfg Config) []governance.EvaluatorOption {
-	opts := []governance.EvaluatorOption{governance.WithAudience(governance.AudienceMain)}
-	if cfg.AllowAllTools {
-		opts = append(opts, governance.WithLooseSubstitution(true))
-	}
-	return opts
+// main engine's policy. It pins the audience to AudienceMain (issue #32).
+// Loose-substitution is now mode-driven (ModeYolo via Policy's evalLoose evaluator),
+// not baked in at startup.
+func mainEvaluatorOptions(_ Config) []governance.EvaluatorOption {
+	return []governance.EvaluatorOption{governance.WithAudience(governance.AudienceMain)}
 }
 
 // buildPermResolver constructs the ONE file-based permission-config resolver
@@ -9832,59 +9866,21 @@ func (p pinnedResolver) Resolve(ctx context.Context, _ tool.WorkspaceReader) []g
 }
 
 // childRules returns the child/member engine's static ruleset: the canonical
-// allow-all-at-the-floor (permpolicy.AllowAllFloorRules — the ONE definition,
-// shared with every "default child posture" test fixture so they cannot
-// drift). Scoping the allow-all to the BUILT-IN floor rather than the zero
-// Scope (ScopeManaged) is behaviour-neutral with no config (allow-all still matches everything → Allow, and the
-// floor-exception in resolveSimple only keys on the ASK side's scope) — pinned
-// by TestChildRulesFloorScopeNeutral — but it is load-bearing for the issue-#32
-// decision bits: the floor allow-all must NOT register as a CONFIGURED Allow
-// (scope above the floor), or every substitution-floored child ask would
-// qualify for FlooredConfiguredAllow. Only a real config rule (the permconfig
-// `subagent:` block) may carry an above-floor scope.
-//
-// Under --yolo (cfg.AllowAllTools) a ScopeCLI/AudienceSubagent allow-all rule
-// (the yoloAllowAllRule sibling of mainRules') is PREPENDED to the floor. This
-// is a SYMMETRY / anti-drift change, NOT a behavioural fix: the child floor is
-// ALREADY a blanket allow-all, so a plain (non-substitution) mutate resolves
-// Allow for a child with or without --yolo — children have no mutate-ask floor
-// to loosen (unlike the main engine's defaultRules() mutate-ask). The shared
-// yoloAllowAllRule keeps the main and child rulesets from diverging and gives
-// the TestAllowAllToolsBindsMainAndChildren kill-switch a real structure to pin;
-// it becomes load-bearing only if the child floor ever tightens to carry a real
-// mutate-Ask. It cannot suppress a configured `subagent:` Ask, and it does NOT
-// touch the substitution floor: WithLooseSubstitution is deliberately STILL
-// absent from childEvaluatorOptions, so a child's substitution ($()/backtick/
-// heredoc) command still resolves through the child-ask model (flooredAllowSafe:
-// the inner must independently classify read-only) — the substitution-floor
-// loosening stays main-only.
-func childRules(cfg Config) []governance.Rule {
-	base := permpolicy.AllowAllFloorRules()
-	if cfg.AllowAllTools {
-		base = append([]governance.Rule{yoloAllowAllRule(governance.AudienceSubagent)}, base...)
-	}
-	return base
+// allow-all floor (permpolicy.AllowAllFloorRules). Children inherit the
+// session's mode and mode-driven policy (allowAllCLIRules for auto/yolo) is
+// injected at evaluation time by Policy.Evaluate.
+func childRules(_ Config) []governance.Rule {
+	return permpolicy.AllowAllFloorRules()
 }
 
 // childEvaluatorOptions returns the governance.Evaluator options for a
 // child/member policy: the AudienceSubagent pin (issue #32), so top-level
 // (AudienceMain) config allow/ask never bind a child while `subagent:`-block
-// rules and AudienceAll denies do. It is TIER-AWARE (posture ladder): under
-// PostureYolo (cfg.LooseChildSubstitution) it ALSO loosens the built-in
-// substitution Ask floor for children (WithLooseSubstitution) — the deliberate
-// child prompt-injection-defense-OFF behaviour yolo carries, so a child's
-// $()/backtick/heredoc command auto-runs. At strict/trusted/auto it deliberately
-// OMITS WithLooseSubstitution: even under --yolo's allow-all RULE (auto/yolo bind
-// children via childRules' AudienceSubagent variant), a child's substitution
-// floor still resolves through the child-ask model (floored-configured-allow /
-// isolation / surface / deny) UNLESS the operator opted into yolo. A configured
-// Deny/Ask in any scope still wins regardless. See internal/app/posture.go.
-func childEvaluatorOptions(cfg Config) []governance.EvaluatorOption {
-	opts := []governance.EvaluatorOption{governance.WithAudience(governance.AudienceSubagent)}
-	if cfg.LooseChildSubstitution {
-		opts = append(opts, governance.WithLooseSubstitution(true))
-	}
-	return opts
+// rules and AudienceAll denies do. Loose-substitution is now mode-driven: a
+// child session in ModeYolo uses Policy's evalLoose evaluator, not a
+// startup-time evaluator option.
+func childEvaluatorOptions(_ Config) []governance.EvaluatorOption {
+	return []governance.EvaluatorOption{governance.WithAudience(governance.AudienceSubagent)}
 }
 
 // childPermPolicy builds the shared child/member permission policy (issue #32):
@@ -9923,9 +9919,11 @@ func defaultLimits() session.Limits {
 // allow at yolo, ask everywhere below), and an escape the policy leaves at
 // Ask never reaches the tool body unapproved. At strict/trusted the relaxed
 // options let an approved escape execute; a non-approved escape still dead-ends.
-// Make lexical external ../ operands available only at yolo in the main
-// session. Child views keep denying escapes; below yolo even an approved
-// external relative operand is not served.
+// Lexical external ../ operands are served only in a yolo run of the main
+// session: the server binds each run's view for the session's current mode
+// (escapeWorkspace.ForPermissionMode), never the server posture. Child views keep
+// denying escapes; below yolo even an approved external relative operand is not
+// served.
 // The same factory is used by the composition-owned local placement provider
 // whenever it binds or exactly reattaches a local EnvironmentRef. Child engines
 // never call it directly: their workspaces come from newForkWorkspace, so the
@@ -9935,7 +9933,7 @@ func defaultLimits() session.Limits {
 // binds no-FS through the nofs adapter before this factory and rejects invalid exact
 // refs; this guard prevents any future private composition caller from turning an
 // empty path into the server process cwd.
-func osfsWorkspaceFactory(d port.Diagnostics, posture Posture) server.WorkspaceFactory {
+func osfsWorkspaceFactory(d port.Diagnostics) server.WorkspaceFactory {
 	return func(root string) tool.Workspace {
 		if root == "" {
 			d.Log(context.Background(), port.LevelError,
@@ -9952,7 +9950,7 @@ func osfsWorkspaceFactory(d port.Diagnostics, posture Posture) server.WorkspaceF
 				d.Log(context.Background(), port.LevelError, "workspace factory: cannot open root", "root", root, "err", err)
 				return nil
 			}
-			return newEscapeWorkspace(ws, clf, posture == PostureYolo)
+			return newEscapeWorkspace(ws, clf)
 		}
 		d.Log(context.Background(), port.LevelError, "workspace factory: cannot build the escape classifier for a relaxed workspace; serving the deny-on-escape workspace", "root", root, "err", cerr)
 		ws, err := osfs.NewWorkspace(root)

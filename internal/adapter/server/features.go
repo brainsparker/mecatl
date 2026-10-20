@@ -86,6 +86,21 @@ const (
 	// FeatureSessionAgentDefinitions reports root agent-definition binding on both
 	// create transports, independent of whether any definitions are configured.
 	FeatureSessionAgentDefinitions = "session_agent_definitions"
+	// FeatureSessionPermissionModes reports the five session-scoped permission
+	// modes (plan, default, accept-edits, auto, yolo): AUTO and YOLO are valid on
+	// CreateSession, SetMode, and session reads; each mode's authority applies
+	// per session within the server ceiling; and an unspecified CreateSession
+	// mode resolves to the server's configured default. The legacy posture
+	// capability cannot answer this: an older server advertises auto/yolo
+	// posture without supporting these session modes.
+	FeatureSessionPermissionModes = "session_permission_modes"
+
+	// FeatureRefusedModeRecovery reports that SetMode recovers a stored session
+	// parked awaiting an approval in a mode this server no longer admits: a
+	// SetMode to an admitted, strictly lower mode cancels the pending turn
+	// without running it and applies the mode, instead of refusing mid-turn.
+	// Every other SetMode on an awaiting session is still refused.
+	FeatureRefusedModeRecovery = "refused_mode_recovery"
 )
 
 // FeatureScope is what the DEPLOYMENT permits, as distinct from what the build
@@ -123,9 +138,11 @@ var allFeatures = []string{
 	FeatureHTTPSteer,
 	FeatureMCPServersOnCreate,
 	FeaturePromptFreeControls,
+	FeatureRefusedModeRecovery,
 	FeatureServerInfo,
 	FeatureSessionActivityInventory,
 	FeatureSessionAgentDefinitions,
+	FeatureSessionPermissionModes,
 	FeatureSkillFiles,
 	FeatureWatchSessionEvents,
 }

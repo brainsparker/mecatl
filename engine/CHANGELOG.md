@@ -21,6 +21,20 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
   fingerprint is inferred from effective values or inherited by successors.
   Added (minor).
 
+- **`ModeAuto` and `ModeYolo` permission modes** — adds `session.ModeAuto = "auto"`
+  and `session.ModeYolo = "yolo"` to `session.PermissionMode`. These complete the
+  five-mode vocabulary (`plan`, `default`, `acceptEdits`, `auto`, `yolo`) that the
+  unified permission-mode architecture requires; `Policy.Evaluate` now injects
+  allow-all and loose-substitution at evaluation time based on the session's current
+  mode, so mode switches are fully effective at runtime. `ModeAuto` is allow-all in
+  the engine whether or not a `ToolReviewer` is configured; the host must admit
+  auto only with an enforcing reviewer. Added (minor).
+
+- **`PermissionMode.Rank`** — orders the five modes by authority (plan 1 through
+  yolo 5; unknown 0). `Session.TightenConfiguration` now ranks auto and yolo, so an
+  auto or yolo successor can keep or narrow its source's mode instead of being
+  rejected. Added (minor).
+
 - **Schedule-store claim and retry conformance** — adds
   `scheduleconformance.RunClaimAndRetryConformance` with the complete shared
   suite plus unresolved prior-claim rejection, late-result isolation, and
@@ -441,6 +455,34 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
   supported. Hosts constructing agent-bound sessions must bind consistent authority
   before persisting them. Changed (breaking pre-v1 minor); existing ordinary-session
   wire clients are unaffected.
+
+- **Delegated children inherit an auto or yolo parent's mode** — a Subagent
+  child, Parallel branch, or Team member with no configured mode now runs in its
+  parent session's mode when that mode is `ModeAuto` or `ModeYolo`, so the
+  parent's mode-driven authority reaches its delegates. Any explicitly
+  configured mode (`WithChildMode`, `WithParallelChildMode`, `WithTeamMode`, or
+  a member definition's `permissionMode`), `ModeDefault` included, is kept. A
+  resumed Subagent child's persisted mode is re-admitted against the current
+  parent: it runs in the narrower of its stored mode and the mode a fresh child
+  would get. No signature changes.
+
+- **Mutating in-chat schedules fire in their creator's mode** — a
+  `mutating: true` schedule created through the `Schedule` tool now records the
+  executing session's permission mode as `ScheduleSpec.Mode` instead of always
+  `ModeDefault`. A yolo session's schedule therefore fires in yolo rather than
+  in a default session whose writes ask with no approver. Read-leaning
+  schedules still record `ModePlan`, and an unbound context still records
+  `ModeDefault`. The host re-admits the recorded mode at every fire. No
+  signature changes.
+
+- **Contextual review enforcement follows the executing session's mode** —
+  the engine now demotes a `ReviewPolicyProvider`'s enforcement to advisory
+  for an executing `ModeYolo` session, and never consults
+  `PermissionReviewPolicyProvider` for a yolo child. A reviewer shared with
+  delegated children should report the operator's configured enforcement:
+  a yolo parent stays advisory while its narrower child keeps an enforcing
+  checker. A reviewer that already demoted for yolo is unaffected. Changed
+  (breaking, pre-v1 minor); no signature changes.
 
 - **Atomic one-shot retry eligibility (issue #2273)** —
   `port.ScheduleOneShotReArmer.ReArmOneShot` now requires store-side atomic

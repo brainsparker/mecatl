@@ -1269,6 +1269,7 @@ export interface ServerCapabilities {
     readonly modelSelection: boolean;
     // (undocumented)
     readonly posture: string;
+    readonly projectTrusted?: boolean;
     // (undocumented)
     readonly reflection: boolean;
     // (undocumented)
@@ -1289,6 +1290,7 @@ export interface ServerCapabilities {
     readonly storageCleanup: boolean;
     // (undocumented)
     readonly storageHealth: boolean;
+    readonly subagentAskReviewer?: string;
     // (undocumented)
     readonly teams: boolean;
     // (undocumented)
@@ -1326,9 +1328,11 @@ export const ServerFeature: {
     readonly HttpSteer: "http_steer";
     readonly McpServersOnCreate: "mcp_servers_on_create";
     readonly PromptFreeControls: "prompt_free_controls";
+    readonly RefusedModeRecovery: "refused_mode_recovery";
     readonly ServerInfo: "server_info";
     readonly SessionActivityInventory: "session_activity_inventory";
     readonly SessionAgentDefinitions: "session_agent_definitions";
+    readonly SessionPermissionModes: "session_permission_modes";
     readonly SkillFiles: "skill_files";
     readonly WatchSessionEvents: "watch_session_events";
 };
@@ -1454,6 +1458,8 @@ export const SessionMode: {
     readonly Default: 1;
     readonly Plan: 2;
     readonly AcceptEdits: 3;
+    readonly Auto: 4;
+    readonly Yolo: 5;
 };
 
 // @public

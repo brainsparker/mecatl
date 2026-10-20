@@ -138,7 +138,15 @@ func (m Model) renderHeader() string {
 	if tail == "" {
 		tail = m.changedFilesIndicator()
 	}
+	alarm, alarmW := m.autonomyBadgeRender()
 	badge, badgeW := m.postureBadgeRender()
+	if alarm != "" {
+		if badge != "" {
+			badge, badgeW = alarm+" "+badge, alarmW+1+badgeW
+		} else {
+			badge, badgeW = alarm, alarmW
+		}
+	}
 	available := m.statusHeaderAvailable(badge, badgeW, tail)
 	if surface := m.generatedStatusLine.Header; m.deps.StatusSource != nil && surface.Present && statusSurfaceFits(surface, available) && statusSpansText(surface.Spans) != "" {
 		generated := renderStatusSurface(m.deps.Theme, surface, available, false)
@@ -148,9 +156,27 @@ func (m Model) renderHeader() string {
 		line += generated
 	}
 	if badge != "" || tail != "" {
-		line = m.fitHeader(line, badge, badgeW, tail, m.widthOr())
+		fitted := m.fitHeader(line, badge, badgeW, tail, m.widthOr())
+		if fitted == line && alarm != "" {
+			// Too narrow for every indicator: shed the tail and the trust badge, and
+			// truncate the identity line, but never the auto/yolo indicator.
+			fitted = fitHeaderKeepingAlarm(line, alarm, alarmW, m.widthOr())
+		}
+		line = fitted
 	}
 	return m.deps.Theme.Style("header").Width(m.widthOr()).Render(m.appendDebugPrivacyNotice(line))
+}
+
+// fitHeaderKeepingAlarm right-aligns the auto/yolo indicator on a header too
+// narrow for fitHeader, truncating the identity line to make room.
+func fitHeaderKeepingAlarm(line, alarm string, alarmW, width int) string {
+	const headerPad = 2 // the "header" style pads 1 cell each side
+	room := width - headerPad - alarmW - 1
+	if room <= 0 {
+		return alarm
+	}
+	line = ansi.Truncate(line, room, "…")
+	return line + strings.Repeat(" ", max(1, width-headerPad-lipgloss.Width(line)-alarmW)) + alarm
 }
 
 // appendDebugPrivacyNotice keeps the debugger's consent disclosure inside the
@@ -182,60 +208,73 @@ const (
 	postureYolo    = "yolo"
 )
 
-// autoBadgeText is the auto-posture badge: amber inline WARNING text (no pill).
+// autoBadgeText is the auto indicator: amber inline warning text (no pill).
 const autoBadgeText = "⚠ auto"
 
-// yoloPillText is the YOLO pill's CONTENT — just the word, padded by a space each side
-// so the filled dangerPill chip has visual breathing room around "YOLO". The pill never
-// contains the lightning bolt: the emoji (when shown) rides OUTSIDE the pill as plain
-// decoration (see postureBadgeRender) — VTE renders ⚡️ in its own multicolour glyph and
-// IGNORES a foreground, which clashed inside the dark-on-red pill.
+// yoloPillText is the YOLO pill's content, padded by a space each side. The
+// optional emoji bolt rides outside the pill (yoloBoltPrefix), because VTE
+// ignores a foreground on ⚡️ and it clashes inside the dark-on-red chip.
 const yoloPillText = " YOLO "
 
-// yoloBoltPrefix is the PLAIN (unstyled) emoji bolt shown immediately BEFORE the YOLO
-// pill on an emoji-capable terminal — ⚡ + U+FE0F (VS16) for the width-2 emoji
-// presentation, plus a trailing space. It is decoration OUTSIDE the pill, so the
-// terminal shows the bolt's natural colour and the pill stays a clean dark-on-red chip.
-// The VS16 MUST survive to the screen — the header path renders via lipgloss styles only
-// and never routes the badge through normalizeEmojiWidth/wrapStyled (which strip VS16).
+// yoloBoltPrefix is the plain emoji bolt (⚡ + VS16, width 2, plus a space)
+// shown before the YOLO pill on an emoji-capable terminal.
 const yoloBoltPrefix = "⚡️ "
 
-// postureBadgeRender builds the right-aligned operator-posture chrome badge — the STYLED
-// string ready to drop into the header AND its visible (plain) cell width for the
-// fit/shed math. It surfaces the SERVER-WIDE automation posture (m.caps.Posture) for the
-// allow-all tiers ONLY — strict/trusted/unknown render NO badge, so the
-// steady-state frame and the goldens stay byte-identical. It is DISTINCT from the
-// per-session `mode` segment.
-//
-// Tiers:
-//   - auto → amber inline WARNING text "⚠ auto".
-//   - yolo → a clean filled DANGER PILL (dangerPill style) of " YOLO ", optionally
-//     PRECEDED by a PLAIN ⚡️ emoji bolt when m.emojiOK (seeded once at New). The bolt is
-//     pure decoration OUTSIDE the pill; the pill is always a clean dark-on-red chip.
-//
-// The plain width is computed to match the ACTUAL rendered glyphs: the dangerPill's
-// Padding(0,1) adds 2 cells lipgloss.Width(yoloPillText) does count (the text already
-// carries its spaces), so the pill's visible width is lipgloss.Width(yoloPillText)+2; the
-// optional bolt prefix adds lipgloss.Width(yoloBoltPrefix) (⚡️ width-2 + space).
-func (m Model) postureBadgeRender() (styled string, plainWidth int) {
-	switch m.caps.Posture {
+// autonomyMode is the allow-all mode in effect for this session, "auto" or
+// "yolo", or "" when approvals apply. On a server with session_permission_modes
+// it is the session's confirmed mode (a pending switch is not yet in effect); on
+// a legacy server it is the process-wide posture, which applies whatever the
+// session mode says.
+func (m Model) autonomyMode() string {
+	if m.legacyPermissionModes() {
+		return m.legacyAllowAllPosture()
+	}
+	if m.activeMode == "" {
+		return ""
+	}
+	switch mode := client.ModeString(client.ModeFromString(m.activeMode)); mode {
+	case postureAuto, postureYolo:
+		return mode
+	default:
+		return ""
+	}
+}
+
+// autonomyBadgeRender builds the renderer-owned auto/yolo indicator, styled, and
+// its visible cell width. Header templates and status commands cannot remove it,
+// so a Minimal or custom header still shows that tools run without asking. auto
+// is amber warning text; yolo is the alarm pill, preceded by the plain bolt on
+// an emoji-capable terminal. The dangerPill style's Padding(0,1) adds 2 cells.
+func (m Model) autonomyBadgeRender() (styled string, plainWidth int) {
+	switch m.autonomyMode() {
 	case postureAuto:
 		return m.deps.Theme.Style("warning").Render(autoBadgeText), lipgloss.Width(autoBadgeText)
 	case postureYolo:
 		pill := m.deps.Theme.Style("dangerPill").Render(yoloPillText)
-		// The pill's visible width = its text cells + the 2 padding cells the style adds.
 		w := lipgloss.Width(yoloPillText) + 2
 		if m.emojiOK {
-			// PLAIN bolt prefix (no style) so VTE shows its natural emoji colour.
 			return yoloBoltPrefix + pill, lipgloss.Width(yoloBoltPrefix) + w
 		}
 		return pill, w
-	case postureStrict, postureTrusted:
-		// The non-allow-all tiers carry no badge — the steady-state frame stays
-		// byte-identical (the goldens are captured at strict).
-		return "", 0
 	default:
-		// Unknown / older-server posture: no badge.
+		return "", 0
+	}
+}
+
+// postureBadgeRender builds the right-aligned project-trust chrome badge — the
+// STYLED string ready to drop into the header AND its visible (plain) cell width
+// for the fit/shed math. It shows the server-reported project trust
+// (m.caps.ProjectTrust), an axis independent of the permission mode: "trusted"
+// in the warning style (the project's rules and instructions are honoured), or
+// "untrusted" muted. The auto/yolo indicator is a separate renderer-owned badge
+// (autonomyBadgeRender). An older server reports no trust, so no badge.
+func (m Model) postureBadgeRender() (styled string, plainWidth int) {
+	switch t := m.caps.ProjectTrust; t {
+	case client.ProjectTrusted:
+		return m.deps.Theme.Style("warning").Render(t), lipgloss.Width(t)
+	case client.ProjectUntrusted:
+		return m.deps.Theme.Style("muted").Render(t), lipgloss.Width(t)
+	default:
 		return "", 0
 	}
 }

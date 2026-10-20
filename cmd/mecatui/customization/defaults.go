@@ -1,13 +1,19 @@
 package customization
 
+// modeSegmentTemplate is the header's permission-mode segment, plain warning
+// text for every mode. The auto/yolo alarm is renderer-owned chrome beside the
+// template, so a template that drops this segment cannot hide it and the
+// default header does not show it twice.
+const modeSegmentTemplate = `{{if .Session.Mode}}<warning> · mode </warning><warning>{{.Session.Mode}}</warning>{{end}}`
+
 // defaultTemplateSet contains the status and terminal-title templates shipped
 // with mecatui. Keep these defaults together so every presentation surface has
 // one canonical source.
 func defaultTemplateSet() TemplateSet {
 	return TemplateSet{
 		Header: SurfaceTemplates{
-			Full:    `<header><primary>mecatui{{if .Session.Title}} · {{elide 32 .Session.Title}}{{end}}{{if .Model.ProviderLabel}} · {{.Model.ProviderLabel}}{{if .Model.Route}}/{{.Model.Route}}{{end}}{{end}}</primary>{{if .Session.Mode}}<warning> · mode {{.Session.Mode}}</warning>{{end}}{{if and (eq .Server.ConnectionMode "connect") .Server.DisplayTarget}}<text> · {{.Server.DisplayTarget}}</text>{{end}}</header>`,
-			Compact: `<header><primary>mecatui{{if .Session.Title}} · {{elide 24 .Session.Title}}{{end}}{{if .Model.ProviderLabel}} · {{.Model.ProviderLabel}}{{end}}</primary>{{if .Session.Mode}}<warning> · mode {{.Session.Mode}}</warning>{{end}}</header>`,
+			Full:    `<header><primary>mecatui{{if .Session.Title}} · {{elide 32 .Session.Title}}{{end}}{{if .Model.ProviderLabel}} · {{.Model.ProviderLabel}}{{if .Model.Route}}/{{.Model.Route}}{{end}}{{end}}</primary>` + modeSegmentTemplate + `{{if and (eq .Server.ConnectionMode "connect") .Server.DisplayTarget}}<text> · {{.Server.DisplayTarget}}</text>{{end}}</header>`,
+			Compact: `<header><primary>mecatui{{if .Session.Title}} · {{elide 24 .Session.Title}}{{end}}{{if .Model.ProviderLabel}} · {{.Model.ProviderLabel}}{{end}}</primary>` + modeSegmentTemplate + `</header>`,
 			Minimal: `<header><primary>mecatui{{if .Session.Title}} · {{elide 12 .Session.Title}}{{end}}</primary></header>`,
 		},
 		Footer: SurfaceTemplates{
