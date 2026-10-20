@@ -355917,6 +355917,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792494680544,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radoslav@stacklok.com",
+            "name": "Radoslav Dimitrov",
+            "username": "rdimitrov"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2d9318414b95d30d9e3fa648b244aaad7c796328",
+          "message": "ci: run analysis and Studio work in parallel jobs (#2430)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-20T07:35:32-04:00",
+          "tree_id": "f08e8720a94667e319910a906e3bdb8e6e29f20a",
+          "url": "https://github.com/stacklok/mecatl/commit/2d9318414b95d30d9e3fa648b244aaad7c796328"
+        },
+        "date": 1792496856516,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16131,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12894,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -464711,6 +464750,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792496853465,
+  "lastUpdate": 1792496857623,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
