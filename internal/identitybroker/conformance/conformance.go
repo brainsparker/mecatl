@@ -1,10 +1,12 @@
-// Package conformance provides the contract tests every
-// identitybroker.Service implementation passes.
+// Package conformance provides the contract tests every identitybroker.Core
+// implementation passes.
 //
 // Importing testing from this non-test package is intentional: each
 // implementation's tests call Run with a factory for fresh, empty instances.
-// Cases are grouped by area, one file per area, so later work adds its cases
-// in its own file.
+// Most cases call the implementation the way Mecatl does, through
+// identitybroker.NewInProcess, so the authentication step is always taken;
+// cases about the calling workload call the Core directly. Cases are grouped by area, one
+// file per area, so later work adds its cases in its own file.
 package conformance
 
 import (
@@ -16,15 +18,27 @@ import (
 )
 
 // Factory returns a fresh, empty implementation for one test.
-type Factory func(t *testing.T) identitybroker.Service
+type Factory func(t *testing.T) identitybroker.Core
 
-// Run executes the identitybroker.Service contract against factory.
+// serviceFactory returns an implementation as Mecatl sees it.
+type serviceFactory func(t *testing.T) identitybroker.Service
+
+// Run executes the identitybroker.Core contract against factory.
 func Run(t *testing.T, factory Factory) {
 	t.Helper()
-	t.Run("sessions", func(t *testing.T) { runSessions(t, factory) })
-	t.Run("closed sessions", func(t *testing.T) { runClosedSessions(t, factory) })
-	t.Run("invalid requests", func(t *testing.T) { runInvalidRequests(t, factory) })
+	service := func(t *testing.T) identitybroker.Service {
+		return identitybroker.NewInProcess(identitybroker.UnverifiedAuthenticator{Name: workloadA.Name}, factory(t))
+	}
+	t.Run("sessions", func(t *testing.T) { runSessions(t, service) })
+	t.Run("closed sessions", func(t *testing.T) { runClosedSessions(t, service) })
+	t.Run("invalid requests", func(t *testing.T) { runInvalidRequests(t, service) })
+	t.Run("workloads", func(t *testing.T) { runWorkloads(t, factory) })
 }
+
+var (
+	workloadA = identitybroker.Workload{Name: "system:serviceaccount:mecatl:mecak8s"}
+	workloadB = identitybroker.Workload{Name: "system:serviceaccount:other:intruder"}
+)
 
 var (
 	alice = identitybroker.Owner{Issuer: "https://login.example.com", Subject: "alice-204"}
@@ -73,6 +87,15 @@ func mustClose(t *testing.T, svc identitybroker.Service, id string) {
 	err := svc.CloseSession(context.Background(), identitybroker.CloseSessionRequest{SessionID: id, Reason: identitybroker.ReasonSessionClosed})
 	if err != nil {
 		t.Fatalf("CloseSession(%s): %v", id, err)
+	}
+}
+
+// sameError fails unless a and b are both errors with the same text, so a
+// caller cannot tell the two situations apart.
+func sameError(t *testing.T, call string, a, b error) {
+	t.Helper()
+	if a == nil || b == nil || a.Error() != b.Error() {
+		t.Fatalf("%s: errors %v and %v differ, so the two situations can be told apart", call, a, b)
 	}
 }
 

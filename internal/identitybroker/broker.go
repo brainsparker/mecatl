@@ -1,9 +1,11 @@
 // Package identitybroker is the in-process core of the agent identity broker.
 //
 // Service is the contract for the whole identity broker: Mecatl calls it, and
-// only it, whether the broker runs in process or as its own service. Package
-// standin provides a trivial implementation until the real one exists, and
-// package conformance holds the contract tests every implementation passes.
+// only it, whether the broker runs in process or as its own service. Core is
+// the broker side of that contract, with the authenticated workload on every
+// call; NewInProcess joins the two through an Authenticator. Package standin
+// provides a trivial Core until the real one exists, and package conformance
+// holds the contract tests every implementation passes.
 //
 // New validates explicitly supplied configuration, an ECDSA P-256 (ES256)
 // signing capability, and already-loaded definition records, and returns a Broker
