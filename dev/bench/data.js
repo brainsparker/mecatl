@@ -359490,6 +359490,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792581569803,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29541485+ChrisJBurns@users.noreply.github.com",
+            "name": "Chris Burns",
+            "username": "ChrisJBurns"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9c7c01346af42e9d5b0cd874093fe3fd1f93d89c",
+          "message": "fix(identitybroker): refuse registration under another owner (#2449)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-21T12:22:57+01:00",
+          "tree_id": "dcaa815c34570ca4fa8d309efddae64c9b0c82c7",
+          "url": "https://github.com/stacklok/mecatl/commit/9c7c01346af42e9d5b0cd874093fe3fd1f93d89c"
+        },
+        "date": 1792582471434,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16118.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12882,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 794,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -469310,6 +469349,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792582468413,
+  "lastUpdate": 1792582472312,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
