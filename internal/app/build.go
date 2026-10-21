@@ -92,6 +92,7 @@ import (
 	"github.com/stacklok/mecatl/internal/adapter/tools"
 	"github.com/stacklok/mecatl/internal/adapter/xdgconfig"
 	"github.com/stacklok/mecatl/internal/buildinfo"
+	"github.com/stacklok/mecatl/internal/identitybroker"
 	"github.com/stacklok/mecatl/internal/syscaller"
 	"github.com/stacklok/mecatl/provider/openai"
 )
@@ -969,6 +970,11 @@ type Config struct {
 	MCPBrokerAuthorizedCaller mcpbroker.AuthorizedCaller
 	MCPBrokerQueryCaller      mcpbroker.QueryCaller
 	MCPBrokerOptions          []mcpbroker.Option
+	// IdentityBroker starts the experimental agent identity broker and gives it
+	// to the session code and the MCP broker. Only mecak8s sets it.
+	IdentityBroker bool
+	// identityBrokerCore replaces the stand-in identity broker in tests.
+	identityBrokerCore identitybroker.Core
 	// MCPProfileLoader resolves operator-tier profiles with the same permission
 	// resolver Build already owns. Command roots install it so settings are not
 	// parsed a second time and secret lookup remains a runtime-only operation.
@@ -2256,6 +2262,21 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	}
 	logMCPInventory(ctx, cfg.diag(), mcpInventory)
 
+	// The identity broker is built before the MCP broker, which receives it on
+	// both construction paths, and released after it. Pass it as its own option,
+	// never through cfg.MCPBrokerOptions: a non-empty MCPBrokerOptions selects the
+	// configured path instead of the bundled ToolHive one.
+	identityBroker, releaseIdentityBroker := buildIdentityBroker(cfg)
+	defer func() {
+		if !profilesTransferred {
+			releaseIdentityBroker()
+		}
+	}()
+	var identityBrokerOptions []mcpbroker.Option
+	if identityBroker != nil {
+		identityBrokerOptions = append(identityBrokerOptions, mcpbroker.WithIdentityBroker(identityBroker))
+	}
+
 	var brokerRuntime *mcpbroker.Runtime
 	var brokerProcess *mcpbroker.Process
 	var brokerHandlers mcpbroker.HandlerBundle
@@ -2279,7 +2300,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 				commandConnClose()
 				return nil, fmt.Errorf("build bundled MCP broker: %w", err)
 			}
-			brokerProcess, err = mcpbroker.NewToolHiveProcess(ctx, toolHiveBrokerConfig(brokerDeclaration.Routes, brokerDeclaration.CallbackURL, occupied, authRedisClient, cfg.diag()))
+			brokerProcess, err = mcpbroker.NewToolHiveProcess(ctx, toolHiveBrokerConfig(brokerDeclaration.Routes, brokerDeclaration.CallbackURL, occupied, authRedisClient, cfg.diag()), identityBrokerOptions...)
 			if err != nil {
 				authStorageClose()
 				childLiveness.Close()
@@ -2308,6 +2329,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 			if cfg.MCPBrokerQueryCaller != nil {
 				options = append(options, mcpbroker.WithQueryCaller(cfg.MCPBrokerQueryCaller))
 			}
+			options = append(options, identityBrokerOptions...)
 			brokerRuntime, err = mcpbroker.New(catalogue, cfg.MCPBrokerCaller, options...)
 			if err != nil {
 				childLiveness.Close()
@@ -2971,6 +2993,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	if brokerRuntime != nil {
 		svcCfg.MCPBroker = brokerRuntime
 	}
+	svcCfg.IdentityBroker = identityBroker
 	// Workspace enrollment (pre-prompt authenticate-then-discover) applies only
 	// to the bundled ToolHive Process path: a plain Compile-based Runtime has no
 	// live discovery primitive and never satisfies the enrollment boundary.
@@ -3067,6 +3090,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		}
 		childLiveness.Close()
 		closeBroker()
+		releaseIdentityBroker()
 		mcpClose()
 		closeProfiles()
 		agentClose()

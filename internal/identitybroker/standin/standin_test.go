@@ -9,8 +9,10 @@ import (
 	"github.com/stacklok/mecatl/internal/identitybroker/conformance"
 )
 
+var testCaller = identitybroker.Caller{Workload: "system:serviceaccount:mecatl:mecak8s"}
+
 func TestStandinPassesContract(t *testing.T) {
-	conformance.Run(t, func(*testing.T) identitybroker.Service { return New() })
+	conformance.Run(t, func(*testing.T) identitybroker.Core { return New() })
 }
 
 func TestSessionIDsDoNotRepeatAcrossRestarts(t *testing.T) {
@@ -28,7 +30,7 @@ func TestSessionIDsDoNotRepeatAcrossRestarts(t *testing.T) {
 
 func openSession(t *testing.T, b *Broker) identitybroker.Session {
 	t.Helper()
-	s, err := b.OpenSession(context.Background(), identitybroker.OpenSessionRequest{
+	s, err := b.OpenSession(context.Background(), testCaller, identitybroker.OpenSessionRequest{
 		HostSessionID: "hostS42",
 		Incarnation:   "inc_hostS42",
 		Owner:         identitybroker.Owner{Issuer: "https://login.example.com", Subject: "alice-204"},
@@ -51,7 +53,7 @@ func TestRegisterAgentReturnsTheFixedAgent(t *testing.T) {
 		"inc_reviewer": {"hostS42-child", identitybroker.DefinitionRef{Name: "code-reviewer"}},
 	}
 	for incarnation, c := range cases {
-		got, err := b.RegisterAgent(context.Background(), identitybroker.RegisterAgentRequest{
+		got, err := b.RegisterAgent(context.Background(), testCaller, identitybroker.RegisterAgentRequest{
 			SessionID:     s.ID,
 			HostSessionID: c.host,
 			Owner:         s.Owner,
@@ -70,7 +72,7 @@ func TestRegisterAgentReturnsTheFixedAgent(t *testing.T) {
 func TestAuthorizeCallDeniesEveryCall(t *testing.T) {
 	b := New()
 	s := openSession(t, b)
-	got, err := b.AuthorizeCall(context.Background(), identitybroker.AuthorizeCallRequest{
+	got, err := b.AuthorizeCall(context.Background(), testCaller, identitybroker.AuthorizeCallRequest{
 		SessionID:   s.ID,
 		Credential:  placeholderCredential,
 		OperationID: "op-1",

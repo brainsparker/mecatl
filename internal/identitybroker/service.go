@@ -29,7 +29,9 @@ import (
 //     CodePermissionDenied.
 //   - Invalid requests fail with CodeInvalidArgument.
 //
-// The caller travels with the context; see WithCaller.
+// No request names its caller: the broker authenticates the caller itself,
+// and Mecatl gets a Service from NewInProcess. Implementations provide this
+// behavior by implementing Core.
 type Service interface {
 	// OpenSession opens the broker session for a root host session, or returns
 	// the one already open for it.
@@ -244,28 +246,4 @@ func requireIDs(pairs ...string) error {
 
 func invalid(detail string) error {
 	return NewError(CodeInvalidArgument, "", detail)
-}
-
-// Caller is the authenticated workload making a call, such as mecak8s's
-// Kubernetes ServiceAccount. The transport or in-process adapter attaches it
-// to the call's context after authenticating the workload; it is never a
-// request field.
-//
-// Implementations do not check the caller yet; checking it will be addressed
-// later.
-type Caller struct {
-	Workload string
-}
-
-type callerKey struct{}
-
-// WithCaller returns a context carrying caller.
-func WithCaller(ctx context.Context, caller Caller) context.Context {
-	return context.WithValue(ctx, callerKey{}, caller)
-}
-
-// CallerFrom returns the caller attached to ctx, and whether one is attached.
-func CallerFrom(ctx context.Context) (Caller, bool) {
-	caller, ok := ctx.Value(callerKey{}).(Caller)
-	return caller, ok
 }

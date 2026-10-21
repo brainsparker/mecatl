@@ -409,6 +409,7 @@ var serviceAccessTable = map[string]ClassificationEntry{
 	"Drain":                  {KindExempt, "process drain-gate arm; not a per-request caller-facing operation"},
 	"GracefulDrain":          {KindExempt, "process shutdown settlement; operates only on already-admitted locally owned runs"},
 	"Diagnostics":            {KindExempt, "returns the injected port.Diagnostics sink, a composition-time wiring accessor"},
+	"IdentityBroker":         {KindExempt, "returns the injected identity broker, a composition-time wiring accessor"},
 	"OwnershipEnforced":      {KindExempt, "returns the composition-time ownership posture; resource decisions still use ownsResource/authorizeSession"},
 	"IsDraining":             {KindExempt, "reads the process-wide drain flag Drain sets"},
 	"ActiveRuns":             {KindExempt, "process-wide in-flight run count, an operator/health metric with no per-caller identity"},

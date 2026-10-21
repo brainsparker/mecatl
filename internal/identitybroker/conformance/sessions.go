@@ -7,7 +7,7 @@ import (
 	"github.com/stacklok/mecatl/internal/identitybroker"
 )
 
-func runSessions(t *testing.T, factory Factory) {
+func runSessions(t *testing.T, factory serviceFactory) {
 	ctx := context.Background()
 
 	t.Run("open returns the session it opened", func(t *testing.T) {
@@ -95,7 +95,7 @@ func runSessions(t *testing.T, factory Factory) {
 	})
 }
 
-func runClosedSessions(t *testing.T, factory Factory) {
+func runClosedSessions(t *testing.T, factory serviceFactory) {
 	ctx := context.Background()
 
 	t.Run("a closed session refuses registration and calls with its reason", func(t *testing.T) {
@@ -148,7 +148,7 @@ func runClosedSessions(t *testing.T, factory Factory) {
 	})
 }
 
-func runInvalidRequests(t *testing.T, factory Factory) {
+func runInvalidRequests(t *testing.T, factory serviceFactory) {
 	ctx := context.Background()
 	svc := factory(t)
 	s := mustOpen(t, svc, openRequest("hostS42", alice))

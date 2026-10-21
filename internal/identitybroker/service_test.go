@@ -63,13 +63,114 @@ func TestReasonsCarryTheDesignCodes(t *testing.T) {
 	}
 }
 
-func TestCallerTravelsWithTheContext(t *testing.T) {
-	if _, ok := CallerFrom(context.Background()); ok {
-		t.Fatal("CallerFrom found a caller on an empty context")
+// recordingCore records the caller each call receives.
+type recordingCore struct {
+	callers []Caller
+}
+
+func (c *recordingCore) OpenSession(_ context.Context, caller Caller, _ OpenSessionRequest) (Session, error) {
+	c.callers = append(c.callers, caller)
+	return Session{}, nil
+}
+
+func (c *recordingCore) FindSession(_ context.Context, caller Caller, _ FindSessionRequest) (Session, bool, error) {
+	c.callers = append(c.callers, caller)
+	return Session{}, false, nil
+}
+
+func (c *recordingCore) CloseSession(_ context.Context, caller Caller, _ CloseSessionRequest) error {
+	c.callers = append(c.callers, caller)
+	return nil
+}
+
+func (c *recordingCore) RegisterAgent(_ context.Context, caller Caller, _ RegisterAgentRequest) (Registration, error) {
+	c.callers = append(c.callers, caller)
+	return Registration{}, nil
+}
+
+func (c *recordingCore) AuthorizeCall(_ context.Context, caller Caller, _ AuthorizeCallRequest) (Authorization, error) {
+	c.callers = append(c.callers, caller)
+	return Authorization{}, nil
+}
+
+// callAll makes every Service call once and returns their errors in order.
+func callAll(svc Service) []error {
+	ctx := context.Background()
+	_, openErr := svc.OpenSession(ctx, OpenSessionRequest{})
+	_, _, findErr := svc.FindSession(ctx, FindSessionRequest{})
+	closeErr := svc.CloseSession(ctx, CloseSessionRequest{})
+	_, registerErr := svc.RegisterAgent(ctx, RegisterAgentRequest{})
+	_, authorizeErr := svc.AuthorizeCall(ctx, AuthorizeCallRequest{})
+	return []error{openErr, findErr, closeErr, registerErr, authorizeErr}
+}
+
+type authenticatorFunc func(context.Context) (Caller, error)
+
+func (f authenticatorFunc) Authenticate(ctx context.Context) (Caller, error) { return f(ctx) }
+
+func TestInProcessPassesTheAuthenticatedCallerToEveryCall(t *testing.T) {
+	want := Caller{Workload: "system:serviceaccount:mecatl:mecak8s", Verified: true}
+	core := &recordingCore{}
+	svc := NewInProcess(authenticatorFunc(func(context.Context) (Caller, error) { return want, nil }), core)
+	for i, err := range callAll(svc) {
+		if err != nil {
+			t.Fatalf("call %d: %v", i, err)
+		}
 	}
-	want := Caller{Workload: "system:serviceaccount:mecatl:mecak8s"}
-	got, ok := CallerFrom(WithCaller(context.Background(), want))
-	if !ok || got != want {
-		t.Fatalf("CallerFrom = %+v, %v; want %+v, true", got, ok, want)
+	if len(core.callers) != 5 {
+		t.Fatalf("core received %d calls, want 5", len(core.callers))
+	}
+	for i, got := range core.callers {
+		if got != want {
+			t.Errorf("call %d reached the core with caller %+v, want %+v", i, got, want)
+		}
+	}
+}
+
+func TestInProcessStopsWhenAuthenticationFails(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want *Error
+	}{
+		"broker error passes through":    {NewError(CodePermissionDenied, "", "not allowed"), &Error{Code: CodePermissionDenied}},
+		"other error is unauthenticated": {errors.New("token file unreadable: /var/run/secret"), &Error{Code: CodeUnauthenticated}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			core := &recordingCore{}
+			svc := NewInProcess(authenticatorFunc(func(context.Context) (Caller, error) { return Caller{}, c.err }), core)
+			for i, err := range callAll(svc) {
+				if !errors.Is(err, c.want) {
+					t.Errorf("call %d error = %v, want %s", i, err, c.want.Code)
+				}
+				if err != nil && strings.Contains(err.Error(), "/var/run/secret") {
+					t.Errorf("call %d error %q exposes the authenticator's failure", i, err)
+				}
+			}
+			if len(core.callers) != 0 {
+				t.Fatalf("core received %d calls after authentication failed", len(core.callers))
+			}
+		})
+	}
+}
+
+func TestUnverifiedAuthenticatorNeverVerifies(t *testing.T) {
+	got, err := UnverifiedAuthenticator{Workload: "mecak8s-unverified"}.Authenticate(context.Background())
+	if err != nil {
+		t.Fatalf("Authenticate: %v", err)
+	}
+	if got != (Caller{Workload: "mecak8s-unverified"}) || got.Verified {
+		t.Fatalf("Authenticate = %+v, want an unverified mecak8s-unverified caller", got)
+	}
+}
+
+func TestCallerValidateRequiresAWorkload(t *testing.T) {
+	for _, c := range []Caller{{}, {Workload: "a b"}, {Workload: "a\x00b"}, {Verified: true}} {
+		if err := c.Validate(); !errors.Is(err, &Error{Code: CodeUnauthenticated}) {
+			t.Errorf("Validate(%+v) = %v, want UNAUTHENTICATED", c, err)
+		}
+	}
+	if err := (Caller{Workload: "mecak8s-unverified"}).Validate(); err != nil {
+		t.Errorf("Validate(named caller) = %v", err)
 	}
 }
