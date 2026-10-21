@@ -324384,6 +324384,40 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792581565100,
         "tool": "customBiggerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29541485+ChrisJBurns@users.noreply.github.com",
+            "name": "Chris Burns",
+            "username": "ChrisJBurns"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9c7c01346af42e9d5b0cd874093fe3fd1f93d89c",
+          "message": "fix(identitybroker): refuse registration under another owner (#2449)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-21T12:22:57+01:00",
+          "tree_id": "dcaa815c34570ca4fa8d309efddae64c9b0c82c7",
+          "url": "https://github.com/stacklok/mecatl/commit/9c7c01346af42e9d5b0cd874093fe3fd1f93d89c"
+        },
+        "date": 1792582467583,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "single_session_long/cache_hit_rate",
+            "value": 0.9,
+            "unit": "ratio"
+          },
+          {
+            "name": "team_fanout/cache_hit_rate",
+            "value": 0.75,
+            "unit": "ratio"
+          }
+        ]
       }
     ],
     "mecatl scenarios (render allocs, advisory)": [
@@ -469276,6 +469310,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792582464555,
+  "lastUpdate": 1792582468413,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
