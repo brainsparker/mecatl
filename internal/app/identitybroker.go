@@ -7,10 +7,10 @@ import (
 	"github.com/stacklok/mecatl/internal/identitybroker/standin"
 )
 
-// identityBrokerWorkload is the caller the identity broker records until it
-// authenticates the workload's credential, which will be addressed later. The
-// name, and Caller.Verified being false, keep it from reading as a verified
-// identity.
+// identityBrokerWorkload is the workload name the identity broker records until
+// it authenticates the workload's credential, which will be addressed later.
+// The name, and Workload.Verified being false, keep it from reading as a
+// verified identity.
 const identityBrokerWorkload = "mecak8s-unverified"
 
 // buildIdentityBroker returns the identity broker Mecatl calls, and a function
@@ -28,5 +28,5 @@ func buildIdentityBroker(cfg Config) (identitybroker.Service, func()) {
 	if closer, ok := core.(io.Closer); ok {
 		release = func() { _ = closer.Close() }
 	}
-	return identitybroker.NewInProcess(identitybroker.UnverifiedAuthenticator{Workload: identityBrokerWorkload}, core), release
+	return identitybroker.NewInProcess(identitybroker.UnverifiedAuthenticator{Name: identityBrokerWorkload}, core), release
 }

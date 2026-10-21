@@ -35,7 +35,6 @@ import (
 	"github.com/stacklok/mecatl/internal/adapter/scheduler"
 	"github.com/stacklok/mecatl/internal/adapter/skills"
 	"github.com/stacklok/mecatl/internal/creatediag"
-	"github.com/stacklok/mecatl/internal/identitybroker"
 	brokercontract "github.com/stacklok/mecatl/internal/mcpbroker"
 )
 
@@ -809,9 +808,6 @@ type Config struct {
 	// WorkspaceEnrollment advertises the optional pre-prompt enrollment capability.
 	// It must be true only when MCPBroker attachments implement the enrollment boundary.
 	WorkspaceEnrollment bool
-	// IdentityBroker is the agent identity broker the session code will call;
-	// nil when it is not enabled. Nothing calls it yet.
-	IdentityBroker identitybroker.Service
 
 	// ModeNeedsEngine reports whether a given session PermissionMode resolves a model
 	// that DIFFERS from the shared engine's model — i.e. whether a
@@ -4056,12 +4052,6 @@ func (s *Service) retainLeaseForTTL(id session.SessionID) {
 // is belt-and-suspenders).
 func (s *Service) Diagnostics() port.Diagnostics {
 	return s.cfg.Diagnostics
-}
-
-// IdentityBroker returns the agent identity broker the session code was
-// given, or nil when it is not enabled.
-func (s *Service) IdentityBroker() identitybroker.Service {
-	return s.cfg.IdentityBroker
 }
 
 // OwnershipEnforced reports whether caller ownership is active. Composition

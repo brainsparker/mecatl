@@ -22,7 +22,6 @@ import (
 	mcpadapter "github.com/stacklok/mecatl/internal/adapter/mcp"
 	"github.com/stacklok/mecatl/internal/adapter/mcpauthority"
 	"github.com/stacklok/mecatl/internal/adapter/permconfig"
-	"github.com/stacklok/mecatl/internal/identitybroker"
 	contract "github.com/stacklok/mecatl/internal/mcpbroker"
 )
 
@@ -264,8 +263,6 @@ type Runtime struct {
 	enrollment  *enrollmentConfig
 	discovery   authenticatedDiscoverer
 	publication publicationGate
-	// identityBroker is the agent identity broker, when one is configured.
-	identityBroker identitybroker.Service
 }
 
 var _ contract.Service = (*Runtime)(nil)

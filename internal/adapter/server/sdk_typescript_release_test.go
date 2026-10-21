@@ -225,7 +225,6 @@ func TestSDKTypescriptRelease_Scenario1_PublicServiceProjectionParity(t *testing
 		"GetUserModelDetail",
 		"GracefulDrain",
 		"HasScheduler",
-		"IdentityBroker",
 		"IsDraining",
 		"IsLive",
 		"LeaseSweepDisabled",

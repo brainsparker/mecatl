@@ -63,33 +63,33 @@ func TestReasonsCarryTheDesignCodes(t *testing.T) {
 	}
 }
 
-// recordingCore records the caller each call receives.
+// recordingCore records the workload each call receives.
 type recordingCore struct {
-	callers []Caller
+	workloads []Workload
 }
 
-func (c *recordingCore) OpenSession(_ context.Context, caller Caller, _ OpenSessionRequest) (Session, error) {
-	c.callers = append(c.callers, caller)
+func (c *recordingCore) OpenSession(_ context.Context, workload Workload, _ OpenSessionRequest) (Session, error) {
+	c.workloads = append(c.workloads, workload)
 	return Session{}, nil
 }
 
-func (c *recordingCore) FindSession(_ context.Context, caller Caller, _ FindSessionRequest) (Session, bool, error) {
-	c.callers = append(c.callers, caller)
+func (c *recordingCore) FindSession(_ context.Context, workload Workload, _ FindSessionRequest) (Session, bool, error) {
+	c.workloads = append(c.workloads, workload)
 	return Session{}, false, nil
 }
 
-func (c *recordingCore) CloseSession(_ context.Context, caller Caller, _ CloseSessionRequest) error {
-	c.callers = append(c.callers, caller)
+func (c *recordingCore) CloseSession(_ context.Context, workload Workload, _ CloseSessionRequest) error {
+	c.workloads = append(c.workloads, workload)
 	return nil
 }
 
-func (c *recordingCore) RegisterAgent(_ context.Context, caller Caller, _ RegisterAgentRequest) (Registration, error) {
-	c.callers = append(c.callers, caller)
+func (c *recordingCore) RegisterAgent(_ context.Context, workload Workload, _ RegisterAgentRequest) (Registration, error) {
+	c.workloads = append(c.workloads, workload)
 	return Registration{}, nil
 }
 
-func (c *recordingCore) AuthorizeCall(_ context.Context, caller Caller, _ AuthorizeCallRequest) (Authorization, error) {
-	c.callers = append(c.callers, caller)
+func (c *recordingCore) AuthorizeCall(_ context.Context, workload Workload, _ AuthorizeCallRequest) (Authorization, error) {
+	c.workloads = append(c.workloads, workload)
 	return Authorization{}, nil
 }
 
@@ -104,25 +104,25 @@ func callAll(svc Service) []error {
 	return []error{openErr, findErr, closeErr, registerErr, authorizeErr}
 }
 
-type authenticatorFunc func(context.Context) (Caller, error)
+type authenticatorFunc func(context.Context) (Workload, error)
 
-func (f authenticatorFunc) Authenticate(ctx context.Context) (Caller, error) { return f(ctx) }
+func (f authenticatorFunc) Authenticate(ctx context.Context) (Workload, error) { return f(ctx) }
 
-func TestInProcessPassesTheAuthenticatedCallerToEveryCall(t *testing.T) {
-	want := Caller{Workload: "system:serviceaccount:mecatl:mecak8s", Verified: true}
+func TestInProcessPassesTheAuthenticatedWorkloadToEveryCall(t *testing.T) {
+	want := Workload{Name: "system:serviceaccount:mecatl:mecak8s", Verified: true}
 	core := &recordingCore{}
-	svc := NewInProcess(authenticatorFunc(func(context.Context) (Caller, error) { return want, nil }), core)
+	svc := NewInProcess(authenticatorFunc(func(context.Context) (Workload, error) { return want, nil }), core)
 	for i, err := range callAll(svc) {
 		if err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
 	}
-	if len(core.callers) != 5 {
-		t.Fatalf("core received %d calls, want 5", len(core.callers))
+	if len(core.workloads) != 5 {
+		t.Fatalf("core received %d calls, want 5", len(core.workloads))
 	}
-	for i, got := range core.callers {
+	for i, got := range core.workloads {
 		if got != want {
-			t.Errorf("call %d reached the core with caller %+v, want %+v", i, got, want)
+			t.Errorf("call %d reached the core with workload %+v, want %+v", i, got, want)
 		}
 	}
 }
@@ -138,7 +138,7 @@ func TestInProcessStopsWhenAuthenticationFails(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			core := &recordingCore{}
-			svc := NewInProcess(authenticatorFunc(func(context.Context) (Caller, error) { return Caller{}, c.err }), core)
+			svc := NewInProcess(authenticatorFunc(func(context.Context) (Workload, error) { return Workload{}, c.err }), core)
 			for i, err := range callAll(svc) {
 				if !errors.Is(err, c.want) {
 					t.Errorf("call %d error = %v, want %s", i, err, c.want.Code)
@@ -147,30 +147,30 @@ func TestInProcessStopsWhenAuthenticationFails(t *testing.T) {
 					t.Errorf("call %d error %q exposes the authenticator's failure", i, err)
 				}
 			}
-			if len(core.callers) != 0 {
-				t.Fatalf("core received %d calls after authentication failed", len(core.callers))
+			if len(core.workloads) != 0 {
+				t.Fatalf("core received %d calls after authentication failed", len(core.workloads))
 			}
 		})
 	}
 }
 
 func TestUnverifiedAuthenticatorNeverVerifies(t *testing.T) {
-	got, err := UnverifiedAuthenticator{Workload: "mecak8s-unverified"}.Authenticate(context.Background())
+	got, err := UnverifiedAuthenticator{Name: "mecak8s-unverified"}.Authenticate(context.Background())
 	if err != nil {
 		t.Fatalf("Authenticate: %v", err)
 	}
-	if got != (Caller{Workload: "mecak8s-unverified"}) || got.Verified {
-		t.Fatalf("Authenticate = %+v, want an unverified mecak8s-unverified caller", got)
+	if got != (Workload{Name: "mecak8s-unverified"}) || got.Verified {
+		t.Fatalf("Authenticate = %+v, want an unverified mecak8s-unverified workload", got)
 	}
 }
 
-func TestCallerValidateRequiresAWorkload(t *testing.T) {
-	for _, c := range []Caller{{}, {Workload: "a b"}, {Workload: "a\x00b"}, {Verified: true}} {
-		if err := c.Validate(); !errors.Is(err, &Error{Code: CodeUnauthenticated}) {
-			t.Errorf("Validate(%+v) = %v, want UNAUTHENTICATED", c, err)
+func TestWorkloadValidateRequiresAName(t *testing.T) {
+	for _, w := range []Workload{{}, {Name: "a b"}, {Name: "a\x00b"}, {Verified: true}} {
+		if err := w.Validate(); !errors.Is(err, &Error{Code: CodeUnauthenticated}) {
+			t.Errorf("Validate(%+v) = %v, want UNAUTHENTICATED", w, err)
 		}
 	}
-	if err := (Caller{Workload: "mecak8s-unverified"}).Validate(); err != nil {
-		t.Errorf("Validate(named caller) = %v", err)
+	if err := (Workload{Name: "mecak8s-unverified"}).Validate(); err != nil {
+		t.Errorf("Validate(named workload) = %v", err)
 	}
 }

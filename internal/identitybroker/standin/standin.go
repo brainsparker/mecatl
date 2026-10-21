@@ -48,8 +48,8 @@ func New() *Broker {
 }
 
 // OpenSession implements identitybroker.Core.
-func (b *Broker) OpenSession(_ context.Context, caller identitybroker.Caller, req identitybroker.OpenSessionRequest) (identitybroker.Session, error) {
-	if err := check(caller, req); err != nil {
+func (b *Broker) OpenSession(_ context.Context, workload identitybroker.Workload, req identitybroker.OpenSessionRequest) (identitybroker.Session, error) {
+	if err := check(workload, req); err != nil {
 		return identitybroker.Session{}, err
 	}
 	b.mu.Lock()
@@ -57,7 +57,7 @@ func (b *Broker) OpenSession(_ context.Context, caller identitybroker.Caller, re
 	if id, ok := b.open[req.HostSessionID]; ok {
 		s := b.sessions[id]
 		switch {
-		case s.workload != caller.Workload:
+		case s.workload != workload.Name:
 			return identitybroker.Session{}, otherWorkload()
 		case s.Owner != req.Owner:
 			return identitybroker.Session{}, identitybroker.ReasonError(identitybroker.ReasonSessionOwned, "the host session's broker session belongs to another owner")
@@ -72,14 +72,14 @@ func (b *Broker) OpenSession(_ context.Context, caller identitybroker.Caller, re
 		Incarnation:   req.Incarnation,
 		Owner:         req.Owner,
 	}
-	b.sessions[s.ID] = &session{Session: s, workload: caller.Workload}
+	b.sessions[s.ID] = &session{Session: s, workload: workload.Name}
 	b.open[s.HostSessionID] = s.ID
 	return s, nil
 }
 
 // FindSession implements identitybroker.Core.
-func (b *Broker) FindSession(_ context.Context, caller identitybroker.Caller, req identitybroker.FindSessionRequest) (identitybroker.Session, bool, error) {
-	if err := check(caller, req); err != nil {
+func (b *Broker) FindSession(_ context.Context, workload identitybroker.Workload, req identitybroker.FindSessionRequest) (identitybroker.Session, bool, error) {
+	if err := check(workload, req); err != nil {
 		return identitybroker.Session{}, false, err
 	}
 	b.mu.Lock()
@@ -89,15 +89,15 @@ func (b *Broker) FindSession(_ context.Context, caller identitybroker.Caller, re
 		return identitybroker.Session{}, false, nil
 	}
 	s := b.sessions[id]
-	if s.workload != caller.Workload {
+	if s.workload != workload.Name {
 		return identitybroker.Session{}, false, otherWorkload()
 	}
 	return s.Session, true, nil
 }
 
 // CloseSession implements identitybroker.Core.
-func (b *Broker) CloseSession(_ context.Context, caller identitybroker.Caller, req identitybroker.CloseSessionRequest) error {
-	if err := check(caller, req); err != nil {
+func (b *Broker) CloseSession(_ context.Context, workload identitybroker.Workload, req identitybroker.CloseSessionRequest) error {
+	if err := check(workload, req); err != nil {
 		return err
 	}
 	b.mu.Lock()
@@ -106,7 +106,7 @@ func (b *Broker) CloseSession(_ context.Context, caller identitybroker.Caller, r
 	switch {
 	case !ok:
 		return unknownSession()
-	case s.workload != caller.Workload:
+	case s.workload != workload.Name:
 		return otherWorkload()
 	}
 	if s.closed == "" {
@@ -118,11 +118,11 @@ func (b *Broker) CloseSession(_ context.Context, caller identitybroker.Caller, r
 
 // RegisterAgent implements identitybroker.Core. Every agent is registered as
 // the same fixed agent with the placeholder credential.
-func (b *Broker) RegisterAgent(_ context.Context, caller identitybroker.Caller, req identitybroker.RegisterAgentRequest) (identitybroker.Registration, error) {
-	if err := check(caller, req); err != nil {
+func (b *Broker) RegisterAgent(_ context.Context, workload identitybroker.Workload, req identitybroker.RegisterAgentRequest) (identitybroker.Registration, error) {
+	if err := check(workload, req); err != nil {
 		return identitybroker.Registration{}, err
 	}
-	s, err := b.usable(caller, req.SessionID)
+	s, err := b.usable(workload, req.SessionID)
 	if err != nil {
 		return identitybroker.Registration{}, err
 	}
@@ -133,11 +133,11 @@ func (b *Broker) RegisterAgent(_ context.Context, caller identitybroker.Caller, 
 }
 
 // AuthorizeCall implements identitybroker.Core. It denies every call.
-func (b *Broker) AuthorizeCall(_ context.Context, caller identitybroker.Caller, req identitybroker.AuthorizeCallRequest) (identitybroker.Authorization, error) {
-	if err := check(caller, req); err != nil {
+func (b *Broker) AuthorizeCall(_ context.Context, workload identitybroker.Workload, req identitybroker.AuthorizeCallRequest) (identitybroker.Authorization, error) {
+	if err := check(workload, req); err != nil {
 		return identitybroker.Authorization{}, err
 	}
-	if _, err := b.usable(caller, req.SessionID); err != nil {
+	if _, err := b.usable(workload, req.SessionID); err != nil {
 		return identitybroker.Authorization{}, err
 	}
 	return identitybroker.Authorization{}, identitybroker.ReasonError(identitybroker.ReasonDenied, "the stand-in identity broker authorizes no calls")
@@ -145,14 +145,14 @@ func (b *Broker) AuthorizeCall(_ context.Context, caller identitybroker.Caller, 
 
 // usable returns the open session for id, or the error for a session that
 // does not exist, belongs to another workload, or is closed, in that order.
-func (b *Broker) usable(caller identitybroker.Caller, id string) (identitybroker.Session, error) {
+func (b *Broker) usable(workload identitybroker.Workload, id string) (identitybroker.Session, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	s, ok := b.sessions[id]
 	switch {
 	case !ok:
 		return identitybroker.Session{}, unknownSession()
-	case s.workload != caller.Workload:
+	case s.workload != workload.Name:
 		return identitybroker.Session{}, otherWorkload()
 	case s.closed != "":
 		return identitybroker.Session{}, identitybroker.ReasonError(s.closed, "the broker session is closed")
@@ -160,9 +160,9 @@ func (b *Broker) usable(caller identitybroker.Caller, id string) (identitybroker
 	return s.Session, nil
 }
 
-// check validates the caller, then the request.
-func check(caller identitybroker.Caller, req interface{ Validate() error }) error {
-	if err := caller.Validate(); err != nil {
+// check validates the workload, then the request.
+func check(workload identitybroker.Workload, req interface{ Validate() error }) error {
+	if err := workload.Validate(); err != nil {
 		return err
 	}
 	return req.Validate()

@@ -7,15 +7,15 @@ import (
 	"github.com/stacklok/mecatl/internal/identitybroker"
 )
 
-// runWorkloads calls the Core directly, so the cases can choose the caller.
+// runWorkloads calls the Core directly, so the cases can choose the workload.
 func runWorkloads(t *testing.T, factory Factory) {
 	ctx := context.Background()
 
-	open := func(t *testing.T, core identitybroker.Core, caller identitybroker.Caller, host string) identitybroker.Session {
+	open := func(t *testing.T, core identitybroker.Core, workload identitybroker.Workload, host string) identitybroker.Session {
 		t.Helper()
-		s, err := core.OpenSession(ctx, caller, openRequest(host, alice))
+		s, err := core.OpenSession(ctx, workload, openRequest(host, alice))
 		if err != nil {
-			t.Fatalf("OpenSession(%s) as %s: %v", host, caller.Workload, err)
+			t.Fatalf("OpenSession(%s) as %s: %v", host, workload.Name, err)
 		}
 		return s
 	}
@@ -57,22 +57,22 @@ func runWorkloads(t *testing.T, factory Factory) {
 		}
 	})
 
-	t.Run("an unnamed caller is refused before the request is checked", func(t *testing.T) {
+	t.Run("an unnamed workload is refused before the request is checked", func(t *testing.T) {
 		core := factory(t)
 		s := open(t, core, workloadA, "hostS42")
-		for name, caller := range map[string]identitybroker.Caller{
-			"no workload":     {},
-			"spaced workload": {Workload: "system:serviceaccount:mecatl: mecak8s"},
+		for name, workload := range map[string]identitybroker.Workload{
+			"no name":     {},
+			"spaced name": {Name: "system:serviceaccount:mecatl: mecak8s"},
 		} {
-			_, err := core.OpenSession(ctx, caller, identitybroker.OpenSessionRequest{})
+			_, err := core.OpenSession(ctx, workload, identitybroker.OpenSessionRequest{})
 			wantError(t, "OpenSession with "+name, err, identitybroker.CodeUnauthenticated, "")
-			_, _, err = core.FindSession(ctx, caller, findRequest("hostS42"))
+			_, _, err = core.FindSession(ctx, workload, findRequest("hostS42"))
 			wantError(t, "FindSession with "+name, err, identitybroker.CodeUnauthenticated, "")
-			err = core.CloseSession(ctx, caller, identitybroker.CloseSessionRequest{SessionID: s.ID, Reason: identitybroker.ReasonSessionClosed})
+			err = core.CloseSession(ctx, workload, identitybroker.CloseSessionRequest{SessionID: s.ID, Reason: identitybroker.ReasonSessionClosed})
 			wantError(t, "CloseSession with "+name, err, identitybroker.CodeUnauthenticated, "")
-			_, err = core.RegisterAgent(ctx, caller, registerRequest(s))
+			_, err = core.RegisterAgent(ctx, workload, registerRequest(s))
 			wantError(t, "RegisterAgent with "+name, err, identitybroker.CodeUnauthenticated, "")
-			_, err = core.AuthorizeCall(ctx, caller, authorizeRequest(s.ID))
+			_, err = core.AuthorizeCall(ctx, workload, authorizeRequest(s.ID))
 			wantError(t, "AuthorizeCall with "+name, err, identitybroker.CodeUnauthenticated, "")
 		}
 	})

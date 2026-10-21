@@ -29,7 +29,7 @@ import (
 //     CodePermissionDenied.
 //   - Invalid requests fail with CodeInvalidArgument.
 //
-// No request names its caller: the broker authenticates the caller itself,
+// No request names the calling workload: the broker authenticates it itself,
 // and Mecatl gets a Service from NewInProcess. Implementations provide this
 // behavior by implementing Core.
 type Service interface {

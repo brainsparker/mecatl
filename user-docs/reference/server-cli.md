@@ -639,8 +639,7 @@ Usage: mecak8s [flags]
   --driver-tls-key string
         PEM client private key for --driver-tls-cert
   --enable-identity-broker
-        Start the experimental agent identity broker. It authorizes no MCP calls yet
-        and records an unverified workload identity
+        Start the experimental agent identity broker. Nothing calls it yet
   --enable-parallel
         Enable the Parallel tool for isolated child branches
   --enable-teams

@@ -5,13 +5,13 @@ import (
 	"errors"
 )
 
-// Caller is the workload making a call, as the broker's authenticator
+// Workload is the service making a call, as the broker's authenticator
 // determined it. It is never a request field: Mecatl presents no identity of
 // its own, and the broker decides who is calling.
-type Caller struct {
-	// Workload identifies the calling service, such as a Kubernetes
+type Workload struct {
+	// Name identifies the calling service, such as a Kubernetes
 	// ServiceAccount.
-	Workload string
+	Name string
 	// Verified reports that an authenticator verified the workload's
 	// credential. The zero value is false, so only an authenticator that
 	// verifies a credential sets it, and records can tell an unverified
@@ -19,53 +19,53 @@ type Caller struct {
 	Verified bool
 }
 
-// Validate reports whether c names a workload. The error is an *Error with
+// Validate reports whether w has a name. The error is an *Error with
 // CodeUnauthenticated.
-func (c Caller) Validate() error {
-	if !isToken(c.Workload) {
-		return NewError(CodeUnauthenticated, "", "the caller names no workload")
+func (w Workload) Validate() error {
+	if !isToken(w.Name) {
+		return NewError(CodeUnauthenticated, "", "the calling workload has no name")
 	}
 	return nil
 }
 
 // Core is the broker side of the contract: Service's calls, each with the
-// caller the authenticator determined. Implementations provide the behavior
+// workload the authenticator determined. Implementations provide the behavior
 // documented on Service, and also:
 //
-//   - A caller that fails Validate is refused with CodeUnauthenticated, before
-//     any other check.
+//   - A workload that fails Validate is refused with CodeUnauthenticated,
+//     before any other check.
 //   - A broker session is bound to the workload that opened it. Opening,
 //     finding, closing, registering into, or calling through a session bound
 //     to another workload is refused with CodePermissionDenied, before its
 //     closing reason is revealed.
 type Core interface {
-	OpenSession(ctx context.Context, caller Caller, req OpenSessionRequest) (Session, error)
-	FindSession(ctx context.Context, caller Caller, req FindSessionRequest) (Session, bool, error)
-	CloseSession(ctx context.Context, caller Caller, req CloseSessionRequest) error
-	RegisterAgent(ctx context.Context, caller Caller, req RegisterAgentRequest) (Registration, error)
-	AuthorizeCall(ctx context.Context, caller Caller, req AuthorizeCallRequest) (Authorization, error)
+	OpenSession(ctx context.Context, workload Workload, req OpenSessionRequest) (Session, error)
+	FindSession(ctx context.Context, workload Workload, req FindSessionRequest) (Session, bool, error)
+	CloseSession(ctx context.Context, workload Workload, req CloseSessionRequest) error
+	RegisterAgent(ctx context.Context, workload Workload, req RegisterAgentRequest) (Registration, error)
+	AuthorizeCall(ctx context.Context, workload Workload, req AuthorizeCallRequest) (Authorization, error)
 }
 
-// Authenticator decides who is calling. A failure is an *Error, normally with
-// CodeUnauthenticated or CodePermissionDenied.
+// Authenticator decides which workload is calling. A failure is an *Error,
+// normally with CodeUnauthenticated or CodePermissionDenied.
 type Authenticator interface {
-	Authenticate(ctx context.Context) (Caller, error)
+	Authenticate(ctx context.Context) (Workload, error)
 }
 
-// UnverifiedAuthenticator returns the same unverified caller for every call.
+// UnverifiedAuthenticator returns the same unverified workload for every call.
 // It stands in until the broker authenticates the workload's credential,
 // which will be addressed later.
 type UnverifiedAuthenticator struct {
-	Workload string
+	Name string
 }
 
-// Authenticate implements Authenticator. The caller is never verified.
-func (a UnverifiedAuthenticator) Authenticate(context.Context) (Caller, error) {
-	return Caller{Workload: a.Workload}, nil
+// Authenticate implements Authenticator. The workload is never verified.
+func (a UnverifiedAuthenticator) Authenticate(context.Context) (Workload, error) {
+	return Workload{Name: a.Name}, nil
 }
 
 // NewInProcess returns the Service Mecatl calls when the broker runs in its
-// process. Each call asks authn who is calling, then passes that caller to
+// process. Each call asks authn which workload is calling, then passes it to
 // core, so the in-process path takes the same authentication step as a
 // remote one.
 func NewInProcess(authn Authenticator, core Core) Service {
@@ -77,54 +77,54 @@ type inProcess struct {
 	core  Core
 }
 
-func (p inProcess) authenticate(ctx context.Context) (Caller, error) {
-	caller, err := p.authn.Authenticate(ctx)
+func (p inProcess) authenticate(ctx context.Context) (Workload, error) {
+	workload, err := p.authn.Authenticate(ctx)
 	if err == nil {
-		return caller, nil
+		return workload, nil
 	}
 	var brokerErr *Error
 	if errors.As(err, &brokerErr) {
-		return Caller{}, err
+		return Workload{}, err
 	}
-	return Caller{}, NewError(CodeUnauthenticated, "", "the caller could not be authenticated")
+	return Workload{}, NewError(CodeUnauthenticated, "", "the calling workload could not be authenticated")
 }
 
 func (p inProcess) OpenSession(ctx context.Context, req OpenSessionRequest) (Session, error) {
-	caller, err := p.authenticate(ctx)
+	workload, err := p.authenticate(ctx)
 	if err != nil {
 		return Session{}, err
 	}
-	return p.core.OpenSession(ctx, caller, req)
+	return p.core.OpenSession(ctx, workload, req)
 }
 
 func (p inProcess) FindSession(ctx context.Context, req FindSessionRequest) (Session, bool, error) {
-	caller, err := p.authenticate(ctx)
+	workload, err := p.authenticate(ctx)
 	if err != nil {
 		return Session{}, false, err
 	}
-	return p.core.FindSession(ctx, caller, req)
+	return p.core.FindSession(ctx, workload, req)
 }
 
 func (p inProcess) CloseSession(ctx context.Context, req CloseSessionRequest) error {
-	caller, err := p.authenticate(ctx)
+	workload, err := p.authenticate(ctx)
 	if err != nil {
 		return err
 	}
-	return p.core.CloseSession(ctx, caller, req)
+	return p.core.CloseSession(ctx, workload, req)
 }
 
 func (p inProcess) RegisterAgent(ctx context.Context, req RegisterAgentRequest) (Registration, error) {
-	caller, err := p.authenticate(ctx)
+	workload, err := p.authenticate(ctx)
 	if err != nil {
 		return Registration{}, err
 	}
-	return p.core.RegisterAgent(ctx, caller, req)
+	return p.core.RegisterAgent(ctx, workload, req)
 }
 
 func (p inProcess) AuthorizeCall(ctx context.Context, req AuthorizeCallRequest) (Authorization, error) {
-	caller, err := p.authenticate(ctx)
+	workload, err := p.authenticate(ctx)
 	if err != nil {
 		return Authorization{}, err
 	}
-	return p.core.AuthorizeCall(ctx, caller, req)
+	return p.core.AuthorizeCall(ctx, workload, req)
 }
