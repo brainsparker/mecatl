@@ -918,14 +918,19 @@ type Config struct {
 	// WebSearch backend ladder (issue #26): web search is ON by default via the Exa
 	// anonymous tier (no key, no config). The precedence is, first match wins:
 	// WebSearchOff > explicit URL > operator enabled:false > operator URL >
-	// operator SearXNG URL > legacy SEARXNG_URL > BraveAPIKey > Exa default.
+	// operator SearXNG URL > legacy SEARXNG_URL > BraveAPIKey > You.com (opt-in:
+	// WebSearchYou or YouAPIKey) > Exa default.
 	// The operator settings are folded before the shared backend is built.
 	// Brave and Exa credentials come from the shared provider lifecycle
-	// (BRAVE_API_KEY/EXA_API_KEY or auth.yaml), never flag values.
+	// (BRAVE_API_KEY/EXA_API_KEY/YDC_API_KEY or auth.yaml), never flag values.
 	SearXNGURL   string
 	BraveAPIKey  string
 	ExaAPIKey    string
+	YouAPIKey    string
 	WebSearchOff bool
+	// WebSearchYou opts in to the keyless You.com backend (--websearch=you).
+	// A YouAPIKey alone also selects You.com, on its keyed endpoint.
+	WebSearchYou bool
 
 	// ForkPreservedCap bounds how many PRESERVED winner forks (join=first /
 	// join=judge) survive at once across the process: a new winner beyond the cap
@@ -1515,6 +1520,7 @@ type providerCredentialFileSetter interface {
 type ProviderCredentials struct {
 	ExaAPIKey             string
 	BraveAPIKey           string
+	YouAPIKey             string
 	WebSearchAPIKey       string
 	OpenAIKey             string
 	OpenRouterKey         string
@@ -1902,6 +1908,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		cfg.CustomProviderAPIKeys = credentials.CustomProviderAPIKeys
 		cfg.ExaAPIKey = credentials.ExaAPIKey
 		cfg.BraveAPIKey = credentials.BraveAPIKey
+		cfg.YouAPIKey = credentials.YouAPIKey
 		cfg.WebSearchAPIKey = credentials.WebSearchAPIKey
 		cfg.OpenAIKey = credentials.OpenAIKey
 		cfg.OpenRouterKey = credentials.OpenRouterKey
@@ -6633,7 +6640,8 @@ const braveSearchEndpoint = "https://api.search.brave.com/res/v1/web/search"
 //  2. WebSearchURL set (explicit or operator settings) → generic HTTP adapter
 //  3. SearXNGURL set (operator settings or legacy env) → SearXNG HTTP adapter
 //  4. BraveAPIKey set                 → HTTP adapter against the Brave endpoint
-//  5. default                         → Exa anonymous (zero-config, no key)
+//  5. WebSearchYou or YouAPIKey set   → You.com (keyed when YouAPIKey is set)
+//  6. default                         → Exa anonymous (zero-config, no key)
 //
 // A construction error on a CONFIGURED HTTP tier (a bad URL / invalid config) does
 // NOT degrade to the kill-switch "disabled" sentinel — the operator INTENDED a
@@ -6703,6 +6711,16 @@ func buildSearchProvider(ctx context.Context, cfg Config) tool.SearchProvider {
 		}
 		// NEVER log the key — only the fixed endpoint.
 		cfg.diag().Log(ctx, port.LevelInfo, "WebSearch ENABLED with Brave backend (BRAVE_API_KEY)", "endpoint", braveSearchEndpoint)
+		return provider
+
+	case cfg.WebSearchYou || strings.TrimSpace(cfg.YouAPIKey) != "":
+		provider := refsearch.NewYouProvider(refsearch.YouConfig{APIKey: cfg.YouAPIKey})
+		// NEVER log the key; the endpoint never contains it.
+		mode := "keyless"
+		if provider.Keyed() {
+			mode = "keyed (YDC_API_KEY)"
+		}
+		cfg.diag().Log(ctx, port.LevelInfo, "WebSearch ENABLED with You.com backend", "endpoint", provider.Endpoint(), "mode", mode)
 		return provider
 
 	default:

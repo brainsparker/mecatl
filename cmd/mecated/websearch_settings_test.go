@@ -18,6 +18,7 @@ func TestDaemonWebSearchSettingsComposition(t *testing.T) {
 		{"empty standalone request flags", []string{"--websearch-auth-header=", "--websearch-query-param="}, "operator HTTP backend"},
 		{"explicit URL wins disabled", []string{"--websearch-url=https://flag.example/search"}, "explicit HTTP backend"},
 		{"kill switch", []string{"--websearch=off", "--websearch-url=https://flag.example/search"}, "DISABLED by operator"},
+		{"you opt-in", []string{"--websearch=you"}, "You.com backend"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home := t.TempDir()
@@ -31,6 +32,9 @@ func TestDaemonWebSearchSettingsComposition(t *testing.T) {
 			settings := "websearch:\n  url: https://settings.example/search\n  auth_header: X-Settings\n  query_param: lookup\n"
 			if strings.HasPrefix(tc.name, "explicit URL") || tc.name == "kill switch" {
 				settings = "websearch:\n  enabled: false\n"
+			}
+			if tc.name == "you opt-in" {
+				settings = "{}\n"
 			}
 			if err := os.WriteFile(filepath.Join(dir, "settings.yaml"), []byte(settings), 0o600); err != nil {
 				t.Fatal(err)

@@ -115,6 +115,46 @@ func TestBuildSearchProviderPrecedence(t *testing.T) {
 		}
 	})
 
+	t.Run("--websearch=you => keyless You.com provider", func(t *testing.T) {
+		d := &searchDiag{}
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, WebSearchYou: true})
+		you, ok := p.(*refsearch.YouProvider)
+		if !ok {
+			t.Fatalf("WebSearchYou should resolve to *YouProvider, got %T", p)
+		}
+		if you.Keyed() || !strings.Contains(d.all(), "You.com backend") || !strings.Contains(d.all(), "mode keyless") {
+			t.Fatalf("expected the keyless You.com INFO line; got:\n%s", d.all())
+		}
+	})
+
+	t.Run("YDC_API_KEY => keyed You.com provider, key never logged", func(t *testing.T) {
+		const youKey = "ydc-secret-key"
+		d := &searchDiag{}
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, YouAPIKey: youKey, ExaAPIKey: exaKey})
+		you, ok := p.(*refsearch.YouProvider)
+		if !ok {
+			t.Fatalf("YDC_API_KEY should resolve to *YouProvider, got %T", p)
+		}
+		if !you.Keyed() || strings.Contains(d.all(), youKey) || strings.Contains(d.all(), "Exa backend") {
+			t.Fatalf("You.com must win over Exa without leaking the key; got:\n%s", d.all())
+		}
+	})
+
+	t.Run("BRAVE_API_KEY beats You.com", func(t *testing.T) {
+		d := &searchDiag{}
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, BraveAPIKey: braveKey, WebSearchYou: true, YouAPIKey: "k"})
+		if _, ok := p.(*refsearch.HTTPProvider); !ok {
+			t.Fatalf("Brave should still win, got %T", p)
+		}
+	})
+
+	t.Run("--websearch=off beats You.com", func(t *testing.T) {
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: &searchDiag{}, WebSearchOff: true, WebSearchYou: true})
+		if _, ok := p.(refsearch.Unavailable); !ok {
+			t.Fatalf("kill switch must win, got %T", p)
+		}
+	})
+
 	t.Run("SEARXNG_URL => HTTP provider (SearXNG)", func(t *testing.T) {
 		d := &searchDiag{}
 		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, SearXNGURL: "https://searx.example/search"})

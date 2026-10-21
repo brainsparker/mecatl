@@ -9,7 +9,7 @@ func TestIsSecretName(t *testing.T) {
 	secret := []string{
 		// exact harness credentials
 		"OPENAI_API_KEY", "OPENROUTER_API_KEY", "ANTHROPIC_API_KEY",
-		"WEBSEARCH_API_KEY", "BRAVE_API_KEY", "EXA_API_KEY",
+		"WEBSEARCH_API_KEY", "BRAVE_API_KEY", "EXA_API_KEY", "YDC_API_KEY",
 		"MECATL_AUTH_TOKEN", "MECATL_DRIVER_AUTH_TOKEN",
 		"GH_TOKEN", "GITHUB_TOKEN",
 		// secret-shaped (defence-in-depth)

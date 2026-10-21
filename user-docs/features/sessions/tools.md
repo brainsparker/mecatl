@@ -65,12 +65,13 @@ guardrails are enabled.
 
 ### Configure web search
 
-`WebSearch` is enabled by default. It uses one of four implementations:
+`WebSearch` is enabled by default. It uses one of five implementations:
 
 |Implementation|Use it when|Configuration|
 |-|-|-|
 |[Exa](#exa)|You want the default web search backend.|No configuration for the anonymous tier. An Exa credential enables its paid tier.|
 |[Brave Search](#brave-search)|You have a Brave Search credential.|Configure the Brave search credential.|
+|[You.com](#youcom)|You want a second hosted backend, with or without a key.|Start `mecated` with `--websearch=you`, or configure the `you` search credential.|
 |[SearXNG](#self-hosted-searxng)|You run a SearXNG instance.|Set its endpoint in the operator `websearch` settings.|
 |[Generic HTTP JSON](#generic-http-json)|You have a compatible search API.|Set its endpoint and request shape in the operator `websearch` settings.|
 
@@ -90,6 +91,21 @@ providers and storage](/operating/mecated/configure-providers-and-storage.md#mod
 Configure the `brave` search credential to select Brave Search. [Configure
 mecated providers and storage](/operating/mecated/configure-providers-and-storage.md#model-and-search-credential-file)
 describes credential custody and environment-variable precedence.
+
+#### You.com
+
+You.com is opt-in. Start `mecated` with `--websearch=you` to use its keyless
+endpoint, which needs no account and is rate limited per IP address. Configure
+the `you` search credential (`YDC_API_KEY`) to use the keyed endpoint instead;
+the credential alone selects You.com. [Configure mecated providers and
+storage](/operating/mecated/configure-providers-and-storage.md#model-and-search-credential-file)
+describes credential custody. A configured SearXNG endpoint or Brave credential
+takes precedence over You.com.
+
+When You.com rate limits a request, `WebSearch` reports that search is
+temporarily unavailable and Mecatl sends no further You.com requests until the
+`Retry-After` interval has passed. A rejected credential or exhausted plan is
+reported as a search failure.
 
 #### Self-hosted SearXNG
 
