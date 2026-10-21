@@ -359093,6 +359093,45 @@ window.BENCHMARK_DATA = {
         },
         "date": 1792522328564,
         "tool": "customSmallerIsBetter"
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29541485+ChrisJBurns@users.noreply.github.com",
+            "name": "Chris Burns",
+            "username": "ChrisJBurns"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b24ec74d8d99305419491aa8a11754c9aed75fe3",
+          "message": "feat(identitybroker): add the identity broker interface and stand-in broker (#2443)\n\nCo-authored-by: Mecatl <noreply@mecatl.dev>",
+          "timestamp": "2026-10-21T12:06:18+01:00",
+          "tree_id": "aa2c5e557759312af24561e7957722b44c294239",
+          "url": "https://github.com/stacklok/mecatl/commit/b24ec74d8d99305419491aa8a11754c9aed75fe3"
+        },
+        "date": 1792581569803,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "tui_scrollback_view/allocs_per_op",
+            "value": 16145.5,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_scrollback_view_steady/allocs_per_op",
+            "value": 12910,
+            "unit": "allocs/op"
+          },
+          {
+            "name": "tui_spinner_tick_vpview/allocs_per_op",
+            "value": 795,
+            "unit": "allocs/op"
+          }
+        ]
       }
     ],
     "mecatl scenarios (smaller-is-better)": [
@@ -468799,6 +468838,6 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "lastUpdate": 1792581566289,
+  "lastUpdate": 1792581570999,
   "repoUrl": "https://github.com/stacklok/mecatl"
 }
