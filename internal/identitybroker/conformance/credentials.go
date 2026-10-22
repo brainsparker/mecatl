@@ -30,14 +30,16 @@ func (c *clock) Advance(d time.Duration) {
 	c.now = c.now.Add(d)
 }
 
-// runCredentials checks the credentials registration issues with the Core's
-// VerifyCredential, the call AS-1 makes in process.
+// runCredentials checks the credentials registration issues with the
+// CredentialVerifier, the check AS-1 makes in process.
+//
+//nolint:gocyclo // One flat subtest per contract case; splitting would scatter the shared fixture.
 func runCredentials(t *testing.T, factory Factory) {
 	ctx := context.Background()
 
 	type fixture struct {
 		clock   *clock
-		core    identitybroker.Core
+		core    Implementation
 		svc     identitybroker.Service
 		session identitybroker.Session
 		reg     identitybroker.Registration
@@ -50,7 +52,7 @@ func runCredentials(t *testing.T, factory Factory) {
 		s := mustOpen(t, svc, openRequest("hostS42", alice))
 		return fixture{clock: c, core: core, svc: svc, session: s, reg: mustRegisterAt(t, svc, registerRequest(s), c.Now)}
 	}
-	verify := func(core identitybroker.Core, sessionID string, credential identitybroker.Token) (identitybroker.VerifiedAgent, error) {
+	verify := func(core identitybroker.CredentialVerifier, sessionID string, credential identitybroker.Token) (identitybroker.VerifiedAgent, error) {
 		return core.VerifyCredential(ctx, identitybroker.VerifyCredentialRequest{SessionID: sessionID, Credential: credential})
 	}
 	wantRefused := func(t *testing.T, call string, got identitybroker.VerifiedAgent, err error, code identitybroker.Code, reason identitybroker.Reason) {
@@ -115,10 +117,23 @@ func runCredentials(t *testing.T, factory Factory) {
 		wantRefused(t, "VerifyCredential in the old session", got, err, identitybroker.CodePermissionDenied, identitybroker.ReasonDenied)
 	})
 
+	t.Run("registering again in the same session keeps the earlier credential", func(t *testing.T) {
+		// A lost response or a retry leaves the caller holding the earlier one.
+		f := setup(t)
+		f.clock.Advance(time.Minute)
+		again := mustRegisterAt(t, f.svc, registerRequest(f.session), f.clock.Now)
+		for name, reg := range map[string]identitybroker.Registration{"earlier": f.reg, "later": again} {
+			if _, err := verify(f.core, f.session.ID, reg.Credential); err != nil {
+				t.Errorf("VerifyCredential of the %s credential: %v", name, err)
+			}
+		}
+	})
+
 	t.Run("a reopened session does not revive credentials issued before it closed", func(t *testing.T) {
+		// The clock does not move, so both credentials are issued in the same
+		// second and carry the same expiry.
 		f := setup(t)
 		mustClose(t, f.svc, f.session.ID)
-		f.clock.Advance(time.Minute)
 		reopened := mustOpen(t, f.svc, openRequest("hostS42", alice))
 		again := mustRegisterAt(t, f.svc, registerRequest(reopened), f.clock.Now)
 		got, err := verify(f.core, reopened.ID, f.reg.Credential)
