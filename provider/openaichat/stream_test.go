@@ -407,3 +407,42 @@ func TestOpenAIChatStreamErrorUnwrap(t *testing.T) {
 		t.Error("Unwrap should reach the inner error")
 	}
 }
+
+// TestStopDetailNamesCollapsedFinishReason pins that every finish_reason mapStop
+// collapses into StopError is named on the done chunk, and benign ends are not.
+func TestStopDetailNamesCollapsedFinishReason(t *testing.T) {
+	for reason, want := range map[string]string{
+		"length":         "length",
+		"content_filter": "content_filter",
+		"stop":           "",
+		"tool_calls":     "",
+		"surprise":       "",
+	} {
+		if got := stopDetail(reason); got != want {
+			t.Errorf("stopDetail(%q) = %q, want %q", reason, got, want)
+		}
+		if (mapStop(reason) == session.StopError) != (want != "") {
+			t.Errorf("finish_reason %q: mapStop=%q but stopDetail=%q; a StopError must carry a detail", reason, mapStop(reason), want)
+		}
+	}
+}
+
+// TestDecodeLengthFinishCarriesStopDetail drives a "length" finish through the
+// real decode and finalize path, so the done chunk must carry the detail, not
+// only the stopDetail helper.
+func TestDecodeLengthFinishCarriesStopDetail(t *testing.T) {
+	sse := `data: {"id":"c1","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"finish_reason":null,"delta":{"role":"assistant","content":"","reasoning_content":"thinking"}}]}` + "\n\n" +
+		`data: {"id":"c1","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"finish_reason":"length","delta":{}}]}` + "\n\n" +
+		"data: [DONE]\n\n"
+	chunks, err := decodeSSE(strings.NewReader(sse))
+	if err != nil {
+		t.Fatalf("decodeSSE: %v", err)
+	}
+	done, ok := lastOfKind(chunks, port.ChunkDone)
+	if !ok {
+		t.Fatalf("no ChunkDone in %+v", chunks)
+	}
+	if done.Stop != session.StopError || done.StopDetail != "length" {
+		t.Fatalf("done = {Stop:%q StopDetail:%q}, want {error length}", done.Stop, done.StopDetail)
+	}
+}

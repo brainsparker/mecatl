@@ -2067,3 +2067,44 @@ func TestStreamStampsProviderBodyAndHeader(t *testing.T) {
 		}
 	})
 }
+
+// TestStopDetailNamesCollapsedStatus pins that every terminal status mapStop
+// collapses into StopError is named, refined by a known incomplete reason.
+func TestStopDetailNamesCollapsedStatus(t *testing.T) {
+	cases := []struct {
+		status responses.ResponseStatus
+		reason string
+		want   string
+	}{
+		{responses.ResponseStatusIncomplete, "max_output_tokens", "incomplete:max_output_tokens"},
+		{responses.ResponseStatusIncomplete, "content_filter", "incomplete:content_filter"},
+		{responses.ResponseStatusIncomplete, "Something Unexpected", "incomplete"},
+		{responses.ResponseStatusFailed, "", "failed"},
+		{responses.ResponseStatusCompleted, "", ""},
+		{responses.ResponseStatusCancelled, "", ""},
+	}
+	for _, tc := range cases {
+		if got := stopDetail(tc.status, tc.reason); got != tc.want {
+			t.Errorf("stopDetail(%q, %q) = %q, want %q", tc.status, tc.reason, got, tc.want)
+		}
+		if (mapStop(tc.status) == session.StopError) != (tc.want != "") {
+			t.Errorf("status %q: mapStop=%q but stopDetail=%q; a StopError must carry a detail", tc.status, mapStop(tc.status), tc.want)
+		}
+	}
+}
+
+// TestDecodeCompletedIncompleteCarriesStopDetail drives a terminal response
+// whose status is incomplete through the real decode path, so the done chunk
+// must carry the refined detail, not only the stopDetail helper.
+func TestDecodeCompletedIncompleteCarriesStopDetail(t *testing.T) {
+	sse := "event: response.completed\n" +
+		`data: {"type":"response.completed","sequence_number":1,"response":{"id":"resp_1","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":1,"input_tokens_details":{"cached_tokens":0},"output_tokens":1,"output_tokens_details":{"reasoning_tokens":1},"total_tokens":2}}}` + "\n\n"
+	chunks, err := decodeSSE(strings.NewReader(sse))
+	if err != nil {
+		t.Fatalf("decodeSSE: %v", err)
+	}
+	done := chunks[len(chunks)-1]
+	if done.Kind != port.ChunkDone || done.Stop != session.StopError || done.StopDetail != "incomplete:max_output_tokens" {
+		t.Fatalf("done = %+v, want ChunkDone StopError incomplete:max_output_tokens", done)
+	}
+}

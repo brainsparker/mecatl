@@ -669,6 +669,11 @@ type Run struct {
 
 	results toolResultPublisher
 
+	// turnStopDetail is the latest turn's sanitized port.Chunk.StopDetail (the
+	// provider label a StopError collapsed), reset at the start of every runTurn.
+	// Loop-goroutine only; it feeds the stop-only terminal cause and nothing else.
+	turnStopDetail string
+
 	// closureMu linearizes the final authorization.required publication against
 	// Cancel. That publication is the one nonterminal way an event stream closes.
 	closureMu       sync.Mutex
@@ -2327,7 +2332,7 @@ func (e *Engine) finishTurnNoTools(ctx context.Context, r *Run, sess *session.Se
 			}
 		}
 		e.terminateComplete(ctx, r, sess, stop, lastText, total,
-			stopTerminalCause(stop, lastText))
+			stopTerminalCause(stop, r.turnStopDetail, lastText))
 		return true
 	}
 
@@ -2337,11 +2342,11 @@ func (e *Engine) finishTurnNoTools(ctx context.Context, r *Run, sess *session.Se
 	if streamStop != session.StopNone && streamStop != session.StopEndTurn {
 		if streamStop == session.StopError {
 			e.terminate(ctx, r, sess, session.StopError, lastText, total,
-				fmt.Errorf("agent: model ended turn with no output and a terminal stop reason %q", streamStop), false)
+				errors.New(stopTerminalCause(streamStop, r.turnStopDetail, "")), false)
 			return true
 		}
 		e.terminateComplete(ctx, r, sess, streamStop, lastText, total,
-			stopTerminalCause(streamStop, lastText))
+			stopTerminalCause(streamStop, r.turnStopDetail, lastText))
 		return true
 	}
 
@@ -2864,6 +2869,7 @@ func (e *Engine) runTurn(ctx context.Context, r *Run, req port.LLMRequest, turnI
 			e.emit(r, session.Event{Type: session.EvNetworkAttempt, Turn: turnIdx, NetworkAttempt: &canonical})
 		})
 	}
+	r.turnStopDetail = ""
 	seq, err := e.deps.LLM.Stream(ctx, req)
 	if err != nil {
 		return session.Message{}, session.Usage{}, session.StopNone, turnTiming{}, fmt.Errorf("agent: start stream: %w", err)
@@ -2965,6 +2971,7 @@ func (e *Engine) runTurn(ctx context.Context, r *Run, req port.LLMRequest, turnI
 			e.emit(r, session.Event{Type: session.EvProviderRoute, Turn: turnIdx, Text: chunk.Text})
 		case port.ChunkDone:
 			stop = chunk.Stop
+			r.turnStopDetail = sanitizeStopDetail(chunk.StopDetail)
 		}
 	}
 
@@ -3898,26 +3905,6 @@ func (e *Engine) observeCompletion(ctx context.Context, r *Run, sess *session.Se
 	}
 }
 
-// stopTerminalCause synthesises the terminal REASON for a run that ended on a
-// provider stop CHUNK (no Go error) — the terminateComplete counterpart of the
-// error terminate() carries. Both adapters relay a real terminal condition
-// (max_tokens / refusal / incomplete / failed → StopError; cancelled →
-// StopCancelled) on the ChunkDone stop, NOT as a Go error, so without this the
-// ResultPayload.Error is empty and a delegation's subagentErrorBody renders the
-// child's last text AS the failure — the exact #319 presentation on the
-// terminateComplete path (reachable only WITH text: the empty shape already
-// routes through terminate with a cause). The phrase deliberately matches the
-// empty-shape terminate cause ("agent: model ended turn with no output and a
-// terminal stop reason %q") so both stop-only terminals read alike. It is
-// harness-authored metadata (a stop label + a shape note), never model text, so
-// it is gauntlet-#7 safe on the same footing as every other cause. It is
-// StopError-ONLY: the SubagentPayload.Cause contract is "empty on every other
-// terminal", and a cancellation already names itself everywhere it matters (the
-// Subagent timeout path renders its own time-budget note BEFORE the cause is
-// consulted; Parallel's cancelled-branch arm overrides with "cancelled"). It
-// returns "" for a benign stop (end_turn / a clean limit), where a cause would
-// be noise — StopBudget/StopMaxTurns/StopNoProgress already carry their own
-// honest notes.
 // failureFacts extracts neutral typed metadata from a terminal provider error.
 // Missing interfaces remain conservative unknown values; no text inference occurs.
 func failureFacts(err error) (session.RetryDisposition, session.StreamProgress) {
@@ -3947,14 +3934,58 @@ func permanentCause(err error) bool {
 	return disposition == session.RetryDispositionPermanent
 }
 
-func stopTerminalCause(stop session.StopReason, text string) string {
+// stopTerminalCause synthesises the terminal REASON for a run that ended on a
+// provider stop CHUNK (no Go error) — the terminateComplete counterpart of the
+// error terminate() carries. The adapters relay a real terminal condition
+// (max_tokens / refusal / incomplete / failed → StopError; cancelled →
+// StopCancelled) on the ChunkDone stop, NOT as a Go error, so without this the
+// ResultPayload.Error is empty and a delegation's subagentErrorBody renders the
+// child's last text AS the failure — the exact #319 presentation on the
+// terminateComplete path (reachable only WITH text: the empty shape already
+// routes through terminate with a cause). The empty-shape terminate cause is
+// built here too, so both stop-only terminals read alike; a non-empty detail
+// (the sanitized Chunk.StopDetail) names the provider stop label. It is
+// harness-authored metadata (a stop label + a shape note), never model text, so
+// it is gauntlet-#7 safe on the same footing as every other cause. It is
+// StopError-ONLY: the SubagentPayload.Cause contract is "empty on every other
+// terminal", and a cancellation already names itself everywhere it matters (the
+// Subagent timeout path renders its own time-budget note BEFORE the cause is
+// consulted; Parallel's cancelled-branch arm overrides with "cancelled"). It
+// returns "" for a benign stop (end_turn / a clean limit), where a cause would
+// be noise — StopBudget/StopMaxTurns/StopNoProgress already carry their own
+// honest notes.
+func stopTerminalCause(stop session.StopReason, detail, text string) string {
 	if stop != session.StopError {
 		return ""
 	}
-	if strings.TrimSpace(text) != "" {
-		return fmt.Sprintf("agent: provider ended the turn with terminal stop reason %q after partial output — the text below is TRUNCATED or refused, not a finished answer", stop)
+	label := fmt.Sprintf("%q", stop)
+	if detail != "" {
+		label = fmt.Sprintf("%q (provider stop reason %q)", stop, detail)
 	}
-	return fmt.Sprintf("agent: model ended turn with no output and a terminal stop reason %q", stop)
+	if strings.TrimSpace(text) != "" {
+		return fmt.Sprintf("agent: provider ended the turn with terminal stop reason %s after partial output — the text below is TRUNCATED or refused, not a finished answer", label)
+	}
+	return fmt.Sprintf("agent: model ended turn with no output and a terminal stop reason %s", label)
+}
+
+// maxStopDetailLen bounds port.Chunk.StopDetail; real provider labels are short.
+const maxStopDetailLen = 64
+
+// sanitizeStopDetail keeps a provider stop label only when it is a short
+// lowercase token ([a-z0-9_.:-]), so the terminal cause stays harness-authored
+// metadata even if an adapter or gateway relays something unexpected.
+func sanitizeStopDetail(detail string) string {
+	if detail == "" || len(detail) > maxStopDetailLen {
+		return ""
+	}
+	for _, c := range detail {
+		switch {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '_', c == '.', c == ':', c == '-':
+		default:
+			return ""
+		}
+	}
+	return detail
 }
 
 // emitResult publishes the single terminal result Event. errMsg carries the
