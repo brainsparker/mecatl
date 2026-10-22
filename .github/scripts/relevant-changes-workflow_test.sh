@@ -112,7 +112,7 @@ fi
 # --- per-job gating ------------------------------------------------------------
 # The remaining Go build/analysis jobs gate on go_relevant; the required test
 # context checks changes.result itself, even when no Go tests need running.
-for job in build analysis module-lint action-scripts fuzz-smoke engine-standalone provider-standalone api-compat vuln; do
+for job in build analysis module-lint action-scripts fuzz-smoke api-compat vuln; do
   assert_if "$job" has "needs.changes.outputs.go_relevant == 'true'"
 done
 
@@ -134,6 +134,17 @@ assert_if sdk hasnot "docs_only"
 # The SDK jobs that build/spawn mecated gate on go OR sdk relevance.
 for job in sdk-integration sdk-deno sdk-browser slack-bot-example; do
   assert_if "$job" has "needs.changes.outputs.go_relevant == 'true' || needs.changes.outputs.sdk_relevant == 'true'"
+done
+
+# The shared mecated job feeds every Linux suite that spawns the daemon, so its
+# gate must cover each consumer's gate; a narrower one would skip a consumer.
+assert_if mecated has "needs.changes.outputs.go_relevant == 'true' || needs.changes.outputs.sdk_relevant == 'true' || needs.changes.outputs.studio_relevant == 'true'"
+assert_if mecated has "needs.changes.outputs.docs_only != 'true'"
+for job in sdk-integration sdk-deno sdk-browser slack-bot-example studio studio-browser; do
+  block="$(job_block "$job")"
+  grep -Fq 'needs: [changes, mecated]' <<<"$block" || fail "$job must need the shared mecated job"
+  grep -Fq "MECATL_PREBUILT_MECATED: '1'" <<<"$block" || fail "$job must use the shared mecated binary"
+  grep -Fq 'name: mecated-linux-amd64' <<<"$block" || fail "$job must download the shared mecated binary"
 done
 
 # The Docusaurus build gates on site_relevant ALONE — deliberately no docs_only
@@ -170,8 +181,12 @@ else
   done
 fi
 
-# The opt-in MicroVM standalone job still uses the dedicated relevance output.
-assert_if microvm-standalone has "needs.changes.outputs.microvm_relevant == 'true'"
+# The opt-in MicroVM build and lint steps still use the dedicated relevance
+# output; its standalone tests run in the Test job's per-module GOWORK=off suite.
+for job in build module-lint; do
+  grep -Fq "if: needs.changes.outputs.microvm_relevant == 'true'" <<<"$(job_block "$job")" \
+    || fail "$job must gate its microVM step on microvm_relevant"
+done
 
 # --- lint aggregator tolerates non-Go skips ------------------------------------
 lint_block="$(job_block lint)"
