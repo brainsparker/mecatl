@@ -11,14 +11,22 @@ package conformance
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base32"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stacklok/mecatl/internal/identitybroker"
 )
 
-// Factory returns a fresh, empty implementation for one test.
-type Factory func(t *testing.T) identitybroker.Core
+// Factory returns a fresh, empty implementation for one test, which reads
+// the time from now. Each implementation it returns has its own signing key.
+type Factory func(t *testing.T, now func() time.Time) identitybroker.Core
+
+// coreFactory returns an implementation on the real clock.
+type coreFactory func(t *testing.T) identitybroker.Core
 
 // serviceFactory returns an implementation as Mecatl sees it.
 type serviceFactory func(t *testing.T) identitybroker.Service
@@ -26,13 +34,20 @@ type serviceFactory func(t *testing.T) identitybroker.Service
 // Run executes the identitybroker.Core contract against factory.
 func Run(t *testing.T, factory Factory) {
 	t.Helper()
-	service := func(t *testing.T) identitybroker.Service {
-		return identitybroker.NewInProcess(identitybroker.UnverifiedAuthenticator{Name: workloadA.Name}, factory(t))
-	}
+	core := func(t *testing.T) identitybroker.Core { return factory(t, time.Now) }
+	service := func(t *testing.T) identitybroker.Service { return asMecatl(core(t)) }
 	t.Run("sessions", func(t *testing.T) { runSessions(t, service) })
 	t.Run("closed sessions", func(t *testing.T) { runClosedSessions(t, service) })
+	t.Run("agents", func(t *testing.T) { runAgents(t, service) })
+	t.Run("credentials", func(t *testing.T) { runCredentials(t, factory) })
 	t.Run("invalid requests", func(t *testing.T) { runInvalidRequests(t, service) })
-	t.Run("workloads", func(t *testing.T) { runWorkloads(t, factory) })
+	t.Run("workloads", func(t *testing.T) { runWorkloads(t, core) })
+}
+
+// asMecatl returns core behind the authentication boundary, as Mecatl calls
+// it.
+func asMecatl(core identitybroker.Core) identitybroker.Service {
+	return identitybroker.NewInProcess(identitybroker.UnverifiedAuthenticator{Name: workloadA.Name}, core)
 }
 
 var (
@@ -46,19 +61,29 @@ var (
 )
 
 func openRequest(host string, owner identitybroker.Owner) identitybroker.OpenSessionRequest {
-	return identitybroker.OpenSessionRequest{HostSessionID: host, Incarnation: "inc_" + host, Owner: owner}
+	return identitybroker.OpenSessionRequest{HostSessionID: host, Incarnation: incarnation(host), Owner: owner}
 }
 
 func findRequest(host string) identitybroker.FindSessionRequest {
 	return identitybroker.FindSessionRequest{RootHostSessionID: host}
 }
 
+// incarnation returns a well-formed minted incarnation derived from label, so
+// cases can name agents readably and the same label gives the same agent.
+func incarnation(label string) string {
+	sum := sha256.Sum256([]byte(label))
+	enc := strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(sum[:]))
+	return "inc_" + enc[:25] + "a"
+}
+
+// registerRequest registers s's main agent, whose incarnation is its host
+// session's.
 func registerRequest(s identitybroker.Session) identitybroker.RegisterAgentRequest {
 	return identitybroker.RegisterAgentRequest{
 		SessionID:     s.ID,
 		HostSessionID: s.HostSessionID,
 		Owner:         s.Owner,
-		Incarnation:   "inc_main",
+		Incarnation:   s.Incarnation,
 		Definition:    identitybroker.DefinitionRef{Source: "system", Name: "main", Revision: "v1"},
 	}
 }

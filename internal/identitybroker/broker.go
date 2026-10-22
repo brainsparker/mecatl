@@ -9,7 +9,11 @@
 //
 // New validates explicitly supplied configuration, an ECDSA P-256 (ES256)
 // signing capability, and already-loaded definition records, and returns a Broker
-// holding an independently owned snapshot of them, and no broker sessions. The snapshot holds only
+// holding an independently owned snapshot of them, and no broker sessions. The
+// broker signs agent credentials (JWT-SVIDs) with the signer and verifies them
+// itself, for Mecatl's calls and for AS-1. Every agent has the shared agent
+// identity: one ag_ identifier generated per process, and a SPIFFE ID under one
+// shared path that differs only by incarnation. The snapshot holds only
 // definitions the broker loads itself, operator-loaded global definitions and
 // system built-ins; repository definitions never enter it. The package performs no
 // file, environment, or network access; source loading and transport belong
@@ -39,8 +43,11 @@ var (
 // concurrent use.
 type Broker struct {
 	config      Config
-	signer      crypto.Signer
 	definitions map[DefinitionRef]DefinitionRecord
+	issuer      credentialIssuer
+	// agentID is the shared agent identity's ag_ identifier, generated for
+	// this process.
+	agentID string
 
 	sessions *sessionTable
 }
@@ -60,7 +67,7 @@ func New(config Config, definitions []DefinitionRecord, signer crypto.Signer) (*
 	if err := config.validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}
-	signer, err := checkSigner(signer)
+	signer, pub, err := checkSigner(signer)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidSigner, err)
 	}
@@ -68,7 +75,17 @@ func New(config Config, definitions []DefinitionRecord, signer crypto.Signer) (*
 	if err != nil {
 		return nil, err
 	}
-	return &Broker{config: config, signer: signer, definitions: snapshot, sessions: newSessionTable()}, nil
+	issuer, err := newCredentialIssuer(config, signer, pub)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidSigner, err)
+	}
+	return &Broker{
+		config:      config,
+		definitions: snapshot,
+		issuer:      issuer,
+		agentID:     newAgentID(),
+		sessions:    newSessionTable(),
+	}, nil
 }
 
 // Definition returns a copy of the loaded record for ref, and whether one
@@ -81,28 +98,44 @@ func (b *Broker) Definition(ref DefinitionRef) (DefinitionRecord, bool) {
 	return rec.clone(), true
 }
 
-func checkSigner(signer crypto.Signer) (crypto.Signer, error) {
+// checkSigner returns the signer the broker keeps, and its P-256 public key.
+func checkSigner(signer crypto.Signer) (crypto.Signer, *ecdsa.PublicKey, error) {
 	if signer == nil {
-		return nil, errors.New("a signer is required")
+		return nil, nil, errors.New("a signer is required")
 	}
 	// A raw key is caller-owned memory: copy it so caller mutation cannot alter it.
 	if key, ok := signer.(*ecdsa.PrivateKey); ok {
 		if key == nil {
-			return nil, errors.New("a signer is required")
+			return nil, nil, errors.New("a signer is required")
 		}
 		if key.Curve != elliptic.P256() {
-			return nil, errors.New("only ECDSA P-256 (ES256) signers are supported")
+			return nil, nil, errors.New("only ECDSA P-256 (ES256) signers are supported")
 		}
-		return copyP256Key(key)
+		dup, err := copyP256Key(key)
+		if err != nil {
+			return nil, nil, err
+		}
+		return dup, &dup.PublicKey, nil
 	}
 	pub, err := publicKey(signer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if ecPub, ok := pub.(*ecdsa.PublicKey); !ok || ecPub == nil || ecPub.Curve != elliptic.P256() {
-		return nil, fmt.Errorf("only ECDSA P-256 (ES256) signers are supported, got public key type %T", pub)
+	ecPub, ok := pub.(*ecdsa.PublicKey)
+	if !ok || ecPub == nil || ecPub.Curve != elliptic.P256() {
+		return nil, nil, fmt.Errorf("only ECDSA P-256 (ES256) signers are supported, got public key type %T", pub)
 	}
-	return signer, nil
+	// The signer's public key is caller-owned memory: copy it, so caller
+	// mutation cannot change the key credentials verify against.
+	point, err := ecPub.Bytes()
+	if err != nil {
+		return nil, nil, fmt.Errorf("ecdsa public key: %w", err)
+	}
+	dup, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), point)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ecdsa public key: %w", err)
+	}
+	return signer, dup, nil
 }
 
 // copyP256Key returns an independent copy of key. The copy derives its public
