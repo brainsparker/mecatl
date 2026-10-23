@@ -13,6 +13,14 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
 
 ### Added
 
+- **Provider stop detail** — adds `port.Chunk.StopDetail`, the provider's own
+  terminal label (for example `max_tokens`, `refusal`, `length`) that an adapter
+  collapsed into `StopError` on `ChunkDone`. A stop-only `StopError` run now names
+  it in the terminal cause, for example `terminal stop reason "error" (provider
+  stop reason "max_tokens")`. The loop keeps only short lowercase tokens and never
+  branches on the value. Adapters that leave it empty keep the previous text.
+  Added (minor).
+
 - **Agent-bound lifecycle persistence** — adds `Session.AgentCreateIntent`, an
   opaque original explicit-ID create fingerprint, and `Session.TightenConfiguration`
   for atomic, tighten-only configuration of an unpublished successor. Snapshot and
@@ -620,9 +628,9 @@ The covered surface is the eight core packages (`session`, `governance`, `learni
   across omitted refreshes, and refuses legacy-absent provenance. Changed (breaking,
   pre-v1 minor).
 
-- **Go compatibility floor** - the engine module requires Go 1.27. The root,
-  provider, and authentication modules use the same floor. Changed (breaking,
-  pre-v1 minor).
+- **Go compatibility floor** - the engine module requires Go 1.27 and declares
+  no patch floor, so consumers choose their own 1.27 patch release.
+  `engine/v0.18.0` declared Go 1.27.3. Changed (breaking, pre-v1 minor).
 
 - **Canonical Shell command tool** — replaces the exported `BashTool` / `NewBashTool`, `BashStatusTool` / `NewBashStatusTool`, and `tool.BashToolName` APIs with their Shell-named counterparts. The model-facing catalog names are `Shell` and `ShellStatus`; `ServerCapabilities.bash` and Go `Capabilities.Bash` remain stable shell-availability indicators. Changed (breaking, pre-v1 minor).
 

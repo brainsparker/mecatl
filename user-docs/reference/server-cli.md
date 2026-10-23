@@ -365,16 +365,16 @@ Flags:
         path to a repeatable YAML permission configuration. CLI rules have highest
         precedence; configured deny and ask rules always override allows.
   --permission-mode string
-        permission mode, one of: plan, default, accept-edits, auto, yolo. Sets two
+        Permission mode, one of: plan, default, accept-edits, auto, yolo. Sets two
         things: the mode new sessions start in, and the process-wide server ceiling,
         fixed at startup, which is the most permissive mode a session may switch to
         (accept-edits for plan, default, and accept-edits). Default: default. auto and
         yolo allow tools without asking. auto needs an enforcing guardrails checker (--
-        guardrails-model or the guardrail model slot) and refuses to start without one;
-        yolo runs without one. Both are refused for root unless MECATL_SANDBOX=1 or
-        IS_SANDBOX=1. Deny rules and configured ask rules still apply. A mode never
-        grants project trust; use --trust-project. Replaces the deprecated --posture
-        and --yolo.
+        guardrails-model or the guardrail model slot) and refuses to start without one,
+        including with --guardrails off; yolo runs without one. Both are refused for
+        root unless MECATL_SANDBOX=1 or IS_SANDBOX=1. Deny rules and configured ask
+        rules still apply. A mode never grants project trust; use --trust-project.
+        Replaces the deprecated --posture and --yolo.
   --permissions-conventional
         load project and user permission settings for each session. Enabled by default.
         Project allow rules require --trust-project; project deny and ask rules always
@@ -639,6 +639,12 @@ Usage: mecak8s [flags]
         private-key flag and enable TLS
   --driver-tls-key string
         PEM client private key for --driver-tls-cert
+  --enable-identity-broker
+        Start the experimental agent identity broker, which gives each signed-in user's
+        session a broker session. Supports a single replica only, requires no shell in
+        this process (--no-shell, or --shell "" with Kubernetes execution, which keeps
+        the remote Shell), and blocks the tool calls of agent definitions that have
+        hooks
   --enable-parallel
         Enable the Parallel tool for isolated child branches
   --enable-teams
@@ -825,12 +831,12 @@ Usage: mecak8s [flags]
         things: the mode new sessions start in, and the process-wide server ceiling,
         fixed at startup, which is the most permissive mode a session may switch to
         (accept-edits for plan, default, and accept-edits). Default: auto. auto and
-        yolo allow tools without asking and require MECATL_SANDBOX when running as
-        root. auto needs an enforcing guardrails checker (--guardrails-model or the
-        guardrail model slot) and refuses to start without one, including with --
-        guardrails off; yolo runs without one. Deny rules and configured ask rules
-        still apply. A mode never grants project trust; use --trust-project. Replaces
-        the deprecated --posture
+        yolo allow tools without asking. auto needs an enforcing guardrails checker (--
+        guardrails-model or the guardrail model slot) and refuses to start without one,
+        including with --guardrails off; yolo runs without one. Both are refused for
+        root unless MECATL_SANDBOX=1 or IS_SANDBOX=1. Deny rules and configured ask
+        rules still apply. A mode never grants project trust; use --trust-project.
+        Replaces the deprecated --posture.
   --permissions-conventional
         Discover project and user permission settings for each session (default true)
   --posture string

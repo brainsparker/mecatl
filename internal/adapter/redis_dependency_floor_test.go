@@ -41,20 +41,25 @@ func TestRedisFollowCapacity_Scenario1_Go127DependencyFloor(t *testing.T) {
 	if len(manifests) < 2 {
 		t.Fatalf("found %d Go manifests, want every committed module plus go.work", len(manifests))
 	}
+	// Manifests declare the Go 1.27 language floor, not a patch floor or toolchain.
 	for _, manifest := range manifests {
 		body, err := os.ReadFile(manifest)
 		if err != nil {
 			t.Fatal(err)
 		}
 		scanner := bufio.NewScanner(bytes.NewReader(body))
+		name := strings.TrimPrefix(manifest, root+string(filepath.Separator))
 		found := false
 		for scanner.Scan() {
-			if strings.HasPrefix(scanner.Text(), "go ") {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "go ") {
 				found = true
-				if directive := scanner.Text(); directive != "go 1.27.2" {
-					t.Errorf("%s declares %q, want Go 1.27.2", strings.TrimPrefix(manifest, root+string(filepath.Separator)), directive)
+				if line != "go 1.27" {
+					t.Errorf("%s declares %q, want \"go 1.27\"", name, line)
 				}
-				break
+			}
+			if strings.HasPrefix(line, "toolchain ") {
+				t.Errorf("%s declares %q; manifests must not pin a toolchain", name, line)
 			}
 		}
 		if err := scanner.Err(); err != nil {
@@ -71,8 +76,8 @@ func TestRedisFollowCapacity_Scenario1_Go127DependencyFloor(t *testing.T) {
 	}
 	text := string(rootMod)
 	for module, version := range map[string]string{
-		"github.com/stacklok/toolhive-core":           "v0.0.51",
-		"github.com/stacklok/toolhive-core/redisconn": "v0.0.2",
+		"github.com/stacklok/toolhive-core":           "v0.0.55",
+		"github.com/stacklok/toolhive-core/redisconn": "v0.0.4",
 	} {
 		if !strings.Contains(text, module+" "+version) {
 			t.Errorf("root go.mod does not pin %s %s", module, version)
@@ -97,11 +102,11 @@ func TestRedisFollowCapacity_Scenario4_Go127SourceBuildSurfaces(t *testing.T) {
 	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", ".."))
 	for name, want := range map[string]string{
 		"AGENTS.md":    "in Go 1.27",
-		"Taskfile.yml": "go            >= 1.27.2",
-		"user-docs/_partials/release-archives-and-source.mdx":         "requires Go 1.27.2 or later",
-		"user-docs/building/go/demo.md":                               "**Go 1.27.2 or newer**",
-		"user-docs/building/go/first-agent.md":                        "Go 1.27.2 or newer",
-		"sdk/typescript/examples/slack-bot/docker/mecated.Dockerfile": "FROM golang:1.27.2-bookworm@sha256:",
+		"Taskfile.yml": "go            >= 1.27 ",
+		"user-docs/_partials/release-archives-and-source.mdx":         "requires Go 1.27 or later",
+		"user-docs/building/go/demo.md":                               "**Go 1.27 or newer**",
+		"user-docs/building/go/first-agent.md":                        "Go 1.27 or newer",
+		"sdk/typescript/examples/slack-bot/docker/mecated.Dockerfile": "FROM golang:1.27.3-bookworm@sha256:",
 	} {
 		body, err := os.ReadFile(filepath.Join(root, name))
 		if err != nil {

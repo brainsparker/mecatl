@@ -2,12 +2,14 @@ package conformance
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stacklok/mecatl/internal/identitybroker"
 )
 
-func runSessions(t *testing.T, factory Factory) {
+func runSessions(t *testing.T, factory serviceFactory) {
 	ctx := context.Background()
 
 	t.Run("open returns the session it opened", func(t *testing.T) {
@@ -32,6 +34,37 @@ func runSessions(t *testing.T, factory Factory) {
 		}
 	})
 
+	t.Run("concurrent opens return one session", func(t *testing.T) {
+		svc := factory(t)
+		// Release every open at once, so an implementation that looks up and
+		// inserts under separate locks is likely to open two sessions.
+		const opens = 64
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		got := make([]identitybroker.Session, opens)
+		errs := make([]error, opens)
+		for i := range opens {
+			wg.Go(func() {
+				<-start
+				got[i], errs[i] = svc.OpenSession(ctx, openRequest("hostS42", alice))
+			})
+		}
+		close(start)
+		wg.Wait()
+		for i := range opens {
+			if errs[i] != nil {
+				t.Fatalf("concurrent OpenSession %d: %v", i, errs[i])
+			}
+			if got[i] != got[0] {
+				t.Fatalf("concurrent opens returned %+v and %+v, want one session", got[0], got[i])
+			}
+		}
+		found, ok, err := svc.FindSession(ctx, findRequest("hostS42"))
+		if err != nil || !ok || found != got[0] {
+			t.Fatalf("FindSession after concurrent opens = %+v, %v, %v; want %+v, true, nil", found, ok, err, got[0])
+		}
+	})
+
 	t.Run("open for another owner is refused", func(t *testing.T) {
 		svc := factory(t)
 		first := mustOpen(t, svc, openRequest("hostS42", alice))
@@ -46,7 +79,7 @@ func runSessions(t *testing.T, factory Factory) {
 		svc := factory(t)
 		mustOpen(t, svc, openRequest("hostS42", alice))
 		req := openRequest("hostS42", alice)
-		req.Incarnation = "inc_other"
+		req.Incarnation = incarnation("other")
 		_, err := svc.OpenSession(ctx, req)
 		wantError(t, "OpenSession for another incarnation", err, identitybroker.CodeAlreadyExists, "")
 	})
@@ -95,7 +128,7 @@ func runSessions(t *testing.T, factory Factory) {
 	})
 }
 
-func runClosedSessions(t *testing.T, factory Factory) {
+func runClosedSessions(t *testing.T, factory serviceFactory) {
 	ctx := context.Background()
 
 	t.Run("a closed session refuses registration and calls with its reason", func(t *testing.T) {
@@ -148,7 +181,7 @@ func runClosedSessions(t *testing.T, factory Factory) {
 	})
 }
 
-func runInvalidRequests(t *testing.T, factory Factory) {
+func runInvalidRequests(t *testing.T, factory serviceFactory) {
 	ctx := context.Background()
 	svc := factory(t)
 	s := mustOpen(t, svc, openRequest("hostS42", alice))
@@ -156,8 +189,11 @@ func runInvalidRequests(t *testing.T, factory Factory) {
 	opens := map[string]func(*identitybroker.OpenSessionRequest){
 		"no host session": func(r *identitybroker.OpenSessionRequest) { r.HostSessionID = "" },
 		"no incarnation":  func(r *identitybroker.OpenSessionRequest) { r.Incarnation = "" },
-		"no owner":        func(r *identitybroker.OpenSessionRequest) { r.Owner = identitybroker.Owner{} },
-		"spaced host":     func(r *identitybroker.OpenSessionRequest) { r.HostSessionID = "host S42" },
+		// The main agent registers with the session's incarnation, so a
+		// session whose incarnation could never register is refused up front.
+		"a malformed incarnation": func(r *identitybroker.OpenSessionRequest) { r.Incarnation = "inc_hostS43" },
+		"no owner":                func(r *identitybroker.OpenSessionRequest) { r.Owner = identitybroker.Owner{} },
+		"spaced host":             func(r *identitybroker.OpenSessionRequest) { r.HostSessionID = "host S42" },
 	}
 	for name, mutate := range opens {
 		req := openRequest("hostS43", alice)
@@ -181,15 +217,36 @@ func runInvalidRequests(t *testing.T, factory Factory) {
 	}
 
 	registers := map[string]func(*identitybroker.RegisterAgentRequest){
-		"no session":      func(r *identitybroker.RegisterAgentRequest) { r.SessionID = "" },
-		"no host session": func(r *identitybroker.RegisterAgentRequest) { r.HostSessionID = "" },
-		"no owner":        func(r *identitybroker.RegisterAgentRequest) { r.Owner = identitybroker.Owner{} },
-		"no incarnation":  func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = "" },
-		"no definition":   func(r *identitybroker.RegisterAgentRequest) { r.Definition = identitybroker.DefinitionRef{} },
-		"bad definition":  func(r *identitybroker.RegisterAgentRequest) { r.Definition.Name = "../main" },
-		"bad source":      func(r *identitybroker.RegisterAgentRequest) { r.Definition.Source = "../system" },
-		"bad revision":    func(r *identitybroker.RegisterAgentRequest) { r.Definition.Revision = "v 1" },
-		"bad parent":      func(r *identitybroker.RegisterAgentRequest) { r.Parent.Subject = "spiffe://x/ y" },
+		"no session":                func(r *identitybroker.RegisterAgentRequest) { r.SessionID = "" },
+		"no host session":           func(r *identitybroker.RegisterAgentRequest) { r.HostSessionID = "" },
+		"no owner":                  func(r *identitybroker.RegisterAgentRequest) { r.Owner = identitybroker.Owner{} },
+		"no incarnation":            func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = "" },
+		"a path in the incarnation": func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = "inc/main" },
+		"an unprefixed incarnation": func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = "main" },
+		"a short inc_ incarnation":  func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = "inc_main" },
+		"an uppercase inc_": func(r *identitybroker.RegisterAgentRequest) {
+			r.Incarnation = "inc_" + strings.ToUpper(r.Incarnation[4:])
+		},
+		"a non-canonical inc_ ending": func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = r.Incarnation[:29] + "b" },
+		"an over-length inc_":         func(r *identitybroker.RegisterAgentRequest) { r.Incarnation += "a" },
+		"an over-length legacy_": func(r *identitybroker.RegisterAgentRequest) {
+			r.Incarnation = "legacy_" + strings.Repeat("0f", 33)
+		},
+		"a short legacy_ incarnation": func(r *identitybroker.RegisterAgentRequest) { r.Incarnation = "legacy_" + strings.Repeat("0f", 31) },
+		"a non-hex legacy_": func(r *identitybroker.RegisterAgentRequest) {
+			r.Incarnation = "legacy_" + strings.Repeat("zz", 32)
+		},
+		"no definition":  func(r *identitybroker.RegisterAgentRequest) { r.Definition = identitybroker.DefinitionRef{} },
+		"bad definition": func(r *identitybroker.RegisterAgentRequest) { r.Definition.Name = "../main" },
+		"bad source":     func(r *identitybroker.RegisterAgentRequest) { r.Definition.Source = "../system" },
+		"bad revision":   func(r *identitybroker.RegisterAgentRequest) { r.Definition.Revision = "v 1" },
+		"bad parent":     func(r *identitybroker.RegisterAgentRequest) { r.Parent.Subject = "spiffe://x/ y" },
+	}
+	// base32 has no 0, 1, 8, or 9.
+	for _, digit := range "0189" {
+		registers["an inc_ containing "+string(digit)] = func(r *identitybroker.RegisterAgentRequest) {
+			r.Incarnation = r.Incarnation[:10] + string(digit) + r.Incarnation[11:]
+		}
 	}
 	for name, mutate := range registers {
 		req := registerRequest(s)

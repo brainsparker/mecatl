@@ -35,6 +35,7 @@ import (
 	"github.com/stacklok/mecatl/internal/adapter/scheduler"
 	"github.com/stacklok/mecatl/internal/adapter/skills"
 	"github.com/stacklok/mecatl/internal/creatediag"
+	"github.com/stacklok/mecatl/internal/identitybroker"
 	brokercontract "github.com/stacklok/mecatl/internal/mcpbroker"
 )
 
@@ -803,6 +804,10 @@ type Config struct {
 	SessionContextEngine SessionContextEngineFactory
 	// MCPBroker owns logical broker state; Service owns only local attachments.
 	MCPBroker brokercontract.Service
+	// IdentityBroker is the agent identity broker, or nil when it is not
+	// enabled. With it set, every root session with an owner has a broker
+	// session; see openIdentityBrokerSession.
+	IdentityBroker identitybroker.Service
 	// MCPConnectorInspector exposes local-only inventory for the bundled broker.
 	MCPConnectorInspector brokercontract.ConnectorInspector
 	// WorkspaceEnrollment advertises the optional pre-prompt enrollment capability.
@@ -1238,6 +1243,11 @@ type Service struct {
 	// exact reattachment). Replacement, CloseSession, and Service.Close each
 	// detach it exactly once. Guarded by mu.
 	sessionEnvironmentCloses map[session.SessionID]func() error
+	// identityAgents holds the identity broker credential of each root
+	// session's main agent, in memory only. A local release or delete
+	// (closeSessionLocal), lease loss, the end of a scheduled run, and Close
+	// drop it. Guarded by mu.
+	identityAgents map[session.SessionID]identityAgent
 
 	// clientMCPSpecs holds the ORIGINAL client-supplied MCP server specs for a
 	// session's lifetime, guarded by mu. The Service never threaded these through
@@ -1764,6 +1774,7 @@ func NewService(cfg Config) (*Service, error) {
 		authorizationExpiry:      make(map[session.SessionID]*authorizationExpiry),
 		sessionEnvironments:      make(map[session.SessionID]tool.Environment),
 		sessionEnvironmentCloses: make(map[session.SessionID]func() error),
+		identityAgents:           make(map[session.SessionID]identityAgent),
 		clientMCPSpecs:           make(map[session.SessionID][]mcp.ServerConfig),
 		reservedIDs:              make(map[session.SessionID]struct{}),
 		runEntryGenerations:      make(map[session.SessionID]uint64),
@@ -2707,8 +2718,26 @@ func (s *Service) bindRelatedIncarnations(ctx context.Context, opts *createSessi
 	return nil
 }
 
-//nolint:gocyclo // Creation intentionally keeps placement, ownership, limits, engine selection, and persistence in one transaction.
+// createSession creates and saves a session, then opens its identity broker
+// session. The open uses the saved session, so a create that lost a race
+// opens with the winner's incarnation. A failed open does not fail the create:
+// the session is already saved, and the open is retried before each run,
+// which refuses to start the agent without a broker session. Like fork and
+// clear, the open is best effort: it outlives the caller's cancellation, so a
+// saved session is not left unregistered by a client that went away, and is
+// bounded, so a slow broker cannot hold the session's runEntryMu.
 func (s *Service) createSession(ctx context.Context, mode session.PermissionMode, limits session.Limits, sel ProviderSelector, specs []mcp.ServerConfig, profile SessionProfile, opts createSessionOpts) (*session.Session, error) {
+	sess, err := s.createSessionRecord(ctx, mode, limits, sel, specs, profile, opts)
+	if err == nil && sess != nil {
+		openCtx, cancelOpen := context.WithTimeout(context.WithoutCancel(ctx), engineCloseTimeout)
+		_ = s.openSavedIdentityBrokerSession(openCtx, sess.ID) // logged; retried at run entry
+		cancelOpen()
+	}
+	return sess, err
+}
+
+//nolint:gocyclo // Creation intentionally keeps placement, ownership, limits, engine selection, and persistence in one transaction.
+func (s *Service) createSessionRecord(ctx context.Context, mode session.PermissionMode, limits session.Limits, sel ProviderSelector, specs []mcp.ServerConfig, profile SessionProfile, opts createSessionOpts) (*session.Session, error) {
 	if profile != ProfileDefault && profile != ProfileNoFS {
 		return nil, fmt.Errorf("%w: unknown session profile %q", ErrInvalidArgument, profile)
 	}
@@ -3613,6 +3642,7 @@ func (s *Service) closeSessionLocal(id session.SessionID) {
 	delete(s.sessionEnvironmentCloses, id)
 	delete(s.sessionEnvironments, id)
 	delete(s.clientMCPSpecs, id)
+	delete(s.identityAgents, id)
 	// Drop the once-per-id approval-replay marker: the
 	// OnCloseSession above Forgot this session's learned rules, so a LATER reload of
 	// the same id in this process MUST be allowed to replay them from the durable log
@@ -3778,6 +3808,7 @@ func (s *Service) Close() {
 	s.sessionEnvironmentCloses = make(map[session.SessionID]func() error)
 	s.sessionEnvironments = make(map[session.SessionID]tool.Environment)
 	s.clientMCPSpecs = make(map[session.SessionID][]mcp.ServerConfig)
+	s.identityAgents = make(map[session.SessionID]identityAgent)
 	// Close all per-session event subscriptions so subscriber goroutines can exit
 	// cleanly. Close owns both shutdown and channel closure while holding subMu: a
 	// publisher holds subMu.RLock through its send, so no send can race close.
@@ -4450,6 +4481,7 @@ func (s *Service) DeleteSession(ctx context.Context, id session.SessionID) error
 	defer unlockBroker()
 	if err := s.deleteSessionFamily(ctx, sess.ID, prunable); err != nil {
 		if errors.Is(err, port.ErrSessionNotFound) {
+			s.closeIdentityBrokerSession(ctx, id)
 			if confirmErr := s.confirmReferenceDelete(ctx, referenceDelete); confirmErr != nil {
 				return fmt.Errorf("%w: confirm deleted session reference: %v", ErrInternal, confirmErr)
 			}
@@ -4468,6 +4500,10 @@ func (s *Service) DeleteSession(ctx context.Context, id session.SessionID) error
 		}
 		return fmt.Errorf("%w: delete session: %v", ErrInternal, err)
 	}
+	// The durable record is gone, so close the identity broker session before
+	// confirming the reference: a failed confirmation returns, and a retry finds
+	// the record absent and never reaches the cleanup below.
+	s.closeIdentityBrokerSession(ctx, id)
 	if err := s.confirmReferenceDelete(ctx, referenceDelete); err != nil {
 		return fmt.Errorf("%w: session deleted but reference confirmation must be retried", ErrInternal)
 	}
@@ -4542,6 +4578,10 @@ func (s *Service) DeleteSessionForRetentionCandidate(ctx context.Context, candid
 		s.cancelReferenceDelete(ctx, referenceDelete)
 		return errRetentionCandidateChanged
 	}
+	// The durable record is gone, so close the identity broker session before
+	// confirming the reference: a failed confirmation returns, and a retry finds
+	// the record absent and never reaches the cleanup below.
+	s.closeIdentityBrokerSession(ctx, candidate.ID)
 	if err := s.confirmReferenceDelete(ctx, referenceDelete); err != nil {
 		return fmt.Errorf("%w: retention deleted session but reference confirmation must be retried", ErrInternal)
 	}
@@ -4610,6 +4650,7 @@ func (s *Service) DeleteSessionForRetention(ctx context.Context, id session.Sess
 	defer unlockBroker()
 	if err := s.deleteSessionFamily(ctx, id, prunable); err != nil {
 		if errors.Is(err, port.ErrSessionNotFound) {
+			s.closeIdentityBrokerSession(ctx, id)
 			if confirmErr := s.confirmReferenceDelete(ctx, referenceDelete); confirmErr != nil {
 				return fmt.Errorf("%w: confirm deleted retention reference: %v", ErrInternal, confirmErr)
 			}
@@ -4625,6 +4666,10 @@ func (s *Service) DeleteSessionForRetention(ctx context.Context, id session.Sess
 		}
 		return fmt.Errorf("%w: delete retention candidate: %v", ErrInternal, err)
 	}
+	// The durable record is gone, so close the identity broker session before
+	// confirming the reference: a failed confirmation returns, and a retry finds
+	// the record absent and never reaches the cleanup below.
+	s.closeIdentityBrokerSession(ctx, id)
 	if err := s.confirmReferenceDelete(ctx, referenceDelete); err != nil {
 		return fmt.Errorf("%w: retention deleted session but reference confirmation must be retried", ErrInternal)
 	}
@@ -6820,6 +6865,12 @@ func (s *Service) engineAndEnvironmentFor(ctx context.Context, sess *session.Ses
 	if !sess.EnvironmentRef.Valid() {
 		return nil, tool.Environment{}, "", ErrInvalidPlacementSelection
 	}
+	// Every run path passes here, so the agent never runs without its broker
+	// session: this reopens it after a restart and retries an open that failed
+	// at create.
+	if err := s.openIdentityBrokerSession(ctx, sess); err != nil {
+		return nil, tool.Environment{}, "", err
+	}
 	verified, err := s.sessionPlacement(ctx, sess)
 	if err != nil {
 		return nil, tool.Environment{}, "", err
@@ -8695,10 +8746,17 @@ const autoApprovePollInterval = 10 * time.Millisecond
 // untouched; a lease newly acquired by this mutation is released on every exit.
 // The caller must hold runEntryMu for id.
 func (s *Service) acquireMutationLease(ctx context.Context, id session.SessionID) (func(), error) {
+	return s.acquireScopedLease(id, func() error { return s.acquireLease(ctx, id) })
+}
+
+// acquireScopedLease runs acquire and returns a cleanup that releases the lease
+// only when this call newly installed it; a lease already held for the session
+// lifetime is left untouched. The caller must hold runEntryMu for id.
+func (s *Service) acquireScopedLease(id session.SessionID, acquire func() error) (func(), error) {
 	s.mu.Lock()
 	_, preHeld := s.heldLeases[id]
 	s.mu.Unlock()
-	if err := s.acquireLease(ctx, id); err != nil {
+	if err := acquire(); err != nil {
 		return func() {}, err
 	}
 	s.mu.Lock()
@@ -8745,19 +8803,7 @@ func (s *Service) acquireMutationLease(ctx context.Context, id session.SessionID
 // a new admission, so a shutting-down replica settling one before it exits is
 // safe and desirable, not something Drain() needs to steer away from.
 func (s *Service) acquireMutationLeaseForStaleSettle(ctx context.Context, id session.SessionID) (func(), error) {
-	s.mu.Lock()
-	_, preHeld := s.heldLeases[id]
-	s.mu.Unlock()
-	if err := s.acquireLeaseCore(ctx, id, true); err != nil {
-		return func() {}, err
-	}
-	s.mu.Lock()
-	_, held := s.heldLeases[id]
-	s.mu.Unlock()
-	if preHeld || !held {
-		return func() {}, nil
-	}
-	return func() { s.releaseLease(id) }, nil
+	return s.acquireScopedLease(id, func() error { return s.acquireLeaseCore(ctx, id, true) })
 }
 
 func (s *Service) mutationLeaseHeld(id session.SessionID) bool {
@@ -9054,6 +9100,9 @@ func (s *Service) onLeaseLost(ctx context.Context, id session.SessionID, expecte
 	expected.valid = false
 	s.lostOwnership[id] = struct{}{}
 	delete(s.instructionSnapshots, id)
+	// Another process now runs this session's agent; run entry registers
+	// again if this process wins it back.
+	delete(s.identityAgents, id)
 	s.cfg.MutationCapability.Invalidate(id)
 	leaseCancel = expected.cancel
 	lease = expected.lease

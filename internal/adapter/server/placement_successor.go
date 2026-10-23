@@ -381,6 +381,14 @@ func (s *Service) createPlacedSuccessorLocked(ctx context.Context, req ForkSucce
 		}
 		brokerCommitted = true
 	}
+	// A fork or clear starts a new session tree. A failed open is logged and
+	// retried before the successor's first run. The source's mutation lease is
+	// still held, so the open is bounded like the MCP broker commit above.
+	// It loads the successor under its runEntryMu, so a close or delete of it
+	// cannot race the registration.
+	openCtx, cancelOpen := context.WithTimeout(context.WithoutCancel(mutationCtx), engineCloseTimeout)
+	_ = s.openSavedIdentityBrokerSession(openCtx, created.ID)
+	cancelOpen()
 	return created.ID, nil
 }
 
