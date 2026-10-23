@@ -555,8 +555,8 @@ Flags:
         profile; agent behavior comes from the soul and system rules.
   --websearch string
         set to "off" to disable web search and outbound search requests, or "you" to
-        use the keyless You.com backend instead of the default. Web search is enabled
-        by default.
+        select the You.com backend (keyed endpoint when YDC_API_KEY is set, keyless
+        otherwise). Web search is enabled by default.
   --websearch-auth-header string
         HTTP header for WEBSEARCH_API_KEY. Default "Authorization" sends a Bearer
         token; for example, "X-API-Key" sends the key directly.

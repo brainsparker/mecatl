@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -148,8 +150,9 @@ func TestYouProvider_CredentialErrors(t *testing.T) {
 			if errors.Is(err, tool.ErrSearchBackendDown) {
 				t.Fatalf("HTTP %d must not be reported as backend-down", code)
 			}
-			if msg := err.Error(); msg == "" || strings.Contains(msg, "secret-key") {
-				t.Fatalf("error message leaked the key or was empty: %q", msg)
+			// The operator must be told which variable to fix, in both modes.
+			if msg := err.Error(); !strings.Contains(msg, "YDC_API_KEY") {
+				t.Fatalf("HTTP %d keyed=%v: message does not name YDC_API_KEY: %q", code, keyed, msg)
 			}
 		}
 	}
@@ -229,13 +232,209 @@ func TestYouProvider_BackendDown(t *testing.T) {
 	}
 }
 
+// TestYouProvider_NoRedirects redirects to a second server and asserts it is
+// never hit. It runs in keyed mode, so it also shows X-API-Key never reaches
+// the redirect target.
 func TestYouProvider_NoRedirects(t *testing.T) {
+	var targetHit atomic.Bool
+	var targetKey atomic.Value
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHit.Store(true)
+		targetKey.Store(r.Header.Get("X-API-Key"))
+		_, _ = io.WriteString(w, youResultsJSON)
+	}))
+	t.Cleanup(target.Close)
+
 	srv, rec := newYouServer(t)
-	rec.status = http.StatusFound
-	rec.headers = map[string]string{"Location": "https://elsewhere.invalid/"}
-	_, err := NewYouProvider(YouConfig{KeylessEndpoint: srv.URL, HTTPClient: srv.Client()}).
+	rec.status = http.StatusTemporaryRedirect // 307 would replay the POST body and headers
+	rec.headers = map[string]string{"Location": target.URL + "/v1/search"}
+	_, err := NewYouProvider(YouConfig{APIKey: "secret-key", KeyedEndpoint: srv.URL, HTTPClient: srv.Client()}).
 		Search(t.Context(), tool.SearchQuery{Query: "q", Limit: 1})
-	if !errors.Is(err, tool.ErrSearchBackendDown) || rec.calls != 1 {
-		t.Fatalf("redirect must not be followed: err=%v calls=%d", err, rec.calls)
+	if !errors.Is(err, tool.ErrSearchBackendDown) {
+		t.Fatalf("unfollowed redirect should be backend-down, got %v", err)
+	}
+	if targetHit.Load() {
+		t.Fatalf("redirect was followed (target saw X-API-Key=%q)", targetKey.Load())
+	}
+	if rec.calls != 1 || rec.key != "secret-key" {
+		t.Fatalf("origin calls=%d key sent=%v", rec.calls, rec.key == "secret-key")
+	}
+}
+
+// TestYouProvider_QueuedCallersRespect429 queues callers on the semaphore
+// behind a request that comes back 429. None of them may reach the endpoint
+// once the cooldown starts.
+func TestYouProvider_QueuedCallersRespect429(t *testing.T) {
+	const callers = 12
+	var calls atomic.Int32
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			close(entered)
+			<-release
+		}
+		w.Header().Set("Retry-After", "120")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	t.Cleanup(srv.Close)
+	p := NewYouProvider(YouConfig{KeylessEndpoint: srv.URL, HTTPClient: srv.Client(), MaxConcurrent: 1, Timeout: 5 * time.Second})
+
+	errs := make([]error, callers)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, errs[0] = p.Search(context.Background(), tool.SearchQuery{Query: "q", Limit: 1})
+	}()
+	<-entered
+	for i := 1; i < callers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = p.Search(context.Background(), tool.SearchQuery{Query: "q", Limit: 1})
+		}(i)
+	}
+	// Give the other callers time to park on the semaphore before the 429 lands.
+	time.Sleep(100 * time.Millisecond)
+	close(release)
+	wg.Wait()
+
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("%d requests reached the rate-limited endpoint, want 1", n)
+	}
+	for i, err := range errs {
+		var rl *YouRateLimitError
+		if !errors.As(err, &rl) {
+			t.Fatalf("caller %d: err = %v, want *YouRateLimitError", i, err)
+		}
+	}
+}
+
+// TestYouProvider_BlockNeverShortensCooldown asserts a shorter Retry-After
+// cannot cut a running cooldown short.
+func TestYouProvider_BlockNeverShortensCooldown(t *testing.T) {
+	now := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
+	p := NewYouProvider(YouConfig{Now: func() time.Time { return now }})
+	p.block(120 * time.Second)
+	p.block(10 * time.Second)
+	if got := p.cooldown(); got != 120*time.Second {
+		t.Fatalf("cooldown = %s after a shorter block, want 120s", got)
+	}
+	p.block(300 * time.Second)
+	if got := p.cooldown(); got != 300*time.Second {
+		t.Fatalf("cooldown = %s after a longer block, want 300s", got)
+	}
+}
+
+// TestYouProvider_RateLimitHint asserts the 429 detail the WebSearch tool
+// shows the model carries the status and Retry-After, and the keyless quota.
+func TestYouProvider_RateLimitHint(t *testing.T) {
+	var hint tool.SearchBackendHint
+	err := error(&YouRateLimitError{RetryAfter: 42 * time.Second})
+	if !errors.As(err, &hint) {
+		t.Fatal("YouRateLimitError must implement tool.SearchBackendHint")
+	}
+	h := hint.SearchBackendHint()
+	for _, want := range []string{"429", "retry after 42s", "100 searches a day per IP", "YDC_API_KEY"} {
+		if !strings.Contains(h, want) {
+			t.Fatalf("hint missing %q: %q", want, h)
+		}
+	}
+	if keyed := (&YouRateLimitError{RetryAfter: time.Second, Keyed: true}).SearchBackendHint(); strings.Contains(keyed, "keyless") {
+		t.Fatalf("keyed hint should not mention the keyless tier: %q", keyed)
+	}
+}
+
+// TestYouProvider_ConcurrencyBounded ports TestHTTPProviderConcurrencyBounded.
+func TestYouProvider_ConcurrencyBounded(t *testing.T) {
+	const maxConcurrent = 4
+	const callers = 12
+	var inFlight, peak atomic.Int32
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		n := inFlight.Add(1)
+		for {
+			p := peak.Load()
+			if n <= p || peak.CompareAndSwap(p, n) {
+				break
+			}
+		}
+		<-release
+		inFlight.Add(-1)
+		_, _ = io.WriteString(w, youResultsJSON)
+	}))
+	t.Cleanup(srv.Close)
+	p := NewYouProvider(YouConfig{KeylessEndpoint: srv.URL, HTTPClient: srv.Client(), MaxConcurrent: maxConcurrent, Timeout: 5 * time.Second})
+
+	var wg sync.WaitGroup
+	errs := make([]error, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = p.Search(context.Background(), tool.SearchQuery{Query: "q", Limit: 1})
+		}(i)
+	}
+	waitForInFlight(t, &inFlight, maxConcurrent)
+	if got := inFlight.Load(); got > maxConcurrent {
+		t.Fatalf("%d requests in flight, bound is %d", got, maxConcurrent)
+	}
+	close(release)
+	wg.Wait()
+	if pk := peak.Load(); pk != maxConcurrent {
+		t.Fatalf("peak concurrency %d, want exactly %d", pk, maxConcurrent)
+	}
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("caller %d: %v", i, err)
+		}
+	}
+}
+
+// TestYouProvider_PerCallTimeout ports TestHTTPProviderPerCallTimeout.
+func TestYouProvider_PerCallTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	t.Cleanup(srv.Close)
+	p := NewYouProvider(YouConfig{KeylessEndpoint: srv.URL, HTTPClient: srv.Client(), Timeout: 50 * time.Millisecond})
+	start := time.Now()
+	_, err := p.Search(context.Background(), tool.SearchQuery{Query: "q", Limit: 1})
+	if !errors.Is(err, tool.ErrSearchBackendDown) {
+		t.Fatalf("err = %v, want ErrSearchBackendDown", err)
+	}
+	if time.Since(start) > 2*time.Second {
+		t.Fatal("per-call timeout did not fire promptly")
+	}
+}
+
+// TestYouProvider_ContextCancel ports TestHTTPProviderContextCancel.
+func TestYouProvider_ContextCancel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	t.Cleanup(srv.Close)
+	p := NewYouProvider(YouConfig{KeylessEndpoint: srv.URL, HTTPClient: srv.Client()})
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if _, err := p.Search(ctx, tool.SearchQuery{Query: "q", Limit: 1}); err == nil {
+		t.Fatal("expected an error after ctx cancellation")
+	}
+	if time.Since(start) > 2*time.Second {
+		t.Fatal("ctx cancellation did not abort the request promptly")
+	}
+}
+
+// TestYouProvider_OversizedResponse ports TestHTTPProviderOversizedResponse:
+// the body read is capped, and the truncated body is backend-down.
+func TestYouProvider_OversizedResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"results":{"web":[{"url":"https://x.example","title":"x","description":"`)
+		_, _ = io.WriteString(w, strings.Repeat("A", 2<<20))
+		_, _ = io.WriteString(w, `"}]}}`)
+	}))
+	t.Cleanup(srv.Close)
+	_, err := NewYouProvider(YouConfig{KeylessEndpoint: srv.URL, HTTPClient: srv.Client()}).
+		Search(context.Background(), tool.SearchQuery{Query: "q", Limit: 1})
+	if !errors.Is(err, tool.ErrSearchBackendDown) {
+		t.Fatalf("oversized body: err = %v, want ErrSearchBackendDown", err)
 	}
 }

@@ -123,7 +123,8 @@ func (e *YouCredentialError) Error() string {
 // YouRateLimitError reports HTTP 429 (or a call refused locally because an
 // earlier 429's Retry-After has not elapsed). It wraps
 // tool.ErrSearchBackendDown, so the WebSearch tool renders it as the transient
-// "temporarily unavailable, do not retry immediately" message.
+// "temporarily unavailable, do not retry immediately" message, and implements
+// tool.SearchBackendHint so that message carries the 429 and Retry-After.
 type YouRateLimitError struct {
 	RetryAfter time.Duration
 	Keyed      bool
@@ -139,6 +140,16 @@ func (e *YouRateLimitError) Error() string {
 
 // Unwrap makes errors.Is(err, tool.ErrSearchBackendDown) true.
 func (*YouRateLimitError) Unwrap() error { return tool.ErrSearchBackendDown }
+
+// SearchBackendHint implements tool.SearchBackendHint so the 429 and its
+// Retry-After reach the model through the shared backend-down message.
+func (e *YouRateLimitError) SearchBackendHint() string {
+	msg := fmt.Sprintf("You.com returned HTTP 429 (rate limited); retry after %s.", e.RetryAfter.Round(time.Second))
+	if !e.Keyed {
+		msg += " The keyless tier allows 100 searches a day per IP; set YDC_API_KEY for higher limits."
+	}
+	return msg
+}
 
 // NewYouProvider constructs a YouProvider, applying defaults. It never returns an
 // error: keyless mode needs no configuration.
@@ -197,6 +208,11 @@ func (p *YouProvider) Search(ctx context.Context, q tool.SearchQuery) ([]tool.Se
 		return nil, fmt.Errorf("search: acquire egress slot: %w", err)
 	}
 	defer p.sem.Release(1)
+	// Check again now that we hold a slot: a caller queued on the semaphore
+	// while another caller received a 429 must not send its request anyway.
+	if wait := p.cooldown(); wait > 0 {
+		return nil, &YouRateLimitError{RetryAfter: wait, Keyed: p.Keyed()}
+	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, p.timeout)
 	defer cancel()

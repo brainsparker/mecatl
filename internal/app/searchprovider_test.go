@@ -140,11 +140,37 @@ func TestBuildSearchProviderPrecedence(t *testing.T) {
 		}
 	})
 
-	t.Run("BRAVE_API_KEY beats You.com", func(t *testing.T) {
+	t.Run("--websearch=you with YDC_API_KEY => keyed You.com provider", func(t *testing.T) {
 		d := &searchDiag{}
-		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, BraveAPIKey: braveKey, WebSearchYou: true, YouAPIKey: "k"})
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, WebSearchYou: true, YouAPIKey: "ydc-secret-key"})
+		you, ok := p.(*refsearch.YouProvider)
+		if !ok {
+			t.Fatalf("WebSearchYou should resolve to *YouProvider, got %T", p)
+		}
+		if !you.Keyed() || you.Endpoint() != "https://ydc-index.io/v1/search" || !strings.Contains(d.all(), "mode keyed") || strings.Contains(d.all(), "ydc-secret-key") {
+			t.Fatalf("expected the keyed endpoint without leaking the key; endpoint=%q log:\n%s", you.Endpoint(), d.all())
+		}
+	})
+
+	t.Run("--websearch=you beats Brave and SearXNG", func(t *testing.T) {
+		d := &searchDiag{}
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: d, WebSearchYou: true, BraveAPIKey: braveKey, SearXNGURL: "https://searx.example/search"})
+		if _, ok := p.(*refsearch.YouProvider); !ok {
+			t.Fatalf("explicit --websearch=you should win, got %T; log:\n%s", p, d.all())
+		}
+	})
+
+	t.Run("explicit --websearch-url beats --websearch=you", func(t *testing.T) {
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: &searchDiag{}, WebSearchYou: true, WebSearchURL: "https://flag.example/search"})
 		if _, ok := p.(*refsearch.HTTPProvider); !ok {
-			t.Fatalf("Brave should still win, got %T", p)
+			t.Fatalf("explicit URL should win, got %T", p)
+		}
+	})
+
+	t.Run("BRAVE_API_KEY beats a key-only YDC_API_KEY", func(t *testing.T) {
+		p := buildSearchProvider(context.Background(), Config{Diagnostics: &searchDiag{}, BraveAPIKey: braveKey, YouAPIKey: "k"})
+		if _, ok := p.(*refsearch.HTTPProvider); !ok {
+			t.Fatalf("Brave should win over a key-only YDC_API_KEY, got %T", p)
 		}
 	})
 

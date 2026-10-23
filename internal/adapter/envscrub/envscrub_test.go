@@ -2,6 +2,7 @@ package envscrub
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -105,5 +106,26 @@ func TestScrubDropsFutureMecatlNames(t *testing.T) {
 		if !slices.Contains(got, keep) {
 			t.Errorf("Scrub dropped benign toolchain variable %q; got %v", keep, got)
 		}
+	}
+}
+
+// TestScrubDropsYouComKey asserts YDC_API_KEY is removed by Scrub and is in
+// DenyExact and NonOverridableExact, so an inheritance grant cannot restore it.
+// (It already matches the _API_KEY suffix rule; these assertions do not rely on that.)
+func TestScrubDropsYouComKey(t *testing.T) {
+	got := Scrub([]string{"PATH=/usr/bin", "YDC_API_KEY=ydc-secret"})
+	for _, kv := range got {
+		if strings.HasPrefix(kv, "YDC_API_KEY=") {
+			t.Fatalf("Scrub leaked %q", kv)
+		}
+	}
+	if !slices.Contains(got, "PATH=/usr/bin") {
+		t.Fatalf("Scrub dropped PATH: %v", got)
+	}
+	if _, ok := DenyExact["YDC_API_KEY"]; !ok {
+		t.Fatal("YDC_API_KEY missing from DenyExact")
+	}
+	if _, ok := NonOverridableExact["YDC_API_KEY"]; !ok {
+		t.Fatal("YDC_API_KEY missing from NonOverridableExact")
 	}
 }

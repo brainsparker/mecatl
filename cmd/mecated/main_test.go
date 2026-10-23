@@ -1110,3 +1110,13 @@ func TestAdminMuxMountsPerfMCP(t *testing.T) {
 		t.Errorf("POST /mcp status = %d, want 404 when --perf-mcp is off", resp.StatusCode)
 	}
 }
+
+func TestWebSearchYouConflictsWithExplicitURL(t *testing.T) {
+	if _, err := parseFlags([]string{"--websearch=you", "--websearch-url=https://flag.example/search"}); err == nil || !strings.Contains(err.Error(), "set only one") {
+		t.Fatalf("--websearch=you with --websearch-url: err = %v, want a conflict error", err)
+	}
+	cfg, err := parseFlags([]string{"--websearch=you"})
+	if err != nil || !cfg.websearchYou || cfg.websearchOff {
+		t.Fatalf("--websearch=you: you=%v off=%v err=%v", cfg.websearchYou, cfg.websearchOff, err)
+	}
+}
