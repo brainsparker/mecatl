@@ -1,9 +1,12 @@
 package server
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -76,5 +79,328 @@ func TestIdentityBrokerOpensOnlyForRootSessions(t *testing.T) {
 	}
 	if _, ok, err := broker.FindSession(t.Context(), identitybroker.FindSessionRequest{RootHostSessionID: string(root.ID)}); err != nil || !ok {
 		t.Fatalf("the root session got no broker session (found=%v, err=%v)", ok, err)
+	}
+}
+
+func TestIdentityAgentDefinition(t *testing.T) {
+	ref := session.EnvironmentRef{Kind: session.EnvKindLocal, ID: "/ws", Revision: "in-tree-v1"}
+	sess := session.New("s", session.ModeDefault, ref, session.Limits{}, time.Unix(1, 0))
+	if got := identityAgentDefinition(sess); got != (identitybroker.DefinitionRef{Source: "system", Name: "main"}) {
+		t.Fatalf("definition of an ordinary session = %+v, want system/main", got)
+	}
+	sess.AgentDefinitionName = "reviewer"
+	if got := identityAgentDefinition(sess); got != (identitybroker.DefinitionRef{Name: "reviewer"}) {
+		t.Fatalf("definition of a named session = %+v, want reviewer with no source", got)
+	}
+}
+
+// newRegisteringService returns a Service with the real identity broker, and
+// a saved-looking root session with an owner. configure, if given, adjusts the
+// Config before the Service is built.
+func newRegisteringService(t *testing.T, configure ...func(*Config)) (*Service, *session.Session) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	core, err := identitybroker.New(identitybroker.Config{
+		TrustDomain: "agents.example.com", Audience: "https://broker.example.com", CredentialLifetime: 5 * time.Minute,
+	}, nil, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{
+		Engine:            brokerEngineResult().Engine,
+		Store:             memstore.New(),
+		PlacementProvider: brokerPlacementProvider{},
+		PlacementScope:    "test",
+		IdentityBroker:    identitybroker.NewInProcess(identitybroker.UnverifiedAuthenticator{Name: "mecak8s-test"}, core),
+	}
+	for _, c := range configure {
+		c(&cfg)
+	}
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	t.Cleanup(svc.Close)
+	ref := session.EnvironmentRef{Kind: session.EnvKindLocal, ID: "/ws", Revision: "in-tree-v1"}
+	sess := session.New("root", session.ModeDefault, ref, session.Limits{}, time.Unix(1, 0))
+	if err := sess.RestoreLabels(&session.Principal{Issuer: "https://login.example.com", Subject: "alice-204", GrantType: session.GrantTypeUser}, session.Authority{}); err != nil {
+		t.Fatal(err)
+	}
+	return svc, sess
+}
+
+func TestACredentialHeldForAnotherIncarnationIsReplaced(t *testing.T) {
+	svc, sess := newRegisteringService(t)
+	// Left from an earlier incarnation of this session ID, as a session
+	// recreated elsewhere would leave it.
+	stale := identityAgent{
+		incarnation:     string(session.NewIncarnationID()),
+		brokerSessionID: "bs_stale",
+		registration:    identitybroker.Registration{Agent: identitybroker.AgentRef{Subject: "spiffe://agents.example.com/mecatl/agent/shared/inst/stale"}},
+		renewAt:         time.Now().Add(time.Hour),
+	}
+	svc.mu.Lock()
+	svc.identityAgents[sess.ID] = stale
+	svc.mu.Unlock()
+	if err := svc.openIdentityBrokerSession(t.Context(), sess); err != nil {
+		t.Fatalf("openIdentityBrokerSession with a stale credential held: %v", err)
+	}
+	svc.mu.Lock()
+	got := svc.identityAgents[sess.ID]
+	svc.mu.Unlock()
+	if got.incarnation != string(sess.Incarnation()) || got.registration.Agent == stale.registration.Agent {
+		t.Fatalf("held credential = %+v, want the current incarnation's agent", got)
+	}
+}
+
+func TestClosingASessionDropsItsHeldCredential(t *testing.T) {
+	svc, sess := newRegisteringService(t)
+	if err := svc.openIdentityBrokerSession(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	held := func() bool {
+		svc.mu.Lock()
+		defer svc.mu.Unlock()
+		_, ok := svc.identityAgents[sess.ID]
+		return ok
+	}
+	if !held() {
+		t.Fatal("no credential is held after registration")
+	}
+	svc.CloseSession(sess.ID)
+	if held() {
+		t.Fatal("a closed session kept its agent's credential")
+	}
+}
+
+func TestEndingAScheduledRunDropsItsHeldCredential(t *testing.T) {
+	svc, sess := newRegisteringService(t)
+	sess.Kind = session.SessionKindScheduled
+	if err := svc.openIdentityBrokerSession(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	svc.EndScheduledRun(t.Context(), sess)
+	svc.mu.Lock()
+	_, ok := svc.identityAgents[sess.ID]
+	svc.mu.Unlock()
+	if ok {
+		t.Fatal("an ended scheduled run kept its agent's credential")
+	}
+}
+
+func TestTeamRootRegistrationWaitsForRunEntry(t *testing.T) {
+	svc, sess := newRegisteringService(t)
+	if err := svc.cfg.Store.Save(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	unlock := svc.runEntryMu.lock(sess.ID)
+	done := make(chan error, 1)
+	go func() { done <- svc.openTeamRootIdentityBrokerSession(t.Context(), sess.ID) }()
+	select {
+	case err := <-done:
+		unlock()
+		t.Fatalf("team root registered while run entry held the session: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlock()
+	if err := <-done; err != nil {
+		t.Fatalf("team root registration: %v", err)
+	}
+}
+
+// hookedBroker wraps a broker: beforeRegister runs before each RegisterAgent,
+// and stallFind makes FindSession wait for its context, as a hung remote
+// broker would.
+type hookedBroker struct {
+	identitybroker.Service
+	beforeRegister func()
+	stallFind      bool
+}
+
+func (b *hookedBroker) RegisterAgent(ctx context.Context, req identitybroker.RegisterAgentRequest) (identitybroker.Registration, error) {
+	if b.beforeRegister != nil {
+		b.beforeRegister()
+	}
+	return b.Service.RegisterAgent(ctx, req)
+}
+
+func (b *hookedBroker) FindSession(ctx context.Context, req identitybroker.FindSessionRequest) (identitybroker.Session, bool, error) {
+	if b.stallFind {
+		<-ctx.Done()
+		return identitybroker.Session{}, false, ctx.Err()
+	}
+	return b.Service.FindSession(ctx, req)
+}
+
+func withHookedBroker(b *hookedBroker) func(*Config) {
+	return func(cfg *Config) {
+		b.Service = cfg.IdentityBroker
+		cfg.IdentityBroker = b
+	}
+}
+
+func TestSavedRegistrationWaitsForRunEntry(t *testing.T) {
+	// Create, fork, and clear register through openSavedIdentityBrokerSession.
+	svc, sess := newRegisteringService(t)
+	if err := svc.cfg.Store.Save(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	unlock := svc.runEntryMu.lock(sess.ID)
+	done := make(chan error, 1)
+	go func() { done <- svc.openSavedIdentityBrokerSession(t.Context(), sess.ID) }()
+	select {
+	case err := <-done:
+		unlock()
+		t.Fatalf("create, fork, or clear registered while run entry held the session: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlock()
+	if err := <-done; err != nil {
+		t.Fatalf("registration: %v", err)
+	}
+}
+
+func TestSavedRegistrationLogsWhatItsCallersDiscard(t *testing.T) {
+	diag := &attemptRecordingDiagnostics{}
+	svc, sess := newRegisteringService(t, func(cfg *Config) { cfg.Diagnostics = diag })
+	// A session that is gone from the store, as a racing delete leaves it.
+	if err := svc.openSavedIdentityBrokerSession(t.Context(), sess.ID); err == nil {
+		t.Fatal("registration for an unsaved session succeeded")
+	}
+	if !slices.Contains(diag.entries, "identity broker registration could not load the session") {
+		t.Fatalf("a failed load was not logged: %q", diag.entries)
+	}
+	if err := svc.cfg.Store.Save(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	svc.mu.Lock()
+	svc.lostOwnership[sess.ID] = struct{}{}
+	svc.mu.Unlock()
+	if err := svc.openSavedIdentityBrokerSession(t.Context(), sess.ID); !errors.Is(err, ErrSessionLeasedElsewhere) {
+		t.Fatalf("registration after a lost lease = %v, want ErrSessionLeasedElsewhere", err)
+	}
+	if !slices.Contains(diag.entries, "identity broker registration refused: the session's lease was lost or the server is closing") {
+		t.Fatalf("a lost-lease refusal was not logged: %q", diag.entries)
+	}
+}
+
+func TestARegistrationFinishingAfterCloseStoresNothing(t *testing.T) {
+	broker := &hookedBroker{}
+	svc, sess := newRegisteringService(t, withHookedBroker(broker))
+	// The server shuts down while the broker call is in flight.
+	broker.beforeRegister = svc.Close
+	if err := svc.openIdentityBrokerSession(t.Context(), sess); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("registration finishing after Close = %v, want ErrUnavailable", err)
+	}
+	svc.mu.Lock()
+	_, held := svc.identityAgents[sess.ID]
+	svc.mu.Unlock()
+	if held {
+		t.Fatal("a registration that finished after Close stored its credential")
+	}
+}
+
+func TestTeamRootRegistrationIsBounded(t *testing.T) {
+	prev := engineCloseTimeout
+	engineCloseTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { engineCloseTimeout = prev })
+	broker := &hookedBroker{stallFind: true}
+	svc, sess := newRegisteringService(t, withHookedBroker(broker))
+	if err := svc.cfg.Store.Save(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- svc.openTeamRootIdentityBrokerSession(t.Context(), sess.ID) }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, ErrIdentityBrokerUnavailable) {
+			t.Fatalf("team root registration with a hung broker = %v, want ErrIdentityBrokerUnavailable", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("team root registration waited on a hung broker")
+	}
+}
+
+func TestALostLeaseKeepsNoCredential(t *testing.T) {
+	svc, sess := newRegisteringService(t)
+	// The lease is lost while registration is in flight: the tombstone is
+	// already set when the credential would be recorded.
+	svc.mu.Lock()
+	svc.lostOwnership[sess.ID] = struct{}{}
+	svc.mu.Unlock()
+	// The run must not start without a credential: registration refuses it.
+	if err := svc.openIdentityBrokerSession(t.Context(), sess); !errors.Is(err, ErrSessionLeasedElsewhere) {
+		t.Fatalf("registration after a lost lease = %v, want ErrSessionLeasedElsewhere", err)
+	}
+	svc.mu.Lock()
+	_, held := svc.identityAgents[sess.ID]
+	svc.mu.Unlock()
+	if held {
+		t.Fatal("a session whose lease was lost holds its agent's credential")
+	}
+}
+
+func TestLosingTheLeaseDropsTheHeldCredential(t *testing.T) {
+	svc, sess := newRegisteringService(t, func(cfg *Config) {
+		// Every renew reports the lease taken, so the renewer declares the
+		// loss through onLeaseLost on its first tick.
+		cfg.SessionLease = immediateLeaseLoss{}
+		cfg.LeaseOwner = "test"
+		cfg.LeaseTTL = time.Hour
+		cfg.LeaseRenewInterval = time.Millisecond
+	})
+	if err := svc.openIdentityBrokerSession(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	svc.mu.Lock()
+	_, held := svc.identityAgents[sess.ID]
+	svc.mu.Unlock()
+	if !held {
+		t.Fatal("no credential is held after registration")
+	}
+	if err := svc.acquireLease(t.Context(), sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		svc.mu.Lock()
+		_, lost := svc.lostOwnership[sess.ID]
+		_, held = svc.identityAgents[sess.ID]
+		svc.mu.Unlock()
+		if lost {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the lease loss was never declared")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if held {
+		t.Fatal("a session whose lease was lost kept its agent's credential")
+	}
+}
+
+func TestADeletedSessionGetsNoBrokerSession(t *testing.T) {
+	svc, sess := newRegisteringService(t)
+	// A delete that won the lock before create's registration: the session is
+	// gone from the store.
+	if err := svc.openSavedIdentityBrokerSession(t.Context(), sess.ID); err == nil {
+		t.Fatal("opening a broker session for an unsaved session succeeded")
+	}
+	if _, found, err := svc.cfg.IdentityBroker.FindSession(t.Context(), identitybroker.FindSessionRequest{RootHostSessionID: string(sess.ID)}); err != nil || found {
+		t.Fatalf("a deleted session got a broker session (found=%v, err=%v)", found, err)
+	}
+	// Positive control: once saved, the same call opens one.
+	if err := svc.cfg.Store.Save(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.openSavedIdentityBrokerSession(t.Context(), sess.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, found, err := svc.cfg.IdentityBroker.FindSession(t.Context(), identitybroker.FindSessionRequest{RootHostSessionID: string(sess.ID)}); err != nil || !found {
+		t.Fatalf("a saved session got no broker session (found=%v, err=%v)", found, err)
 	}
 }

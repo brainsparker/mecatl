@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,10 +31,28 @@ var brokerAlice = &session.Principal{Issuer: "https://login.example.com", Subjec
 type recordingBroker struct {
 	inner identitybroker.Service
 
-	mu          sync.Mutex
-	opens       []identitybroker.OpenSessionRequest
-	closes      []identitybroker.CloseSessionRequest
+	mu        sync.Mutex
+	opens     []identitybroker.OpenSessionRequest
+	closes    []identitybroker.CloseSessionRequest
+	registers []identitybroker.RegisterAgentRequest
+	// registered holds the registrations the broker accepted.
+	registered  []identitybroker.RegisterAgentRequest
 	unavailable bool
+	// registerUnavailable makes only RegisterAgent fail as unavailable.
+	registerUnavailable bool
+	// beforeRegister, when set, runs before each RegisterAgent reaches the
+	// broker.
+	beforeRegister func(identitybroker.RegisterAgentRequest)
+	// otherAgent makes RegisterAgent return another agent than registered.
+	otherAgent bool
+	// renamedAgent makes RegisterAgent return another agent whose SPIFFE ID
+	// still ends in the registered incarnation.
+	renamedAgent bool
+	// registerErr, when set, makes RegisterAgent fail with it.
+	registerErr error
+	// editRegistration, when set, changes each registration RegisterAgent
+	// returns.
+	editRegistration func(*identitybroker.Registration)
 }
 
 // newRecordingBroker wraps the real identity broker, so these tests exercise
@@ -97,7 +116,57 @@ func (b *recordingBroker) CloseSession(ctx context.Context, req identitybroker.C
 }
 
 func (b *recordingBroker) RegisterAgent(ctx context.Context, req identitybroker.RegisterAgentRequest) (identitybroker.Registration, error) {
-	return b.inner.RegisterAgent(ctx, req)
+	if err := b.down(); err != nil {
+		return identitybroker.Registration{}, err
+	}
+	b.mu.Lock()
+	b.registers = append(b.registers, req)
+	registerDown, hook, other, renamed := b.registerUnavailable, b.beforeRegister, b.otherAgent, b.renamedAgent
+	registerErr, edit := b.registerErr, b.editRegistration
+	b.mu.Unlock()
+	if registerDown {
+		return identitybroker.Registration{}, identitybroker.NewError(identitybroker.CodeUnavailable, "", "test broker cannot register")
+	}
+	if registerErr != nil {
+		return identitybroker.Registration{}, registerErr
+	}
+	if hook != nil {
+		hook(req)
+	}
+	reg, err := b.inner.RegisterAgent(ctx, req)
+	if err == nil {
+		b.mu.Lock()
+		b.registered = append(b.registered, req)
+		b.mu.Unlock()
+	}
+	if err == nil && other {
+		reg.Agent.Subject += "-other"
+	}
+	if err == nil && renamed {
+		reg.Agent.Subject = strings.Replace(reg.Agent.Subject, "/shared/", "/renamed/", 1)
+	}
+	if err == nil && edit != nil {
+		edit(&reg)
+	}
+	return reg, err
+}
+
+func (b *recordingBroker) registerRequests() []identitybroker.RegisterAgentRequest {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]identitybroker.RegisterAgentRequest(nil), b.registers...)
+}
+
+func (b *recordingBroker) acceptedRegistrations() []identitybroker.RegisterAgentRequest {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]identitybroker.RegisterAgentRequest(nil), b.registered...)
+}
+
+func (b *recordingBroker) set(f func(*recordingBroker)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	f(b)
 }
 
 func (b *recordingBroker) AuthorizeCall(ctx context.Context, req identitybroker.AuthorizeCallRequest) (identitybroker.Authorization, error) {
@@ -550,7 +619,7 @@ func TestIdentityBrokerTeamRunOpensTheRootSession(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			wantBrokerSession(t, broker, source)
+			wantRegistered(t, broker, wantBrokerSession(t, broker, source), source)
 		})
 	}
 }
