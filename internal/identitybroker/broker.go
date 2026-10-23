@@ -1,13 +1,19 @@
 // Package identitybroker is the in-process core of the agent identity broker.
 //
 // Service is the contract for the whole identity broker: Mecatl calls it, and
-// only it, whether the broker runs in process or as its own service. Package
-// standin provides a trivial implementation until the real one exists, and
-// package conformance holds the contract tests every implementation passes.
+// only it, whether the broker runs in process or as its own service. Core is
+// the broker side of that contract, with the authenticated workload on every
+// call; NewInProcess joins the two through an Authenticator. Broker is the
+// Core, and package conformance holds the contract tests every implementation
+// passes.
 //
 // New validates explicitly supplied configuration, an ECDSA P-256 (ES256)
 // signing capability, and already-loaded definition records, and returns a Broker
-// holding an independently owned snapshot of them. The snapshot holds only
+// holding an independently owned snapshot of them, and no broker sessions. The
+// broker signs agent credentials (JWT-SVIDs) with the signer and verifies them
+// itself, for Mecatl's calls and for AS-1. Every agent has the shared agent
+// identity: one ag_ identifier generated per process, and a SPIFFE ID under one
+// shared path that differs only by incarnation. The snapshot holds only
 // definitions the broker loads itself, operator-loaded global definitions and
 // system built-ins; repository definitions never enter it. The package performs no
 // file, environment, or network access; source loading and transport belong
@@ -32,12 +38,18 @@ var (
 	ErrConflictingDefinition = errors.New("identitybroker: conflicting definition records")
 )
 
-// Broker holds the validated startup state. Its state is immutable after New,
-// so its methods are safe for concurrent use.
+// Broker is the identity broker core. Its startup state is immutable after
+// New; its broker sessions are guarded by a mutex. Its methods are safe for
+// concurrent use.
 type Broker struct {
 	config      Config
-	signer      crypto.Signer
 	definitions map[DefinitionRef]DefinitionRecord
+	issuer      credentialIssuer
+	// agentID is the shared agent identity's ag_ identifier, generated for
+	// this process.
+	agentID string
+
+	sessions *sessionTable
 }
 
 // New validates its inputs and returns a ready Broker, or an error wrapping one
@@ -55,7 +67,7 @@ func New(config Config, definitions []DefinitionRecord, signer crypto.Signer) (*
 	if err := config.validate(); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}
-	signer, err := checkSigner(signer)
+	signer, pub, err := checkSigner(signer)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidSigner, err)
 	}
@@ -63,7 +75,17 @@ func New(config Config, definitions []DefinitionRecord, signer crypto.Signer) (*
 	if err != nil {
 		return nil, err
 	}
-	return &Broker{config: config, signer: signer, definitions: snapshot}, nil
+	issuer, err := newCredentialIssuer(config, signer, pub)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidSigner, err)
+	}
+	return &Broker{
+		config:      config,
+		definitions: snapshot,
+		issuer:      issuer,
+		agentID:     newAgentID(),
+		sessions:    newSessionTable(),
+	}, nil
 }
 
 // Definition returns a copy of the loaded record for ref, and whether one
@@ -76,28 +98,44 @@ func (b *Broker) Definition(ref DefinitionRef) (DefinitionRecord, bool) {
 	return rec.clone(), true
 }
 
-func checkSigner(signer crypto.Signer) (crypto.Signer, error) {
+// checkSigner returns the signer the broker keeps, and its P-256 public key.
+func checkSigner(signer crypto.Signer) (crypto.Signer, *ecdsa.PublicKey, error) {
 	if signer == nil {
-		return nil, errors.New("a signer is required")
+		return nil, nil, errors.New("a signer is required")
 	}
 	// A raw key is caller-owned memory: copy it so caller mutation cannot alter it.
 	if key, ok := signer.(*ecdsa.PrivateKey); ok {
 		if key == nil {
-			return nil, errors.New("a signer is required")
+			return nil, nil, errors.New("a signer is required")
 		}
 		if key.Curve != elliptic.P256() {
-			return nil, errors.New("only ECDSA P-256 (ES256) signers are supported")
+			return nil, nil, errors.New("only ECDSA P-256 (ES256) signers are supported")
 		}
-		return copyP256Key(key)
+		dup, err := copyP256Key(key)
+		if err != nil {
+			return nil, nil, err
+		}
+		return dup, &dup.PublicKey, nil
 	}
 	pub, err := publicKey(signer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if ecPub, ok := pub.(*ecdsa.PublicKey); !ok || ecPub == nil || ecPub.Curve != elliptic.P256() {
-		return nil, fmt.Errorf("only ECDSA P-256 (ES256) signers are supported, got public key type %T", pub)
+	ecPub, ok := pub.(*ecdsa.PublicKey)
+	if !ok || ecPub == nil || ecPub.Curve != elliptic.P256() {
+		return nil, nil, fmt.Errorf("only ECDSA P-256 (ES256) signers are supported, got public key type %T", pub)
 	}
-	return signer, nil
+	// The signer's public key is caller-owned memory: copy it, so caller
+	// mutation cannot change the key credentials verify against.
+	point, err := ecPub.Bytes()
+	if err != nil {
+		return nil, nil, fmt.Errorf("ecdsa public key: %w", err)
+	}
+	dup, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), point)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ecdsa public key: %w", err)
+	}
+	return signer, dup, nil
 }
 
 // copyP256Key returns an independent copy of key. The copy derives its public

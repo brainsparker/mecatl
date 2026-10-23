@@ -6,7 +6,7 @@ image:
   # Release PRs keep this signed tag aligned with Chart.yaml. A digest overrides
   # it; clearing both selectors falls back to v<chart-version>.
   digest: ""
-  tag: "v0.0.49"
+  tag: "v0.0.50"
   pullPolicy: IfNotPresent
 
 # imagePullSecrets projects Secret(s) of type kubernetes.io/dockerconfigjson
@@ -91,6 +91,14 @@ extraVolumeMounts: []
 # skill locations remain gated on explicit project trust.
 skills:
   autoDiscover: false
+
+# Fire scheduled tasks automatically. One replica, elected through a Kubernetes
+# Lease, runs the scheduler; the others stand by and take over if it stops. Set
+# enabled: false to render --no-scheduler: schedules can still be created,
+# listed, inspected, paused, and deleted, but nothing fires them, including
+# FireNow, which returns scheduler_not_running.
+scheduler:
+  enabled: true
 
 # Run one pod for lower resource usage and simpler session routing, at the cost of
 # high availability. The PDB is omitted at this value, so voluntary eviction can

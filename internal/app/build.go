@@ -92,6 +92,7 @@ import (
 	"github.com/stacklok/mecatl/internal/adapter/tools"
 	"github.com/stacklok/mecatl/internal/adapter/xdgconfig"
 	"github.com/stacklok/mecatl/internal/buildinfo"
+	"github.com/stacklok/mecatl/internal/identitybroker"
 	"github.com/stacklok/mecatl/internal/syscaller"
 	"github.com/stacklok/mecatl/provider/openai"
 )
@@ -976,6 +977,14 @@ type Config struct {
 	MCPBrokerAuthorizedCaller mcpbroker.AuthorizedCaller
 	MCPBrokerQueryCaller      mcpbroker.QueryCaller
 	MCPBrokerOptions          []mcpbroker.Option
+	// IdentityBroker starts the experimental agent identity broker. Only
+	// mecak8s sets it.
+	IdentityBroker bool
+	// identityBrokerCore replaces the real identity broker in tests.
+	identityBrokerCore identitybroker.Core
+	// identityBrokerConfig replaces the real identity broker's interim
+	// configuration in tests.
+	identityBrokerConfig *identitybroker.Config
 	// MCPProfileLoader resolves operator-tier profiles with the same permission
 	// resolver Build already owns. Command roots install it so settings are not
 	// parsed a second time and secret lookup remains a runtime-only operation.
@@ -1539,6 +1548,9 @@ type Built struct {
 	MCPBroker             *mcpbroker.Runtime
 	MCPBrokerHandlers     mcpbroker.HandlerBundle
 	MCPBrokerCallbackPath string
+	// IdentityBroker is the agent identity broker, as Mecatl calls it; nil when
+	// it is not enabled. Close releases it.
+	IdentityBroker identitybroker.Service
 	// GuardrailsAdvisory reports a configured checker demoted to advisory for
 	// sessions in the server's default mode (yolo); other modes keep it enforcing.
 	GuardrailsAdvisory bool
@@ -2265,6 +2277,23 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	}
 	logMCPInventory(ctx, cfg.diag(), mcpInventory)
 
+	// The identity broker is released after the MCP broker, on startup failure
+	// and on shutdown.
+	identityBroker, releaseIdentityBroker, err := buildIdentityBroker(cfg)
+	if err != nil {
+		childLiveness.Close()
+		mcpClose()
+		agentClose()
+		storeClose()
+		commandConnClose()
+		return nil, err
+	}
+	defer func() {
+		if !profilesTransferred {
+			releaseIdentityBroker()
+		}
+	}()
+
 	var brokerRuntime *mcpbroker.Runtime
 	var brokerProcess *mcpbroker.Process
 	var brokerHandlers mcpbroker.HandlerBundle
@@ -2980,6 +3009,9 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 	if brokerRuntime != nil {
 		svcCfg.MCPBroker = brokerRuntime
 	}
+	// The session code gets the same boundary Built.IdentityBroker exposes; nil
+	// when the flag is off.
+	svcCfg.IdentityBroker = identityBroker
 	// Workspace enrollment (pre-prompt authenticate-then-discover) applies only
 	// to the bundled ToolHive Process path: a plain Compile-based Runtime has no
 	// live discovery primitive and never satisfies the enrollment boundary.
@@ -3076,6 +3108,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		}
 		childLiveness.Close()
 		closeBroker()
+		releaseIdentityBroker()
 		mcpClose()
 		closeProfiles()
 		agentClose()
@@ -3094,7 +3127,7 @@ func Build(ctx context.Context, cfg Config) (*Built, error) {
 		diag.Log(ctx, port.LevelWarn, "durable automatic reservation reconciliation unavailable")
 	})
 	attempts = startAttemptRecovery(ctx, cfg, reg, store, eventLog, assets.attemptRepository, assets.reflectionRepository, assets, placementProvider, placementScope)
-	return &Built{Service: svc, MCPBroker: brokerRuntime, MCPBrokerHandlers: brokerHandlers, MCPBrokerCallbackPath: brokerCallbackPath, GuardrailsAdvisory: guardrailConfigured && guardrailsDemoted(cfg), Close: closeAll}, nil
+	return &Built{Service: svc, MCPBroker: brokerRuntime, MCPBrokerHandlers: brokerHandlers, MCPBrokerCallbackPath: brokerCallbackPath, IdentityBroker: identityBroker, GuardrailsAdvisory: guardrailConfigured && guardrailsDemoted(cfg), Close: closeAll}, nil
 }
 
 // resolveAgentSeam resolves the agent-definition registry from cfg: the

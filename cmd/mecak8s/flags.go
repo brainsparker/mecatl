@@ -298,6 +298,9 @@ type config struct {
 	enableParallel bool
 	enableTeams    bool
 
+	// enableIdentityBroker starts the experimental agent identity broker.
+	enableIdentityBroker bool
+
 	// Scheduled tasks (issue #189): the in-process scheduler.
 	// mecak8s is the multi-replica home — the leader-lease (the k8s session-lease
 	// backend) elects one ticker. ON by default on a schedule-capable store (the
@@ -506,6 +509,7 @@ func parseFlags(argv []string) (config, error) {
 	// Fan-out / teams toggles.
 	fs.BoolVar(&cfg.enableParallel, "enable-parallel", false, "Enable the Parallel tool for isolated child branches")
 	fs.BoolVar(&cfg.enableTeams, "enable-teams", false, "Enable the experimental agent-team capability")
+	fs.BoolVar(&cfg.enableIdentityBroker, "enable-identity-broker", false, "Start the experimental agent identity broker, which gives each signed-in user's session a broker session. Supports a single replica only, requires no shell in this process (--no-shell, or --shell \"\" with Kubernetes execution, which keeps the remote Shell), and blocks the tool calls of agent definitions that have hooks")
 
 	// Headless telemetry (issue #343): OPT-IN. --metrics-addr mounts a
 	// SEPARATE loopback /metrics listener (the admin mux — Prometheus scrape).
@@ -817,6 +821,7 @@ func appConfig(cfg config, diag port.Diagnostics, obs observability) app.Config 
 		ProviderOverrides:        cfg.providerFlags.EndpointOverrides(),
 		EnableParallel:           cfg.enableParallel,
 		EnableTeams:              cfg.enableTeams,
+		IdentityBroker:           cfg.enableIdentityBroker,
 		SoulPath:                 cfg.soulFile,
 		NoSoul:                   cfg.noSoul,
 		UserModelDir:             cfg.userModelDir,
